@@ -1,10 +1,11 @@
 # Validação remota do wabridge no emulador (Windows).
-# Executado pelo agente da outra máquina:
+# Não depende de git: baixa o repositório em tarball e constrói a partir dele.
+#
 #   C:\Windows\System32\curl.exe -sL https://raw.githubusercontent.com/KelvinKSPS/wabridge/master/scripts/remote-validate.ps1 -o v.ps1
 #   C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -ExecutionPolicy Bypass -File v.ps1
 
 $ErrorActionPreference = "Continue"
-$repo = "C:\Users\sarke\wabridge"
+$work = "C:\Users\sarke\wabridge-check"
 $log = @()
 
 function Say($text) {
@@ -15,33 +16,41 @@ function Say($text) {
 $env:JAVA_HOME = "C:\Program Files\Java\jdk-17"
 $env:ANDROID_HOME = "C:\Users\sarke\AppData\Local\Android\Sdk"
 $env:ANDROID_SDK_ROOT = $env:ANDROID_HOME
+$curl = "C:\Windows\System32\curl.exe"
 $adb = "$env:ANDROID_HOME\platform-tools\adb.exe"
 $emu = "$env:ANDROID_HOME\emulator\emulator.exe"
 
-# git pode não estar no PATH: tenta o caminho padrão do Git for Windows
-$git = "git"
-if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-  foreach ($c in @("C:\Program Files\Git\cmd\git.exe", "C:\Program Files\Git\bin\git.exe")) {
-    if (Test-Path $c) { $git = $c; break }
-  }
+# git pode não existir na máquina: o build usa o tarball do GitHub
+$git = $null
+foreach ($c in @(
+  "C:\Program Files\Git\cmd\git.exe",
+  "C:\Program Files\Git\bin\git.exe",
+  "C:\Users\sarke\AppData\Local\Programs\Git\cmd\git.exe")) {
+  if (Test-Path $c) { $git = $c; break }
 }
+if (-not $git -and (Get-Command git -ErrorAction SilentlyContinue)) { $git = "git" }
 
 Say "### Ambiente"
-Say ("git:    " + $git)
-Say ("adb:    " + (Test-Path $adb))
-Say ("emu:    " + (Test-Path $emu))
-Say ("java:   " + (& "$env:JAVA_HOME\bin\java.exe" -version 2>&1 | Select-Object -First 1))
+Say ("curl: " + (Test-Path $curl))
+Say ("adb:  " + (Test-Path $adb))
+Say ("emu:  " + (Test-Path $emu))
+Say ("git:  " + $git)
 
-Set-Location $repo
+# ---- baixa o repositório ----------------------------------------------
+Say "### baixando o repositorio"
+if (Test-Path $work) { Remove-Item $work -Recurse -Force -ErrorAction SilentlyContinue }
+New-Item -ItemType Directory -Path $work -Force | Out-Null
+& $curl -sL "https://github.com/KelvinKSPS/wabridge/archive/refs/heads/master.tar.gz" -o "$work\repo.tar.gz"
+& "$env:SystemRoot\System32\tar.exe" -xzf "$work\repo.tar.gz" -C $work 2>&1 | Out-Null
+$repo = (Get-ChildItem $work -Directory | Where-Object { $_.Name -like "wabridge-*" } | Select-Object -First 1).FullName
+Say ("repo extraido: " + $repo)
+if (-not $repo) { Say "falha ao extrair o repositorio"; Write-Host "WABRIDGE-RESULTADO: FALHOU"; exit 1 }
 
-Say "### git pull"
-Say ((& $git pull 2>&1) -join "`n")
-
+# ---- build -------------------------------------------------------------
 Set-Location "$repo\android-bridge"
-
 Say "### gradlew assembleDebug assembleRelease"
 $build = (& .\gradlew.bat assembleDebug assembleRelease --console=plain 2>&1) -join "`n"
-$build | Select-Object -Last 30 | ForEach-Object { Say $_ }
+($build -split "`n" | Select-Object -Last 25) | ForEach-Object { Say $_ }
 $buildOk = $build -match "BUILD SUCCESSFUL"
 
 $apk = "$repo\android-bridge\app\build\outputs\apk\release\app-release.apk"
@@ -64,7 +73,7 @@ if ($devices -notmatch "device$") {
   $first = ($avds -split "`n" | Where-Object { $_.Trim() -ne "" } | Select-Object -First 1)
   if ($first) {
     Start-Process -FilePath $emu -ArgumentList "-avd", $first.Trim(), "-no-snapshot", "-no-boot-anim" | Out-Null
-    Say "esperando o emulador subir"
+    Say "esperando o emulador"
     & $adb wait-for-device
     for ($i = 0; $i -lt 60; $i++) {
       $boot = (& $adb shell getprop sys.boot_completed 2>&1) -join ""
@@ -105,21 +114,22 @@ if ($hasDevice) {
 
   Say "### screenshot"
   & $adb shell screencap -p /sdcard/wabridge.png 2>&1 | Out-Null
-  & $adb pull /sdcard/wabridge.png "$repo\wabridge-emulador.png" 2>&1 | Out-Null
-  Say "screenshot em wabridge-emulador.png"
+  & $adb pull /sdcard/wabridge.png "$work\wabridge-emulador.png" 2>&1 | Out-Null
+  Say "screenshot em $work\wabridge-emulador.png"
 
   Say "### crash?"
   $crash = (& $adb logcat -d 2>&1 | Select-String "FATAL EXCEPTION|ANR in com.orangepi.wabridge" | Select-Object -First 20) -join "`n"
   if ([string]::IsNullOrWhiteSpace($crash)) { Say "sem crash no logcat" } else { Say $crash }
 
   Say "### logs do app"
-  Say ((& $adb logcat -d 2>&1 | Select-String "WatchCall|BridgeFg|BridgeConn|WsManager|CallActivity" | Select-Object -Last 40) -join "`n")
+  Say ((& $adb logcat -d 2>&1 | Select-String "WatchCall|VoiceSession|BridgeFg|BridgeConn|WsManager|CallActivity" | Select-Object -Last 40) -join "`n")
 } else {
   Say "sem emulador conectado: validacao de runtime nao foi feita"
 }
 
 $status = if ($buildOk -and (Test-Path $apk) -and $hasDevice) { "OK" } else { "FALHOU" }
 
+# ---- relatório (commit é opcional: sem git, só escreve o arquivo) ------
 $report = @"
 # Relatorio da validacao remota
 
@@ -135,14 +145,16 @@ WABRIDGE-RESULTADO: $status
 $($log -join "`n")
 ````
 "@
+Set-Content -Path "$work\RELATORIO-REMOTO.md" -Value $report -Encoding UTF8
+Say "### relatorio em $work\RELATORIO-REMOTO.md"
 
-Set-Content -Path "$repo\RELATORIO-REMOTO.md" -Value $report -Encoding UTF8
-Say "### RELATORIO-REMOTO.md escrito"
-
-Set-Location $repo
-& $git add RELATORIO-REMOTO.md 2>&1 | Out-Null
-& $git commit -m "relatorio: validacao remota no emulador ($status)" 2>&1 | Out-Null
-& $git push 2>&1 | Out-Null
-Say "### commit e push feitos"
+if ($git) {
+  Say "### tentando publicar o relatorio"
+  Say ((& $git -C $repo add RELATORIO-REMOTO.md 2>&1) -join "`n")
+  Say ((& $git -C $repo commit -m "relatorio: validacao remota ($status)" 2>&1) -join "`n")
+  Say ((& $git -C $repo push 2>&1) -join "`n")
+} else {
+  Say "sem git: relatorio nao publicado"
+}
 
 Write-Host "WABRIDGE-RESULTADO: $status"
