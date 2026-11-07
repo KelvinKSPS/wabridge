@@ -25,6 +25,8 @@ class CallActivity : Activity() {
     private lateinit var callerNumber: TextView
     private lateinit var answerButton: Button
     private lateinit var rejectButton: Button
+    private var localSession: VoiceSession? = null
+    private var answered = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -48,8 +50,16 @@ class CallActivity : Activity() {
         callerNumber.text = payload?.senderNumber ?: ""
 
         answerButton.setOnClickListener {
-            answerWhenReady()
-            finish()
+            if (answered) {
+                hangupNow()
+                finish()
+            } else {
+                answered = true
+                answerWhenReady()
+                // depois de atender, o botão vira "Desligar"
+                answerButton.setText(R.string.hangup)
+                rejectButton.visibility = android.view.View.GONE
+            }
         }
         rejectButton.setOnClickListener {
             rejectWhenReady()
@@ -57,9 +67,20 @@ class CallActivity : Activity() {
         }
     }
 
+    private fun hangupNow() {
+        val call = WatchCallConnection.current
+        if (call != null) {
+            call.rejectNow()
+        } else {
+            localSession?.hangup()
+        }
+    }
+
     /**
      * A conexão é criada pelo Telecom de forma assíncrona: pode ainda não
-     * existir quando o usuário toca em Atender. Espera um instante.
+     * existir quando o usuário toca em Atender. Espera um instante; se o
+     * Telecom não estiver disponível (aparelho sem telephony), a própria tela
+     * do app conduz a sessão de voz.
      */
     private fun answerWhenReady() {
         val handler = Handler(Looper.getMainLooper())
@@ -71,6 +92,8 @@ class CallActivity : Activity() {
                     call.answerNow()
                 } else if (attempts++ < 20) {
                     handler.postDelayed(this, 100)
+                } else {
+                    localSession()?.answer()
                 }
             }
         }
@@ -87,10 +110,19 @@ class CallActivity : Activity() {
                     call.rejectNow()
                 } else if (attempts++ < 20) {
                     handler.postDelayed(this, 100)
+                } else {
+                    localSession()?.hangup()
                 }
             }
         }
         handler.post(tryReject)
+    }
+
+    /** Sessão de voz fora do Telecom (aparelho sem telephony). */
+    private fun localSession(): VoiceSession? {
+        localSession?.let { return it }
+        val payload = CallPayload.fromJson(intent.getStringExtra(EXTRA_PAYLOAD)) ?: return null
+        return VoiceSession(this, payload).also { localSession = it }
     }
 
     override fun onDestroy() {
