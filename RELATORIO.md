@@ -45,6 +45,9 @@ Feita pelo outro agente, com `scripts/remote-validate.ps1`:
 - `MainActivity` abre, processo vivo, **sem crash**
 - botão **Testar chamada** clicado de verdade (via uiautomator) →
   **a tela de chamada do app aparece em primeiro plano**, estado `RINGING`
+- **Atender funciona**: `WatchCall`/`VoiceSession` iniciados, chamada `ACTIVE`
+- **o tom de teste toca**: HTTP 200 em `/media/test.wav`, decodificado em PCM
+  16 kHz mono, 32.000 frames entregues no `AudioTrack`, sem erro e sem crash
 - logs do app conferidos no logcat
 
 ## APK release

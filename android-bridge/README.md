@@ -28,25 +28,33 @@ Requisitos: JDK 17, Android SDK (compileSdk 35), AGP 8.6.0, Kotlin 1.9.25.
 |---|---|
 | `BridgeForegroundService` | FGS: mantém o WebSocket vivo e registra a `PhoneAccount` self-managed. |
 | `BridgeConnectionService` | `ConnectionService`: o Telecom cria a chamada a partir do evento. |
-| `WatchCallConnection` | máquina de estados da chamada (SCO → tocar → gravar → enviar). |
+| `WatchCallConnection` | adaptador do Telecom: nome/número do contato e delegação para a sessão. |
+| `VoiceSession` | a chamada de voz em si: SCO → tocar → gravar → enviar (independe do Telecom). |
+| `CallActivity` | tela de chamada do app (Atender/Recusar/Desligar), para relógio sem discador. |
+| `CallNotifier` | notificação de serviço e de chamada (full screen intent + botões). |
 | `WsManager` | WebSocket (OkHttp) com reconexão automática. |
 | `Uploader` | `POST /reply/audio` (multipart). |
-| `PhoneAccountHelper` | registro idempotente da conta telefônica. |
+| `PhoneAccountHelper` | registro da conta telefônica (sem `READ_PHONE_STATE`). |
+| `CallStateMachine` | máquina de estados pura, coberta por testes. |
 
 ### Fluxo
 
-1. `NEW_VOICE_NOTE` chega no WebSocket → `telecom.addNewIncomingCall()`.
-2. O Telecom abre a tela de chamada com **nome e número do contato**
-   (`setCallerDisplayName` + `setAddress`, `PRESENTATION_ALLOWED`).
+1. `NEW_VOICE_NOTE` chega no WebSocket → notificação de chamada + tela do app
+   (`CallActivity`) + `telecom.addNewIncomingCall()`.
+2. A tela mostra **nome e número do contato** (no Telecom: `setCallerDisplayName`
+   + `setAddress`, `PRESENTATION_ALLOWED`).
 3. Ao atender: `setActive()`, `MODE_IN_COMMUNICATION`, `startBluetoothSco()`;
    aguarda `SCO_AUDIO_STATE_CONNECTED` + 800 ms e toca o wav com
    `USAGE_VOICE_COMMUNICATION`.
 4. Fim da reprodução → 300 ms → tom curto (`TONE_PROP_BEEP`) →
    `MediaRecorder` (`VOICE_COMMUNICATION`, AAC, 16 kHz, 32 kbps) no cache.
-5. Desligar (`onDisconnect`/`onReject`) → para tudo, restaura
+5. Desligar (`onDisconnect`/`onReject`/botão **Desligar**) → para tudo, restaura
    `MODE_NORMAL`, `setDisconnected(LOCAL)`, `destroy()` e envia o arquivo ao
    servidor.
 6. Timeout de segurança: 90 s de gravação → desligamento automático.
+
+> O `VoiceSession` não depende do Telecom: se o aparelho não tiver telephony,
+> a tela do app conduz a chamada do mesmo jeito.
 
 ## Permissões
 
