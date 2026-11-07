@@ -14,7 +14,7 @@ Data: 07/11/2026
 
 ## Testes
 
-**Servidor — 32 testes (`node --import tsx --test test/unit/`)**
+**Servidor — 32 testes (`npm test` na pasta `server/`)**
 
 | Arquivo | Casos | O que cobre |
 |---|---|---|

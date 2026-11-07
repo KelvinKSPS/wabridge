@@ -153,10 +153,12 @@ export function createBridge(deps: BridgeDeps = {}): Bridge {
     const target = (toRaw || call?.senderNumber || '').replace(/\D/g, '');
 
     if (!file) {
+      console.error(`[reply] sem arquivo (campos: ${Object.keys(req.body).join(',')})`);
       res.status(400).json({ error: 'arquivo de áudio ausente (campo "file")' });
       return;
     }
     if (!target) {
+      console.error(`[reply] sem destinatário (audioId=${audioId}, to=${toRaw})`);
       res.status(400).json({ error: 'destinatário ausente (campo "to" ou "audioId" válido)' });
       return;
     }
