@@ -31,8 +31,8 @@ Legenda: `[x]` pronto · `[ ]` em andamento / delegado / pendente
 - [x] Desligar envia o áudio (para SCO, restaura `MODE_NORMAL`, sobe o arquivo)
 - [x] Timeout de segurança (90 s de gravação)
 - [x] Tela de configuração (URL do servidor editável e persistida)
-- [ ] Compilar APK debug (build local lento nesta board ARM; final na máquina de 16 GB)
-- [ ] APK release assinado (chave gerada no computador grande)
+- [x] Compilar APK debug (2,5 MB, gerado aqui e no PC Windows)
+- [x] APK release assinado (chave CN=WA Bridge gerada aqui, release v1.0.0 no GitHub)
 
 ## Testes
 
@@ -43,19 +43,20 @@ Legenda: `[x]` pronto · `[ ]` em andamento / delegado / pendente
 - [x] Máquina de estados da chamada — 8 casos
 - [x] URLs de WebSocket e HTTP — 7 casos
 - [x] Payload da chamada (JSON) — 5 casos
-- [ ] Suíte Android executada por Gradle (rodando local)
-- [ ] Suíte Android na máquina de 16 GB (delegado)
+- [x] Suíte Android executada por Gradle (20/20 aqui, 40/40 no PC Windows)
 - [x] Teste ponta a ponta com Evolution falsa (`server/test/`)
 
 ## Infra e entrega
 
 - [x] aapt2 em ARM (sysroot x86 + qemu-user; o SDK traz binário x86-64)
 - [x] Repositório no GitHub (`github.com/KelvinKSPS/wabridge`)
-- [x] Documentação (README do servidor, do app e da raiz)
+- [x] Documentação (README do servidor, do app e da raiz) e `RELATORIO.md`
 - [x] Unidade systemd para o servidor
 - [x] Tarefa enviada ao outro agente (sessão "fale comigo")
-- [ ] Clone, testes e build no computador de 16 GB (delegado)
-- [ ] Chave de assinatura (`scripts/make-keystore.sh`)
-- [ ] Release no GitHub com o APK assinado
-- [ ] Instalação em emulador (delegado)
-- [ ] Servidor no ar com a Evolution API real
+- [x] Clone, testes e build no computador de 16 GB (40 testes verdes em 14 s)
+- [x] Chave de assinatura (`scripts/make-keystore.sh`, cópia em `~/wabridge-keys/`)
+- [x] Release no GitHub com o APK assinado (v1.0.0)
+- [x] Instalação em emulador (instalou, abriu a tela principal, sem crash)
+- [x] Servidor no ar com pm2 (reinicia sozinho, `http://192.168.15.100:8097`)
+- [ ] Evolution API pareada por QR (precisa do celular do usuário)
+- [ ] `ALLOWED_NUMBERS` definido no `server/.env` (hoje aceita qualquer remetente)

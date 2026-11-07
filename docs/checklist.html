@@ -253,8 +253,8 @@
       <li data-done="1"><input type="checkbox" checked><div><span class="t">Desligar envia o áudio</span><span class="d">para SCO, restaura MODE_NORMAL, sobe o arquivo ao servidor</span></div><span class="chip ok">feito</span></li>
       <li data-done="1"><input type="checkbox" checked><div><span class="t">Timeout de segurança</span><span class="d">90 s de gravação forçam o desligamento</span></div><span class="chip ok">feito</span></li>
       <li data-done="1"><input type="checkbox" checked><div><span class="t">Tela de configuração</span><span class="d">URL do servidor editável e persistida no aparelho</span></div><span class="chip ok">feito</span></li>
-      <li><input type="checkbox"><div><span class="t">Compilar APK debug</span><span class="d">build local lento nesta board ARM; build final roda na máquina de 16 GB</span></div><span class="chip warn">em andamento</span></li>
-      <li><input type="checkbox"><div><span class="t">APK release assinado</span><span class="d">keystore gerado no computador grande e publicado como release</span></div><span class="chip warn">delegado</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Compilar APK debug</span><span class="d">2,5 MB, gerado aqui e no PC Windows</span></div><span class="chip ok">feito</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">APK release assinado</span><span class="d">chave CN=WA Bridge gerada aqui, release v1.0.0 no GitHub</span></div><span class="chip ok">feito</span></li>
     </ul>
   </section>
 
@@ -268,8 +268,8 @@
       <li data-done="1"><input type="checkbox" checked><div><span class="t">Máquina de estados da chamada</span><span class="d">8 casos: transições, ordem errada, desligar duas vezes, timeout de 90 s</span></div><span class="chip ok">8/8</span></li>
       <li data-done="1"><input type="checkbox" checked><div><span class="t">URLs de WebSocket e HTTP</span><span class="d">7 casos: http para ws, https para wss, barra final, caminho extra</span></div><span class="chip ok">7/7</span></li>
       <li data-done="1"><input type="checkbox" checked><div><span class="t">Payload da chamada</span><span class="d">5 casos: round trip do JSON, payload inválido, parse do servidor</span></div><span class="chip ok">5/5</span></li>
-      <li><input type="checkbox"><div><span class="t">Suíte Android executada</span><span class="d">roda por Gradle, sem emulador: 20 casos</span></div><span class="chip warn">rodando</span></li>
-      <li><input type="checkbox"><div><span class="t">Suíte Android na máquina grande</span><span class="d">mesmos testes rodando no computador de 16 GB</span></div><span class="chip warn">delegado</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Suíte Android executada</span><span class="d">20 de 20 casos verdes aqui, 40 de 40 no PC Windows</span></div><span class="chip ok">feito</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Suíte Android na máquina grande</span><span class="d">mesmos testes rodando no computador de 16 GB</span></div><span class="chip ok">feito</span></li>
       <li><input type="checkbox"><div><span class="t">Teste de ponta a ponta com Evolution falsa</span><span class="d">servidor de mentira que devolve e recebe áudio</span></div><span class="chip ok">feito</span></li>
     </ul>
   </section>
@@ -282,11 +282,13 @@
       <li data-done="1"><input type="checkbox" checked><div><span class="t">Documentação</span><span class="d">README do servidor, do app e da raiz, com passo a passo</span></div><span class="chip ok">feito</span></li>
       <li data-done="1"><input type="checkbox" checked><div><span class="t">Serviço systemd</span><span class="d">unit pronta para o servidor rodar no boot</span></div><span class="chip ok">feito</span></li>
       <li data-done="1"><input type="checkbox" checked><div><span class="t">Tarefa enviada ao outro agente</span><span class="d">sessão "fale comigo": clonar, testar, gerar chave, buildar release</span></div><span class="chip ok">feito</span></li>
-      <li><input type="checkbox"><div><span class="t">Clone e testes no computador grande</span><span class="d">rodando lá agora</span></div><span class="chip warn">delegado</span></li>
-      <li><input type="checkbox"><div><span class="t">Chave de assinatura</span><span class="d">script make-keystore.sh pronto; gera o jks e o keystore.properties</span></div><span class="chip warn">delegado</span></li>
-      <li><input type="checkbox"><div><span class="t">Release no GitHub</span><span class="d">APK assinado publicado como release v1.0.0</span></div><span class="chip warn">delegado</span></li>
-      <li><input type="checkbox"><div><span class="t">Instalação em emulador</span><span class="d">sobe emulador, instala o APK e confere que abre sem crash</span></div><span class="chip warn">delegado</span></li>
-      <li><input type="checkbox"><div><span class="t">Servidor no ar</span><span class="d">roda com a Evolution API real e lista branca liberada</span></div><span class="chip crit">falta</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Clone e testes no computador grande</span><span class="d">40 testes verdes em 14 s, APK compilado lá</span></div><span class="chip ok">feito</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Chave de assinatura</span><span class="d">wabridge.jks gerado, cópia de segurança em ~/wabridge-keys</span></div><span class="chip ok">feito</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Release no GitHub</span><span class="d">APK assinado publicado como release v1.0.0</span></div><span class="chip ok">feito</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Instalação em emulador</span><span class="d">instalou, abriu a tela principal, processo do app sem crash</span></div><span class="chip ok">feito</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Servidor no ar</span><span class="d">pm2 em http://192.168.15.100:8097, reinicia sozinho</span></div><span class="chip ok">feito</span></li>
+      <li><input type="checkbox"><div><span class="t">Evolution API pareada</span><span class="d">docker compose up -d e ler o QR com o celular</span></div><span class="chip crit">falta</span></li>
+      <li><input type="checkbox"><div><span class="t">Lista branca liberada</span><span class="d">ALLOWED_NUMBERS no server/.env está vazio por enquanto</span></div><span class="chip warn">pendente</span></li>
     </ul>
   </section>
 
