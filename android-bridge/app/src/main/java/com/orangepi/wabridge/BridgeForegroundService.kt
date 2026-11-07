@@ -83,18 +83,29 @@ class BridgeForegroundService : Service() {
     }
 
     private fun ringIncoming(payload: CallPayload) {
-        val telecom = getSystemService(Context.TELECOM_SERVICE) as? TelecomManager ?: return
-        val accountHandle = PhoneAccountHelper.handle(this)
-
-        // notificação de chamada: caminho garantido para abrir a tela no relógio
+        // A tela de chamada do app não depende do Telecom: aparece mesmo em
+        // aparelho sem telephony.
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
-        manager?.notify(CallNotifier.NOTIFICATION_CALL_ID, CallNotifier.callNotification(this, payload))
-
-        // e tenta abrir a tela direto (funciona quando o app já está em foco)
-        runCatching {
-            startActivity(CallActivity.intent(this, payload))
+        try {
+            manager?.notify(CallNotifier.NOTIFICATION_CALL_ID, CallNotifier.callNotification(this, payload))
+        } catch (e: Exception) {
+            Log.w(TAG, "notificação de chamada falhou: ${e.message}")
         }
 
+        try {
+            startActivity(CallActivity.intent(this, payload))
+            Log.i(TAG, "tela de chamada aberta")
+        } catch (e: Exception) {
+            Log.w(TAG, "startActivity da tela de chamada falhou: ${e.message}")
+        }
+
+        val telecom = getSystemService(Context.TELECOM_SERVICE) as? TelecomManager
+        if (telecom == null) {
+            Log.w(TAG, "TelecomManager indisponível; chamada só pela tela do app")
+            return
+        }
+
+        val accountHandle = PhoneAccountHelper.handle(this)
         val extras = Bundle().apply {
             putParcelable(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, accountHandle)
             putString(BridgeExtras.PAYLOAD, payload.toJson())
