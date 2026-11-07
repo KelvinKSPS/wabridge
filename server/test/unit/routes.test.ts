@@ -151,6 +151,18 @@ describe('rotas HTTP', () => {
     const res = await fetch(`${baseUrl}/reply/audio`, { method: 'POST' });
     assert.equal(res.status, 400);
   });
+
+  test('GET /media/test.wav gera um tom PCM 16 kHz mono', async () => {
+    const res = await fetch(`${baseUrl}/media/test.wav`);
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get('content-type'), 'audio/wav');
+
+    const wav = Buffer.from(await res.arrayBuffer());
+    assert.equal(wav.toString('ascii', 0, 4), 'RIFF');
+    assert.equal(wav.readUInt16LE(22), 1, 'mono');
+    assert.equal(wav.readUInt32LE(24), 16000, '16 kHz');
+    assert.ok(wav.length > 1000, 'tem áudio');
+  });
 });
 
 describe('fluxo completo do webhook', () => {

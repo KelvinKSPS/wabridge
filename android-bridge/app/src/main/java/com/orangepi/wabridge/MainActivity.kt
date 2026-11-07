@@ -43,6 +43,17 @@ class MainActivity : Activity() {
             stopService(Intent(this, BridgeForegroundService::class.java))
             statusText.text = getString(R.string.stopped)
         }
+
+        findViewById<Button>(R.id.testCallButton).setOnClickListener {
+            Prefs.setUrl(this, urlInput.text.toString())
+            requestMissingPermissions()
+            ContextCompat.startForegroundService(
+                this,
+                Intent(this, BridgeForegroundService::class.java)
+                    .setAction(BridgeForegroundService.ACTION_TEST_CALL),
+            )
+            statusText.text = getString(R.string.test_caller)
+        }
     }
 
     override fun onStart() {

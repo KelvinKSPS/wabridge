@@ -2,6 +2,7 @@
 <resources>
     <string name="app_name">WA Bridge</string>
     <string name="channel_name">Ponte WhatsApp</string>
+    <string name="channel_call_name">Chamadas recebidas</string>
     <string name="url_hint">http://IP_DO_SERVIDOR:8097</string>
     <string name="connect">Conectar</string>
     <string name="stop">Parar</string>
@@ -9,4 +10,10 @@
     <string name="stopped">parado</string>
     <string name="status_label">status</string>
     <string name="server_label">servidor</string>
+    <string name="test_call">Testar chamada</string>
+    <string name="incoming_call">chamada de voz recebida</string>
+    <string name="answer">Atender</string>
+    <string name="reject">Recusar</string>
+    <string name="unknown_caller">Contato</string>
+    <string name="test_caller">Teste</string>
 </resources>

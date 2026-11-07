@@ -9,6 +9,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission
         android:name="android.permission.BLUETOOTH"
@@ -38,6 +39,25 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Tela de chamada do próprio app: relógio nem sempre tem discador. -->
+        <activity
+            android:name=".CallActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:showOnLockScreen="true"
+            android:taskAffinity=".call"
+            android:theme="@style/CallTheme" />
+
+        <receiver
+            android:name=".CallActionReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.orangepi.wabridge.ANSWER" />
+                <action android:name="com.orangepi.wabridge.REJECT" />
+            </intent-filter>
+        </receiver>
 
         <!-- Serviço de chamada autogerenciado (Telecom). -->
         <service

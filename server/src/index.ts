@@ -7,7 +7,7 @@ import multer from 'multer';
 import { config, isAllowed } from './config';
 import { Hub } from './hub';
 import { EvolutionClient } from './evolution';
-import { ensureMediaDir, mediaPath, scheduleCleanup, toOggOpus, toWav16k } from './media';
+import { ensureMediaDir, mediaPath, scheduleCleanup, toOggOpus, toWav16k, generateToneWav } from './media';
 import { normalize, isGroup } from './whatsapp';
 import type { CallPayload, PendingCall } from './types';
 
@@ -100,6 +100,22 @@ export function createBridge(deps: BridgeDeps = {}): Bridge {
   /* ------------------------------------------------------------------ *
    * Mídia em cache
    * ------------------------------------------------------------------ */
+
+  /** Tom sintético em PCM 16 kHz mono: teste de chamada sem WhatsApp.
+   *  Fica antes de /media/:audioId para não ser capturado pelo parâmetro. */
+  app.get('/media/test.wav', async (_req, res) => {
+    const file = mediaPath('test.wav');
+    try {
+      if (!fs.existsSync(file)) {
+        await generateToneWav(file);
+      }
+      res.setHeader('Content-Type', 'audio/wav');
+      res.setHeader('Cache-Control', 'public, max-age=60');
+      fs.createReadStream(file).pipe(res);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
 
   app.get('/media/:audioId', (req, res) => {
     const id = path.basename(req.params.audioId).replace(/[^\w.-]/g, '_');

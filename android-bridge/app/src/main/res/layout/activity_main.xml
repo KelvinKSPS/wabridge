@@ -38,6 +38,13 @@
             android:layout_marginTop="4dp"
             android:text="@string/stop" />
 
+        <Button
+            android:id="@+id/testCallButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/test_call" />
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

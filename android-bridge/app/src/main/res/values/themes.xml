@@ -4,4 +4,14 @@
         <item name="android:colorPrimary">@color/brand</item>
         <item name="android:colorAccent">@color/brand</item>
     </style>
+
+    <!-- Tema da tela de chamada: escuro, sem barra, tela cheia. -->
+    <style name="CallTheme" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#10221D</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowShowWallpaper">false</item>
+        <item name="android:statusBarColor">#10221D</item>
+        <item name="android:navigationBarColor">#10221D</item>
+        <item name="android:colorAccent">#25D366</item>
+    </style>
 </resources>

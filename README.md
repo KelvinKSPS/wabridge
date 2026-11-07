@@ -46,6 +46,31 @@ cd ../android-bridge
 No relógio: abrir o app, colocar a URL do servidor (`http://IP:8097`) e tocar
 **Conectar**. A URL fica salva no aparelho.
 
+## Teste no relógio sem WhatsApp
+
+O app tem o botão **Testar chamada**: ele toca no relógio como se fosse uma
+mensagem de voz de verdade (o servidor gera um tom sintético em
+`GET /media/test.wav`, PCM 16 kHz mono). Serve para validar no relógio:
+
+1. o app conecta no servidor,
+2. a chamada chega (tela de chamada do app, com **Atender** e **Recusar**),
+3. o áudio toca no canal SCO,
+4. o tom de aviso dispara e a resposta começa a ser gravada,
+5. ao desligar, o áudio sobe para `POST /reply/audio`.
+
+Isso valida tudo menos o lado do WhatsApp (Evolution API + pareamento por QR).
+
+## Onde está cada coisa
+
+| Item | Caminho |
+|---|---|
+| APK release assinado | release v1.0.0 no GitHub |
+| Chave de assinatura | `android-bridge/wabridge.jks` (cópia em `~/wabridge-keys/`) |
+| Servidor rodando | pm2, `http://192.168.15.100:8097` (`pm2 logs wabridge`) |
+| Evolution API | `docker-compose.yml` na raiz do projeto |
+| Relatório de validação | `RELATORIO.md` |
+| Progresso | `CHECKLIST.md` e `docs/checklist.html` |
+
 ## Variáveis do servidor
 
 | Var | Padrão | Função |

@@ -1,5 +1,6 @@
 package com.orangepi.wabridge
 
+import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -49,6 +50,7 @@ class WatchCallConnection(
 
     init {
         state.onIncoming()
+        current = this
         setCallerDisplayName(
             payload.senderName.ifBlank { payload.senderNumber },
             TelecomManager.PRESENTATION_ALLOWED,
@@ -71,6 +73,9 @@ class WatchCallConnection(
             return
         }
         setActive()
+
+        // se a chamada foi atendida pelo discador do sistema, fecha a tela do app
+        CallActivity.active?.finish()
 
         audio.mode = AudioManager.MODE_IN_COMMUNICATION
         audio.isSpeakerphoneOn = false
@@ -226,6 +231,16 @@ class WatchCallConnection(
         hangup(DisconnectCause.REJECTED)
     }
 
+    /** Atender pela tela do próprio app (relógio sem discador do sistema). */
+    fun answerNow() {
+        onAnswer()
+    }
+
+    /** Recusar pela tela do próprio app. */
+    fun rejectNow() {
+        hangup(DisconnectCause.REJECTED)
+    }
+
     override fun onDisconnect() {
         Log.i(TAG, "desligada")
         hangup(DisconnectCause.LOCAL)
@@ -237,6 +252,7 @@ class WatchCallConnection(
 
     private fun hangup(cause: Int) {
         if (!state.onHangup()) return
+        if (current === this) current = null
         timeoutJob?.cancel()
 
         runCatching { player?.stop() }
@@ -255,6 +271,10 @@ class WatchCallConnection(
         scoReceiver?.let { runCatching { ctx.unregisterReceiver(it) } }
         scoReceiver = null
         audio.mode = AudioManager.MODE_NORMAL
+
+        // esconde a notificação de chamada
+        (ctx.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager)
+            ?.cancel(CallNotifier.NOTIFICATION_CALL_ID)
 
         setDisconnected(DisconnectCause(cause))
         destroy()
@@ -282,5 +302,10 @@ class WatchCallConnection(
         private const val SCO_SETTLE_MS = 800L
         private const val PLAYBACK_TO_RECORD_DELAY_MS = 300L
         private const val RECORD_TIMEOUT_MS = 90_000L
+
+        /** Chamada em andamento, para a tela do app e os botões da notificação. */
+        @Volatile
+        var current: WatchCallConnection? = null
+            private set
     }
 }
