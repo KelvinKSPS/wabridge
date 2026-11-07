@@ -1,0 +1,34 @@
+# Evolution API — lado do WhatsApp da ponte.
+#
+#   docker compose up -d
+#   # pareia o número: docker compose logs -f evolution | grep -i qr
+#
+# Depois aponte o webhook da instância para:
+#   http://<IP_DA_PONTE>:8097/webhook/whatsapp
+# e no .env do servidor:
+#   EVOLUTION_API_URL=http://<IP_DESTA_MAQUINA>:8080
+#   EVOLUTION_INSTANCE=wabridge
+#   EVOLUTION_API_KEY=<chave definida na Evolution>
+services:
+  evolution:
+    image: atendai/evolution-api:latest
+    container_name: wabridge-evolution
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY:-wabridge-dev}
+      AUTHENTICATION_TYPE: apikey
+      LANG: pt_BR
+      SERVER_PORT: 8080
+      TELEMETRY_ENABLED: "false"
+    volumes:
+      - evolution_data:/home/node/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  evolution_data:
