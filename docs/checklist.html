@@ -1,0 +1,330 @@
+<title>wabridge — quadro de progresso</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* Paleta: verde de bridge sobre fundo neutro levemente esverdeado; status em chips
+     separados do acento. Tipos: Archivo (títulos), IBM Plex Sans (texto), Mono (dados). */
+  :root {
+    --bg: #f5f7f6;
+    --panel: #ffffff;
+    --fg: #14211d;
+    --muted: #5f6f69;
+    --line: #dde4e1;
+    --accent: #0f7a6c;
+    --accent-soft: #e3f2ef;
+    --ok: #1c8a4d;
+    --warn: #a86a12;
+    --crit: #b23c31;
+    --crit-soft: #fbe9e7;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d1412;
+      --panel: #121b18;
+      --fg: #e6efeb;
+      --muted: #92a49f;
+      --line: #20302b;
+      --accent: #25d366;
+      --accent-soft: #102a21;
+      --ok: #43d183;
+      --warn: #e0a33a;
+      --crit: #ff7a6d;
+      --crit-soft: #2a1614;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d1412;
+    --panel: #121b18;
+    --fg: #e6efeb;
+    --muted: #92a49f;
+    --line: #20302b;
+    --accent: #25d366;
+    --accent-soft: #102a21;
+    --ok: #43d183;
+    --warn: #e0a33a;
+    --crit: #ff7a6d;
+    --crit-soft: #2a1614;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 24px 56px;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; }
+
+  header { margin-bottom: 28px; }
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 6px;
+  }
+  h1 {
+    font-family: "Archivo", "IBM Plex Sans", sans-serif;
+    font-weight: 700;
+    font-size: clamp(26px, 5vw, 36px);
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    margin: 0 0 10px;
+    text-wrap: balance;
+  }
+  .sub { color: var(--muted); margin: 0 0 18px; max-width: 62ch; }
+
+  .bar {
+    height: 8px;
+    background: var(--line);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .bar > span {
+    display: block;
+    height: 100%;
+    width: 0;
+    background: var(--accent);
+    transition: width 0.25s ease;
+  }
+  .barmeta {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 8px;
+  }
+
+  section {
+    margin-top: 30px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  section > h2 {
+    font-family: "Archivo", "IBM Plex Sans", sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    margin: 0;
+    padding: 13px 16px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+  }
+  section > h2 span {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--muted);
+  }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li {
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: start;
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--line);
+  }
+  li:last-child { border-bottom: 0; }
+  li.done .t { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--line); }
+  li input[type="checkbox"] {
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    margin: 3px 0 0;
+    border: 1.5px solid var(--muted);
+    border-radius: 5px;
+    background: transparent;
+    cursor: pointer;
+    display: grid;
+    place-content: center;
+  }
+  li input[type="checkbox"]:checked {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  li input[type="checkbox"]:checked::after {
+    content: "";
+    width: 9px;
+    height: 5px;
+    border: 2px solid var(--panel);
+    border-top: 0;
+    border-right: 0;
+    transform: rotate(-45deg) translate(1px, -1px);
+  }
+  li input[type="checkbox"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .t { font-weight: 500; }
+  .d { color: var(--muted); font-size: 13.5px; display: block; margin-top: 1px; }
+  .chip {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    color: var(--muted);
+    white-space: nowrap;
+    align-self: center;
+  }
+  .chip.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, transparent); }
+  .chip.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
+  .chip.crit { color: var(--crit); border-color: color-mix(in srgb, var(--crit) 45%, transparent); background: var(--crit-soft); }
+
+  footer {
+    margin-top: 26px;
+    color: var(--muted);
+    font-size: 13px;
+    display: flex;
+    gap: 8px 18px;
+    flex-wrap: wrap;
+    align-items: baseline;
+  }
+  code {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 12.5px;
+    background: var(--accent-soft);
+    color: var(--fg);
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+  a { color: var(--accent); }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">WhatsApp ⇄ relógio Huawei</p>
+    <h1>Quadro de progresso do wabridge</h1>
+    <p class="sub">Cada linha é um item verificável do trabalho. Os quadrados são clicáveis e ficam salvos neste navegador; o traço em cima marca o que já está pronto.</p>
+    <div class="bar"><span id="fill"></span></div>
+    <div class="barmeta">
+      <span id="count">—</span>
+      <span id="stamp">atualizado agora</span>
+    </div>
+  </header>
+
+  <section>
+    <h2>Servidor <span>Node 24 · TypeScript · Express · ws</span></h2>
+    <ul>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Estrutura do projeto e build</span><span class="d">tsconfig strict, npm scripts (build/start/dev/typecheck)</span></div><span class="chip ok">feito</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Configuração por ambiente</span><span class="d">PORT, PUBLIC_HOST, ALLOWED_NUMBERS, EVOLUTION_*, FFMPEG_PATH</span></div><span class="chip ok">feito</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Cliente da Evolution API</span><span class="d">download de mídia e envio de nota de voz com ptt</span></div><span class="chip ok">feito</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Normalizador do webhook</span><span class="d">aceita message.audio, audioMessage e document de áudio</span></div><span class="chip ok">feito</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Filtro de remetentes</span><span class="d">lista branca, grupos e mensagens de saída são ignorados</span></div><span class="chip ok">feito</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Conversão opus → wav</span><span class="d">PCM 16 kHz mono, formato exigido pelo SCO</span></div><span class="chip ok">feito</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Conversão m4a → ogg opus</span><span class="d">prepara a resposta do relógio para envio</span></div><span class="chip ok">feito</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Cache de mídia</span><span class="d">rota /media com expiração por TTL</span></div><span class="chip ok">feito</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Hub de WebSocket</span><span class="d">evento NEW_VOICE_NOTE para o relógio</span></div><span class="chip ok">feito</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Upload da resposta</span><span class="d">POST /reply/audio em multipart, destino por audioId ou to</span></div><span class="chip ok">feito</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Endpoints de estado</span><span class="d">/health e /pending para diagnóstico</span></div><span class="chip ok">feito</span></li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>App Android <span>Kotlin · AGP 8.6.0 · minSdk 26</span></h2>
+    <ul>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Projeto Gradle KTS</span><span class="d">wrapper 8.10.2 incluso, assinatura por keystore.properties</span></div><span class="chip ok">feito</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Manifest e permissões</span><span class="d">MANAGE_OWN_CALLS, RECORD_AUDIO, MODIFY_AUDIO_SETTINGS, BLUETOOTH_CONNECT, FGS</span></div><span class="chip ok">feito</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Conta telefônica autogerenciada</span><span class="d">PhoneAccount self-managed registrada pelo serviço em primeiro plano</span></div><span class="chip ok">feito</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Serviço em primeiro plano</span><span class="d">mantém o WebSocket vivo, specialUse para o Android 14+</span></div><span class="chip ok">feito</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">WebSocket com reconexão</span><span class="d">OkHttp, backoff exponencial, reconecta sozinho</span></div><span class="chip ok">feito</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Chamada entrante</span><span class="d">addNewIncomingCall com o payload do servidor</span></div><span class="chip ok">feito</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Nome e número do contato</span><span class="d">setCallerDisplayName e setAddress evitam "Número Desconhecido"</span></div><span class="chip ok">feito</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Canal SCO com buffer</span><span class="d">startBluetoothSco, espera o estado conectado e mais 800 ms</span></div><span class="chip ok">feito</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Reprodução do áudio recebido</span><span class="d">MediaPlayer com USAGE_VOICE_COMMUNICATION</span></div><span class="chip ok">feito</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Gravação da resposta</span><span class="d">tom de aviso, MediaRecorder VOICE_COMMUNICATION, AAC 16 kHz 32 kbps</span></div><span class="chip ok">feito</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Desligar envia o áudio</span><span class="d">para SCO, restaura MODE_NORMAL, sobe o arquivo ao servidor</span></div><span class="chip ok">feito</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Timeout de segurança</span><span class="d">90 s de gravação forçam o desligamento</span></div><span class="chip ok">feito</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Tela de configuração</span><span class="d">URL do servidor editável e persistida no aparelho</span></div><span class="chip ok">feito</span></li>
+      <li><input type="checkbox"><div><span class="t">Compilar APK debug</span><span class="d">build local lento nesta board ARM; build final roda na máquina de 16 GB</span></div><span class="chip warn">em andamento</span></li>
+      <li><input type="checkbox"><div><span class="t">APK release assinado</span><span class="d">keystore gerado no computador grande e publicado como release</span></div><span class="chip warn">delegado</span></li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Testes <span>server: node:test · android: JUnit</span></h2>
+    <ul>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Normalização do webhook</span><span class="d">9 casos: 4 formatos de payload, grupo, fromMe, jid inválido</span></div><span class="chip ok">9/9</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Lista branca de números</span><span class="d">6 casos: exato, sufixo, lista vazia, número inválido</span></div><span class="chip ok">6/6</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Conversão de mídia</span><span class="d">4 casos: opus para wav 16 kHz mono, opus para opus, entrada inválida</span></div><span class="chip ok">4/4</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Rotas e fluxo completo</span><span class="d">9 casos: webhook, push no WebSocket, mídia, resposta PTT, bloqueio, grupo</span></div><span class="chip ok">9/9</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Máquina de estados da chamada</span><span class="d">8 casos: transições, ordem errada, desligar duas vezes, timeout de 90 s</span></div><span class="chip ok">8/8</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">URLs de WebSocket e HTTP</span><span class="d">7 casos: http para ws, https para wss, barra final, caminho extra</span></div><span class="chip ok">7/7</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Payload da chamada</span><span class="d">5 casos: round trip do JSON, payload inválido, parse do servidor</span></div><span class="chip ok">5/5</span></li>
+      <li><input type="checkbox"><div><span class="t">Suíte Android executada</span><span class="d">roda por Gradle, sem emulador: 20 casos</span></div><span class="chip warn">rodando</span></li>
+      <li><input type="checkbox"><div><span class="t">Suíte Android na máquina grande</span><span class="d">mesmos testes rodando no computador de 16 GB</span></div><span class="chip warn">delegado</span></li>
+      <li><input type="checkbox"><div><span class="t">Teste de ponta a ponta com Evolution falsa</span><span class="d">servidor de mentira que devolve e recebe áudio</span></div><span class="chip ok">feito</span></li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Infra e entrega <span>GitHub · máquina de 16 GB · emulador</span></h2>
+    <ul>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">aapt2 em ARM</span><span class="d">sysroot x86 com qemu-user, pois o SDK traz binário x86-64</span></div><span class="chip ok">feito</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Repositório no GitHub</span><span class="d">github.com/KelvinKSPS/wabridge, primeiro commit enviado</span></div><span class="chip ok">feito</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Documentação</span><span class="d">README do servidor, do app e da raiz, com passo a passo</span></div><span class="chip ok">feito</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Serviço systemd</span><span class="d">unit pronta para o servidor rodar no boot</span></div><span class="chip ok">feito</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Tarefa enviada ao outro agente</span><span class="d">sessão "fale comigo": clonar, testar, gerar chave, buildar release</span></div><span class="chip ok">feito</span></li>
+      <li><input type="checkbox"><div><span class="t">Clone e testes no computador grande</span><span class="d">rodando lá agora</span></div><span class="chip warn">delegado</span></li>
+      <li><input type="checkbox"><div><span class="t">Chave de assinatura</span><span class="d">script make-keystore.sh pronto; gera o jks e o keystore.properties</span></div><span class="chip warn">delegado</span></li>
+      <li><input type="checkbox"><div><span class="t">Release no GitHub</span><span class="d">APK assinado publicado como release v1.0.0</span></div><span class="chip warn">delegado</span></li>
+      <li><input type="checkbox"><div><span class="t">Instalação em emulador</span><span class="d">sobe emulador, instala o APK e confere que abre sem crash</span></div><span class="chip warn">delegado</span></li>
+      <li><input type="checkbox"><div><span class="t">Servidor no ar</span><span class="d">roda com a Evolution API real e lista branca liberada</span></div><span class="chip crit">falta</span></li>
+    </ul>
+  </section>
+
+  <footer>
+    <span>Repositório: <a href="https://github.com/KelvinKSPS/wabridge">github.com/KelvinKSPS/wabridge</a></span>
+    <span>Servidor local: <code>http://192.168.15.100:8097</code></span>
+    <span>Agente remoto: <code>192.168.15.99:39390</code></span>
+  </footer>
+</div>
+
+<script>
+  (function () {
+    var KEY = 'wabridge-checklist';
+    var boxes = Array.prototype.slice.call(document.querySelectorAll('li input[type="checkbox"]'));
+    var fill = document.getElementById('fill');
+    var count = document.getElementById('count');
+
+    function paint() {
+      var done = boxes.filter(function (b) { return b.checked; }).length;
+      var total = boxes.length;
+      fill.style.width = (total ? (done / total) * 100 : 0) + '%';
+      count.textContent = done + ' de ' + total + ' itens concluídos';
+      boxes.forEach(function (b) {
+        b.closest('li').classList.toggle('done', b.checked);
+      });
+    }
+
+    var saved = {};
+    try { saved = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) { saved = {}; }
+    boxes.forEach(function (b, i) {
+      if (typeof saved[i] === 'boolean') b.checked = saved[i];
+      b.addEventListener('change', function () {
+        var state = {};
+        boxes.forEach(function (x, j) { state[j] = x.checked; });
+        try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* ignora */ }
+        paint();
+      });
+    });
+    paint();
+  })();
+</script>
