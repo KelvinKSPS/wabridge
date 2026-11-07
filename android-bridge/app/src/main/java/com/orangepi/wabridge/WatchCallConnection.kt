@@ -13,6 +13,8 @@ import android.media.MediaRecorder
 import android.media.ToneGenerator
 import android.net.Uri
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.telecom.Connection
 import android.telecom.DisconnectCause
 import android.telecom.TelecomManager
@@ -75,7 +77,7 @@ class WatchCallConnection(
         setActive()
 
         // se a chamada foi atendida pelo discador do sistema, fecha a tela do app
-        CallActivity.active?.finish()
+        Handler(Looper.getMainLooper()).post { CallActivity.active?.finish() }
 
         audio.mode = AudioManager.MODE_IN_COMMUNICATION
         audio.isSpeakerphoneOn = false

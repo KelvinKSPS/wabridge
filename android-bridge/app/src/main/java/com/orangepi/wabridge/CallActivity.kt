@@ -5,6 +5,8 @@ import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.TextView
@@ -46,13 +48,49 @@ class CallActivity : Activity() {
         callerNumber.text = payload?.senderNumber ?: ""
 
         answerButton.setOnClickListener {
-            WatchCallConnection.current?.answerNow()
+            answerWhenReady()
             finish()
         }
         rejectButton.setOnClickListener {
-            WatchCallConnection.current?.rejectNow()
+            rejectWhenReady()
             finish()
         }
+    }
+
+    /**
+     * A conexão é criada pelo Telecom de forma assíncrona: pode ainda não
+     * existir quando o usuário toca em Atender. Espera um instante.
+     */
+    private fun answerWhenReady() {
+        val handler = Handler(Looper.getMainLooper())
+        var attempts = 0
+        val tryAnswer = object : Runnable {
+            override fun run() {
+                val call = WatchCallConnection.current
+                if (call != null) {
+                    call.answerNow()
+                } else if (attempts++ < 20) {
+                    handler.postDelayed(this, 100)
+                }
+            }
+        }
+        handler.post(tryAnswer)
+    }
+
+    private fun rejectWhenReady() {
+        val handler = Handler(Looper.getMainLooper())
+        var attempts = 0
+        val tryReject = object : Runnable {
+            override fun run() {
+                val call = WatchCallConnection.current
+                if (call != null) {
+                    call.rejectNow()
+                } else if (attempts++ < 20) {
+                    handler.postDelayed(this, 100)
+                }
+            }
+        }
+        handler.post(tryReject)
     }
 
     override fun onDestroy() {
