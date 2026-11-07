@@ -40,6 +40,15 @@ class CallStateMachine(val recordTimeoutMs: Long = DEFAULT_RECORD_TIMEOUT_MS) {
 
     fun onAnswer(): Boolean = transition(CallPhase.INCOMING, CallPhase.ANSWERED)
 
+    /**
+     * Atender uma sessão que não passou pelo fluxo de chamada do Telecom
+     * (tela do app em aparelho sem telephony): o "chamada entrando" é implícito.
+     */
+    fun onSessionAnswer(): Boolean {
+        onIncoming()
+        return onAnswer()
+    }
+
     fun onPlaybackStarted(): Boolean = transition(CallPhase.ANSWERED, CallPhase.PLAYING)
 
     /** Vale tanto para o fim normal da reprodução quanto para erro na Preparação. */

@@ -36,6 +36,13 @@ class CallStateMachineTest {
     }
 
     @Test
+    fun `sessao sem Telecom atende direto`() {
+        val m = CallStateMachine()
+        assertTrue(m.onSessionAnswer())
+        assertEquals(CallPhase.ANSWERED, m.phase)
+    }
+
+    @Test
     fun `nao aceita duas chamadas`() {
         val m = CallStateMachine()
         assertTrue(m.onIncoming())

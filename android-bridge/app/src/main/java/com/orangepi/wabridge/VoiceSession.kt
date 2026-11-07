@@ -57,7 +57,8 @@ class VoiceSession(
      * ---------------------------------------------------------------- */
 
     fun answer(): Boolean {
-        if (!state.onAnswer()) {
+        // a sessão começa aqui: o evento "chamada entrando" é implícito
+        if (!state.onSessionAnswer()) {
             Log.w(TAG, "atendimento fora de ordem (fase ${state.phase})")
             return false
         }

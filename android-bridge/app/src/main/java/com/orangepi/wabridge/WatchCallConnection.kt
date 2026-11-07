@@ -19,6 +19,7 @@ class WatchCallConnection(
 
     private val state = CallStateMachine()
     private var session: VoiceSession? = null
+    private var done = false
 
     init {
         state.onIncoming()
@@ -80,6 +81,8 @@ class WatchCallConnection(
 
     private fun onSessionEnded() {
         // a sessão acabou (timeout): o Telecom precisa saber
+        if (done) return
+        done = true
         runCatching {
             setDisconnected(DisconnectCause(DisconnectCause.LOCAL))
             destroy()
@@ -98,6 +101,8 @@ class WatchCallConnection(
         (ctx.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager)
             ?.cancel(CallNotifier.NOTIFICATION_CALL_ID)
 
+        if (done) return
+        done = true
         setDisconnected(DisconnectCause(cause))
         destroy()
     }
