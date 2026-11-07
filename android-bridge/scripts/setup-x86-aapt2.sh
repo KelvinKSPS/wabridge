@@ -35,5 +35,14 @@ exec qemu-x86_64-static -L $SYSROOT $AAPT2 "\$@"
 EOF
 chmod +x "$WRAPPER"
 
+# O override é por máquina: fica no gradle.properties do GRADLE_USER_HOME,
+# para não viajar no repositório e quebrar o build em outras máquinas.
+GRADLE_PROPS="${GRADLE_USER_HOME:-$HOME/.gradle}/gradle.properties"
+mkdir -p "$(dirname "$GRADLE_PROPS")"
+if ! grep -q "aapt2FromMavenOverride" "$GRADLE_PROPS" 2>/dev/null; then
+  printf '\n# Board ARM64: o aapt2 do SDK e x86-64, roda via qemu-user\nandroid.aapt2FromMavenOverride=%s\n' "$WRAPPER" >> "$GRADLE_PROPS"
+fi
+
 echo "[setup] wrapper: $WRAPPER"
+echo "[setup] gradle.properties: $GRADLE_PROPS"
 "$WRAPPER" version

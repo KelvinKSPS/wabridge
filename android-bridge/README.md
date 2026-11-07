@@ -17,9 +17,10 @@ Requisitos: JDK 17, Android SDK (compileSdk 35), AGP 8.6.0, Kotlin 1.9.25.
 > **ARM64**: o `aapt2` do SDK é binário x86-64. Nesta board (ARM) o build usa
 > um wrapper com `qemu-user`:
 > `bash scripts/setup-x86-aapt2.sh` (monta o sysroot x86 em
-> `~/.local/share/wabridge-x86root` e cria `~/.local/bin/aapt2-arm`).
-> O `gradle.properties` já aponta o AGP para ele via
-> `android.aapt2FromMavenOverride`.
+> `~/.local/share/wabridge-x86root`, cria `~/.local/bin/aapt2` e registra o
+> `android.aapt2FromMavenOverride` no `~/.gradle/gradle.properties`).
+> O override fica na config da máquina, e não no repositório — assim o mesmo
+> projeto compila no Windows sem o wrapper.
 
 ## Como funciona
 
