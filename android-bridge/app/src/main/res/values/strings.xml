@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">WA Bridge</string>
+    <string name="channel_name">Ponte WhatsApp</string>
+    <string name="url_hint">http://IP_DO_SERVIDOR:8097</string>
+    <string name="connect">Conectar</string>
+    <string name="stop">Parar</string>
+    <string name="starting">iniciando...</string>
+    <string name="stopped">parado</string>
+    <string name="status_label">status</string>
+    <string name="server_label">servidor</string>
+</resources>
