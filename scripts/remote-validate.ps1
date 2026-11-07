@@ -111,9 +111,9 @@ if ($hasDevice) {
   & $adb pull /sdcard/ui.xml "$work\ui.xml" 2>&1 | Out-Null
   if (Test-Path "$work\ui.xml") {
     $xml = Get-Content "$work\ui.xml" -Raw
-    $node = [regex]::Match($xml, '<node[^>]*text="Testar chamada"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"')
+    $node = [regex]::Match($xml, '<node[^>]*text="(?i:testar chamada)"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"')
     if (-not $node.Success) {
-      $node = [regex]::Match($xml, '<node[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"[^>]*text="Testar chamada"')
+      $node = [regex]::Match($xml, '<node[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"[^>]*text="(?i:testar chamada)"')
     }
     if ($node.Success) {
       $x = [int](($node.Groups[1].Value -as [int]) + ($node.Groups[3].Value -as [int])) / 2

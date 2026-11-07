@@ -18,17 +18,23 @@ object PhoneAccountHelper {
     fun handle(context: Context): PhoneAccountHandle =
         PhoneAccountHandle(ComponentName(context, BridgeConnectionService::class.java), PHONE_ACCOUNT_ID)
 
-    /** Registra a conta se ainda não existir. Idempotente. */
+    /**
+     * Registra a conta self-managed.
+     *
+     * Não consulta `getSelfManagedPhoneAccounts()` de propósito: essa chamada
+     * exige a permissão READ_PHONE_STATE e estourava com SecurityException —
+     * derrubando o serviço em primeiro plano (e com ele o WebSocket).
+     * Registrar de novo é inofensivo: o Telecom aceita a conta repetida.
+     */
     fun ensureRegistered(context: Context): Boolean {
         val telecom = context.getSystemService(Context.TELECOM_SERVICE) as? TelecomManager
-            ?: return false
-        val accountHandle = handle(context)
-
-        val already = telecom.getSelfManagedPhoneAccounts().any { it == accountHandle }
-        if (already) return true
+        if (telecom == null) {
+            Log.w(TAG, "TelecomManager indisponível neste aparelho")
+            return false
+        }
 
         val account = PhoneAccount.Builder(
-            accountHandle,
+            handle(context),
             context.getString(R.string.app_name),
         )
             .setCapabilities(PhoneAccount.CAPABILITY_SELF_MANAGED)
@@ -39,8 +45,9 @@ object PhoneAccountHelper {
             Log.i(TAG, "PhoneAccount registrada")
             true
         } catch (e: Exception) {
-            Log.e(TAG, "falha ao registrar PhoneAccount: ${e.message}")
-            false
+            // já registrada é o caso normal ao reabrir o app
+            Log.w(TAG, "registro da PhoneAccount: ${e.message}")
+            true
         }
     }
 }

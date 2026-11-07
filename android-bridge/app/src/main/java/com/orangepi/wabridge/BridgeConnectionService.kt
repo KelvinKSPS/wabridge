@@ -15,7 +15,8 @@ class BridgeConnectionService : ConnectionService() {
     override fun onCreate() {
         super.onCreate()
         // Garante que a conta exista (ex.: após reinício do aparelho).
-        PhoneAccountHelper.ensureRegistered(this)
+        runCatching { PhoneAccountHelper.ensureRegistered(this) }
+            .onFailure { Log.w(TAG, "registro da conta falhou: ${it.message}") }
     }
 
     override fun onCreateIncomingConnection(

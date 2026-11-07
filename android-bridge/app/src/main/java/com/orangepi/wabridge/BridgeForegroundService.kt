@@ -29,7 +29,9 @@ class BridgeForegroundService : Service() {
         super.onCreate()
         CallNotifier.ensureChannels(this)
         startForeground(CallNotifier.NOTIFICATION_ID, CallNotifier.serviceNotification(this, getString(R.string.starting)))
-        PhoneAccountHelper.ensureRegistered(this)
+        // nada aqui pode derrubar o serviço: sem ele o WebSocket cai junto
+        runCatching { PhoneAccountHelper.ensureRegistered(this) }
+            .onFailure { Log.w(TAG, "registro da conta falhou: ${it.message}") }
         startSocket()
     }
 
