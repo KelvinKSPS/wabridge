@@ -64,7 +64,7 @@ Isso valida tudo menos o lado do WhatsApp (Evolution API + pareamento por QR).
 
 | Item | Caminho |
 |---|---|
-| APK release assinado | release v1.0.0 no GitHub |
+| APK release assinado | release v1.0.1 no GitHub |
 | Chave de assinatura | `android-bridge/wabridge.jks` (cópia em `~/wabridge-keys/`) |
 | Servidor rodando | pm2, `http://192.168.15.100:8097` (`pm2 logs wabridge`) |
 | Evolution API | `docker-compose.yml` na raiz do projeto |

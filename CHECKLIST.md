@@ -32,7 +32,7 @@ Legenda: `[x]` pronto · `[ ]` em andamento / delegado / pendente
 - [x] Timeout de segurança (90 s de gravação)
 - [x] Tela de configuração (URL do servidor editável e persistida)
 - [x] Compilar APK debug (2,5 MB, gerado aqui e no PC Windows)
-- [x] APK release assinado (chave CN=WA Bridge gerada aqui, release v1.0.0 no GitHub)
+- [x] APK release assinado (chave CN=WA Bridge gerada aqui, release v1.0.1 no GitHub)
 
 ## Testes
 
@@ -55,7 +55,7 @@ Legenda: `[x]` pronto · `[ ]` em andamento / delegado / pendente
 - [x] Tarefa enviada ao outro agente (sessão "fale comigo")
 - [x] Clone, testes e build no computador de 16 GB (40 testes verdes em 14 s)
 - [x] Chave de assinatura (`scripts/make-keystore.sh`, cópia em `~/wabridge-keys/`)
-- [x] Release no GitHub com o APK assinado (v1.0.0)
+- [x] Release no GitHub com o APK assinado (v1.0.1)
 - [x] Instalação em emulador (instalou, abriu a tela principal, sem crash)
 - [x] Servidor no ar com pm2 (reinicia sozinho, `http://192.168.15.100:8097`)
 - [ ] Evolution API pareada por QR (precisa do celular do usuário)

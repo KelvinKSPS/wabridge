@@ -1,4 +1,4 @@
-# Relatório — wabridge v1.0.0
+# Relatório — wabridge v1.0.1
 
 Data: 07/11/2026
 
@@ -7,7 +7,7 @@ Data: 07/11/2026
 | Parte | Onde | Estado |
 |---|---|---|
 | Servidor (Node 24 / TypeScript) | `server/` | no ar em `http://192.168.15.100:8097` (pm2, reinicia sozinho) |
-| App Android (Kotlin) | `android-bridge/` | APK release assinado, publicado na release v1.0.0 |
+| App Android (Kotlin) | `android-bridge/` | APK release assinado, publicado na release v1.0.1 |
 | Testes | `server/test/unit/`, `app/src/test/` | 48 testes, todos verdes |
 | Chave de assinatura | `android-bridge/wabridge.jks` | gerada; cópia em `~/wabridge-keys/` |
 
@@ -48,7 +48,7 @@ Rodados em dois lugares:
 - `com.orangepi.wabridge`, versionCode 1, minSdk 26, targetSdk 34, compileSdk 35
 - Assinatura: `CN=WA Bridge, OU=Home, O=wabridge, C=BR`
 - SHA-256 do certificado: `27405a554f869dbe46d9eda85d35879baaee489805fa39c1cc65be89f442844b`
-- Release: https://github.com/KelvinKSPS/wabridge/releases/tag/v1.0.0
+- Release: https://github.com/KelvinKSPS/wabridge/releases/tag/v1.0.1
 
 ## Detalhes que custaram tempo (e como foram resolvidos)
 
