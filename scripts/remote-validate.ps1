@@ -105,6 +105,14 @@ if ($hasDevice) {
   Say "### tela principal"
   Say ((& $adb shell dumpsys activity activities 2>&1 | Select-String "topResumedActivity" | Select-Object -First 2) -join "`n")
 
+  Say "### servidor da ponte (clientes conectados)"
+  try {
+    $health = (Invoke-WebRequest -UseBasicParsing -TimeoutSec 10 "http://192.168.15.100:8097/health").Content
+    Say ("health: " + $health)
+  } catch {
+    Say ("health indisponivel: " + $_.Exception.Message)
+  }
+
   Say "### chamada de teste (clicando no botao do app)"
   # o serviço nao e exported: dispara pelo toque de verdade no botao
   & $adb shell uiautomator dump /sdcard/ui.xml 2>&1 | Out-Null
@@ -129,6 +137,26 @@ if ($hasDevice) {
   Start-Sleep -Seconds 8
 
   Say "### atividade em primeiro plano depois da chamada"
+  Say ((& $adb shell dumpsys activity activities 2>&1 | Select-String "topResumedActivity" | Select-Object -First 2) -join "`n")
+
+  Say "### atendendo a chamada (botao Atender)"
+  & $adb shell uiautomator dump /sdcard/ui2.xml 2>&1 | Out-Null
+  & $adb pull /sdcard/ui2.xml "$work\ui2.xml" 2>&1 | Out-Null
+  if (Test-Path "$work\ui2.xml") {
+    $xml2 = Get-Content "$work\ui2.xml" -Raw
+    $node2 = [regex]::Match($xml2, '<node[^>]*text="(?i:atender)"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"')
+    if ($node2.Success) {
+      $x2 = [int](($node2.Groups[1].Value -as [int]) + ($node2.Groups[3].Value -as [int])) / 2
+      $y2 = [int](($node2.Groups[2].Value -as [int]) + ($node2.Groups[4].Value -as [int])) / 2
+      Say ("clicando em Atender em $x2,$y2")
+      & $adb shell input tap $x2 $y2 2>&1 | Out-Null
+    } else {
+      Say "tela de chamada nao apareceu (sem botao Atender)"
+    }
+  }
+  Start-Sleep -Seconds 10
+
+  Say "### atividade depois de atender"
   Say ((& $adb shell dumpsys activity activities 2>&1 | Select-String "topResumedActivity" | Select-Object -First 2) -join "`n")
 
   Say "### screenshot"
