@@ -105,8 +105,27 @@ if ($hasDevice) {
   Say "### tela principal"
   Say ((& $adb shell dumpsys activity activities 2>&1 | Select-String "topResumedActivity" | Select-Object -First 2) -join "`n")
 
-  Say "### chamada de teste"
-  & $adb shell am start-foreground-service -n com.orangepi.wabridge/com.orangepi.wabridge.BridgeForegroundService -a com.orangepi.wabridge.TEST_CALL 2>&1 | Out-Null
+  Say "### chamada de teste (clicando no botao do app)"
+  # o serviço nao e exported: dispara pelo toque de verdade no botao
+  & $adb shell uiautomator dump /sdcard/ui.xml 2>&1 | Out-Null
+  & $adb pull /sdcard/ui.xml "$work\ui.xml" 2>&1 | Out-Null
+  if (Test-Path "$work\ui.xml") {
+    $xml = Get-Content "$work\ui.xml" -Raw
+    $node = [regex]::Match($xml, '<node[^>]*text="Testar chamada"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"')
+    if (-not $node.Success) {
+      $node = [regex]::Match($xml, '<node[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"[^>]*text="Testar chamada"')
+    }
+    if ($node.Success) {
+      $x = [int](($node.Groups[1].Value -as [int]) + ($node.Groups[3].Value -as [int])) / 2
+      $y = [int](($node.Groups[2].Value -as [int]) + ($node.Groups[4].Value -as [int])) / 2
+      Say ("clicando em Testar chamada em $x,$y")
+      & $adb shell input tap $x $y 2>&1 | Out-Null
+    } else {
+      Say "nao achei o botao Testar chamada na tela"
+    }
+  } else {
+    Say "uiautomator dump falhou"
+  }
   Start-Sleep -Seconds 8
 
   Say "### atividade em primeiro plano depois da chamada"
@@ -122,7 +141,7 @@ if ($hasDevice) {
   if ([string]::IsNullOrWhiteSpace($crash)) { Say "sem crash no logcat" } else { Say $crash }
 
   Say "### logs do app"
-  Say ((& $adb logcat -d 2>&1 | Select-String "WatchCall|VoiceSession|BridgeFg|BridgeConn|WsManager|CallActivity" | Select-Object -Last 40) -join "`n")
+  Say ((& $adb logcat -d 2>&1 | Select-String "WatchCall|VoiceSession|BridgeFg|BridgeConn|WsManager|CallActivity|wabridge" | Select-Object -Last 60) -join "`n")
 } else {
   Say "sem emulador conectado: validacao de runtime nao foi feita"
 }
