@@ -53,10 +53,11 @@ Legenda: `[x]` pronto · `[ ]` em andamento / delegado / pendente
 - [x] Documentação (README do servidor, do app e da raiz) e `RELATORIO.md`
 - [x] Unidade systemd para o servidor
 - [x] Tarefa enviada ao outro agente (sessão "fale comigo")
-- [x] Clone, testes e build no computador de 16 GB (40 testes verdes em 14 s)
+- [x] Clone, testes e build no computador de 16 GB (42 testes verdes em 14 s)
 - [x] Chave de assinatura (`scripts/make-keystore.sh`, cópia em `~/wabridge-keys/`)
 - [x] Release no GitHub com o APK assinado (v1.0.1)
 - [x] Instalação em emulador (instalou, abriu a tela principal, sem crash)
+- [x] Chamada validada no emulador (tela RINGING, Atender → ACTIVE, tom toca sem crash)
 - [x] Servidor no ar com pm2 (reinicia sozinho, `http://192.168.15.100:8097`)
 - [ ] Evolution API pareada por QR (precisa do celular do usuário)
 - [ ] `ALLOWED_NUMBERS` definido no `server/.env` (hoje aceita qualquer remetente)
