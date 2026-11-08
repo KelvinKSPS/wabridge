@@ -25,10 +25,28 @@ class BridgeForegroundService : Service() {
     private val scope = CoroutineScope(job + Dispatchers.Default)
     private var ws: WsManager? = null
 
+    /** Uma chamada por vez: as demais notas de voz esperam na fila. */
+    private val callQueue = CallQueue()
+
     override fun onCreate() {
         super.onCreate()
+        instance = this
         CallNotifier.ensureChannels(this)
-        startForeground(CallNotifier.NOTIFICATION_ID, CallNotifier.serviceNotification(this, getString(R.string.starting)))
+
+        // No Android 12+ o startForeground é bloqueado se o serviço foi
+        // iniciado em segundo plano (ForegroundServiceStartNotAllowedException).
+        // Antes isso derrubava o serviço — e com ele o WebSocket.
+        try {
+            startForeground(
+                CallNotifier.NOTIFICATION_ID,
+                CallNotifier.serviceNotification(this, getString(R.string.starting)),
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "startForeground bloqueado (${e.message}); serviço parado")
+            stopSelf()
+            return
+        }
+
         // nada aqui pode derrubar o serviço: sem ele o WebSocket cai junto
         runCatching { PhoneAccountHelper.ensureRegistered(this) }
             .onFailure { Log.w(TAG, "registro da conta falhou: ${it.message}") }
@@ -36,15 +54,19 @@ class BridgeForegroundService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_TEST_CALL) {
-            val payload = testPayload()
-            if (payload != null) ringIncoming(payload)
+        when (intent?.action) {
+            ACTION_TEST_CALL -> {
+                val payload = testPayload()
+                if (payload != null) ringIncoming(payload)
+            }
+            ACTION_CALL_ENDED -> onCallEnded()
         }
         startSocket()
         return START_STICKY
     }
 
     override fun onDestroy() {
+        if (instance === this) instance = null
         ws?.stop()
         job.cancel()
         super.onDestroy()
@@ -84,7 +106,20 @@ class BridgeForegroundService : Service() {
         )
     }
 
+    /**
+     * Toca uma nota de voz. Se já houver uma chamada em andamento, a nota vai
+     * para a fila e toca depois — nada de chamada por cima da outra.
+     */
     private fun ringIncoming(payload: CallPayload) {
+        if (!callQueue.offer(payload)) {
+            Log.i(TAG, "nota de voz enfileirada (chamada em andamento)")
+            broadcastStatus("nova nota de voz na fila")
+            return
+        }
+        startRinging(payload)
+    }
+
+    private fun startRinging(payload: CallPayload) {
         // A tela de chamada do app não depende do Telecom: aparece mesmo em
         // aparelho sem telephony.
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
@@ -123,6 +158,17 @@ class BridgeForegroundService : Service() {
         }
     }
 
+    /** A chamada atual terminou: toca a próxima da fila, se houver. */
+    private fun onCallEnded() {
+        val next = callQueue.release()
+        if (next == null) {
+            Log.i(TAG, "chamada encerrada; fila vazia")
+            return
+        }
+        Log.i(TAG, "chamada encerrada; tocando a próxima da fila")
+        startRinging(next)
+    }
+
     private fun broadcastStatus(text: String) {
         Log.i(TAG, text)
         sendBroadcast(Intent(ACTION_STATUS).setPackage(packageName).putExtra(EXTRA_TEXT, text))
@@ -138,6 +184,28 @@ class BridgeForegroundService : Service() {
         private const val TAG = "BridgeFg"
         const val ACTION_STATUS = "com.orangepi.wabridge.STATUS"
         const val ACTION_TEST_CALL = "com.orangepi.wabridge.TEST_CALL"
+        const val ACTION_CALL_ENDED = "com.orangepi.wabridge.CALL_ENDED"
         const val EXTRA_TEXT = "text"
+
+        /** Serviço vivo (para avisar que uma chamada terminou). */
+        @Volatile
+        var instance: BridgeForegroundService? = null
+            private set
+
+        /** Avisa o serviço de que a chamada terminou. */
+        fun notifyCallEnded(context: Context) {
+            val svc = instance
+            if (svc != null) {
+                svc.onCallEnded()
+                return
+            }
+            // serviço não está no ar: tenta acordar por intent
+            runCatching {
+                context.startService(
+                    Intent(context, BridgeForegroundService::class.java)
+                        .setAction(ACTION_CALL_ENDED),
+                )
+            }
+        }
     }
 }

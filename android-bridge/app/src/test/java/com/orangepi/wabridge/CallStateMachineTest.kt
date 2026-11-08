@@ -83,4 +83,29 @@ class CallStateMachineTest {
         assertFalse(m.shouldTimeout(4_999))
         assertTrue(m.shouldTimeout(5_000))
     }
+
+    @Test
+    fun `desligar durante gravacao curta e recusado`() {
+        val m = CallStateMachine()
+        m.onSessionAnswer()
+        m.onPlaybackStarted()
+        m.onPlaybackFinished()
+        m.onRecordStarted()
+
+        // 0,5 s de gravação: desligar agora mandaria silêncio
+        assertFalse(m.onHangup(500))
+        assertEquals(CallPhase.RECORDING, m.phase)
+
+        // depois do mínimo, desliga
+        assertTrue(m.onHangup(CallStateMachine.MIN_RECORDING_MS))
+        assertEquals(CallPhase.ENDED, m.phase)
+    }
+
+    @Test
+    fun `desligar antes de gravar sempre passa`() {
+        val m = CallStateMachine()
+        m.onIncoming()
+        assertTrue(m.onHangup(0))
+        assertEquals(CallPhase.ENDED, m.phase)
+    }
 }

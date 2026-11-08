@@ -17,4 +17,9 @@
     <string name="hangup">Desligar</string>
     <string name="unknown_caller">Contato</string>
     <string name="test_caller">Teste</string>
+    <string name="status_playing">🔊 tocando a mensagem…</string>
+    <string name="status_recording">🎙 grave sua resposta</string>
+    <string name="status_recorded">🎙 %1$d s gravados</string>
+    <string name="status_wait">⏳ pode desligar em %1$d s</string>
+    <string name="status_too_short">fale um pouco antes de desligar</string>
 </resources>

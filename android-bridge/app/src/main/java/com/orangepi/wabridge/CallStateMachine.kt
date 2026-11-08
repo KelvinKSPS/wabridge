@@ -60,8 +60,16 @@ class CallStateMachine(val recordTimeoutMs: Long = DEFAULT_RECORD_TIMEOUT_MS) {
 
     fun onRecordStarted(): Boolean = transition(CallPhase.RECORDING, CallPhase.RECORDING)
 
-    fun onHangup(): Boolean {
+    /**
+     * Desligar.
+     *
+     * Durante a gravação só aceita desligar depois de [MIN_RECORDING_MS]: o
+     * usuário desligava logo depois do bipe e mandava um áudio mudo (0,5 s de
+     * silêncio) para o contato.
+     */
+    fun onHangup(recordElapsedMs: Long = Long.MAX_VALUE): Boolean {
         if (ended) return false
+        if (phase == CallPhase.RECORDING && recordElapsedMs < MIN_RECORDING_MS) return false
         phase = CallPhase.ENDED
         return true
     }
@@ -77,5 +85,8 @@ class CallStateMachine(val recordTimeoutMs: Long = DEFAULT_RECORD_TIMEOUT_MS) {
 
     companion object {
         const val DEFAULT_RECORD_TIMEOUT_MS = 90_000L
+
+        /** Gravação mínima antes de permitir desligar (evita resposta muda). */
+        const val MIN_RECORDING_MS = 1_500L
     }
 }

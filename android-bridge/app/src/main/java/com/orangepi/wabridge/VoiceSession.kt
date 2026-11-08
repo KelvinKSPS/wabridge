@@ -11,6 +11,7 @@ import android.media.MediaPlayer
 import android.media.MediaRecorder
 import android.media.ToneGenerator
 import android.os.Build
+import android.os.SystemClock
 import android.util.Log
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CompletableDeferred
@@ -36,6 +37,8 @@ class VoiceSession(
     private val baseUrl: String = Prefs.url(ctx),
     /** Chamado quando a sessão termina (timeout, hangup do usuário...). */
     private val onEnded: (() -> Unit)? = null,
+    /** Chamado quando o usuário tentou desligar antes da gravação mínima. */
+    private val onTooShort: ((Long) -> Unit)? = null,
 ) {
 
     private val audio: AudioManager = ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -52,6 +55,17 @@ class VoiceSession(
     val phase: CallPhase get() = state.phase
     val recording: Boolean get() = recorder != null
 
+    /** true quando a sessão já terminou (não dá mais para gravar). */
+    val ended: Boolean get() = state.ended
+
+    /** Momento em que a gravação começou (0 = não está gravando). */
+    @Volatile
+    private var recordingStartedAt: Long = 0L
+
+    /** Quanto tempo já foi gravado, em ms. */
+    val recordElapsedMs: Long
+        get() = if (recordingStartedAt == 0L) 0L else SystemClock.elapsedRealtime() - recordingStartedAt
+
     /* ---------------------------------------------------------------- *
      * Atender: SCO -> tocar o áudio recebido
      * ---------------------------------------------------------------- */
@@ -63,6 +77,7 @@ class VoiceSession(
             return false
         }
         Log.i(TAG, "sessão de voz iniciada: ${payload.senderName}")
+        current = this
 
         audio.mode = AudioManager.MODE_IN_COMMUNICATION
         audio.isSpeakerphoneOn = false
@@ -189,6 +204,7 @@ class VoiceSession(
                 rec.start()
                 recorder = rec
                 recorderFile = file
+                recordingStartedAt = SystemClock.elapsedRealtime()
                 Log.i(TAG, "gravando em ${file.absolutePath} (source=$source)")
                 break
             } catch (e: Exception) {
@@ -215,8 +231,15 @@ class VoiceSession(
      * ---------------------------------------------------------------- */
 
     fun hangup() {
-        if (!state.onHangup()) return
+        val elapsed = recordElapsedMs
+        if (!state.onHangup(elapsed)) {
+            // gravação ainda muito curta: desligar agora mandaria silêncio
+            Log.w(TAG, "desligar ignorado: só ${elapsed}ms de gravação")
+            onTooShort?.invoke(elapsed)
+            return
+        }
         timeoutJob?.cancel()
+        recordingStartedAt = 0L
 
         runCatching { player?.stop() }
         player?.release()
@@ -241,6 +264,7 @@ class VoiceSession(
             Log.i(TAG, "sem gravação para enviar")
         }
 
+        if (current === this) current = null
         onEnded?.invoke()
     }
 
@@ -259,5 +283,10 @@ class VoiceSession(
         private const val SCO_SETTLE_MS = 800L
         private const val PLAYBACK_TO_RECORD_DELAY_MS = 300L
         private const val RECORD_TIMEOUT_MS = 90_000L
+
+        /** Sessão de voz em andamento (a tela usa para mostrar o estado). */
+        @Volatile
+        var current: VoiceSession? = null
+            private set
     }
 }

@@ -34,6 +34,17 @@
         android:textColor="#9FD3C4"
         android:textSize="14sp" />
 
+    <TextView
+        android:id="@+id/statusLine"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="18dp"
+        android:gravity="center"
+        android:textColor="#FFD166"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
+
     <Button
         android:id="@+id/answerButton"
         android:layout_width="match_parent"

@@ -50,7 +50,7 @@ class WatchCallConnection(
         // se a chamada foi atendida pelo discador do sistema, fecha a tela do app
         android.os.Handler(android.os.Looper.getMainLooper()).post { CallActivity.active?.finish() }
 
-        val voice = VoiceSession(ctx, payload) { onSessionEnded() }
+        val voice = VoiceSession(ctx, payload, onEnded = { onSessionEnded() })
         session = voice
         voice.answer()
     }
@@ -74,13 +74,18 @@ class WatchCallConnection(
         onAnswer()
     }
 
-    /** Recusar pela tela do próprio app. */
-    fun rejectNow() {
+    /**
+     * Recusar/encerrar pela tela do próprio app.
+     * @return true se a chamada foi encerrada; false se o desligar foi
+     * recusado (gravação ainda muito curta).
+     */
+    fun rejectNow(): Boolean {
         hangup(DisconnectCause.REJECTED)
+        return done
     }
 
     private fun onSessionEnded() {
-        // a sessão acabou (timeout): o Telecom precisa saber
+        // a sessão acabou (timeout, hangup do usuário...): o Telecom precisa saber
         if (done) return
         done = true
         runCatching {
@@ -88,14 +93,22 @@ class WatchCallConnection(
             destroy()
         }
         if (current === this) current = null
+        // a próxima nota de voz da fila pode tocar agora
+        BridgeForegroundService.notifyCallEnded(ctx)
     }
 
     private fun hangup(cause: Int) {
+        val session = this.session
+        if (session != null) {
+            // desligar logo depois do bipe mandaria um áudio mudo: a sessão
+            // recusa e a chamada continua viva
+            session.hangup()
+            if (!session.ended) return
+            this.session = null
+        }
+
         if (!state.onHangup()) return
         if (current === this) current = null
-
-        session?.hangup()
-        session = null
 
         // esconde a notificação de chamada
         (ctx.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager)
@@ -105,6 +118,7 @@ class WatchCallConnection(
         done = true
         setDisconnected(DisconnectCause(cause))
         destroy()
+        BridgeForegroundService.notifyCallEnded(ctx)
     }
 
     companion object {
