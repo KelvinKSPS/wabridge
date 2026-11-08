@@ -29,6 +29,8 @@ export function createBridge(deps: BridgeDeps = {}): Bridge {
   const pending = new Map<string, PendingCall>();
   /** Último QR code de pareamento recebido da Evolution (v2 manda por webhook). */
   let lastQr: { base64?: string; ref?: string; pairingCode?: string; at: number } | null = null;
+  /** Estado da conexão da instância ('connecting', 'open', 'close'...). */
+  let instanceState = '';
 
   const app = express();
   app.use(express.json({ limit: '4mb' }));
@@ -61,6 +63,15 @@ export function createBridge(deps: BridgeDeps = {}): Bridge {
       if (qr) {
         lastQr = { ...qr, at: Date.now() };
         console.log(`[webhook] QRcode recebido (${qr.ref ?? 'sem ref'})`);
+      }
+      return;
+    }
+
+    if (event.startsWith('connection')) {
+      const state = String(body?.data?.state ?? body?.data?.connectionStatus ?? '');
+      if (state) {
+        instanceState = state;
+        console.log(`[webhook] conexão: ${state}`);
       }
       return;
     }
@@ -108,6 +119,22 @@ export function createBridge(deps: BridgeDeps = {}): Bridge {
 
     console.log(`[push] ${payload.senderName} -> relógio: ${payload.audioUrl}`);
     hub.broadcast(payload);
+  }
+
+  /**
+   * QR atualizado. A Evolution manda por webhook, mas se o webhook falhar
+   * (ou estiver em backoff) buscamos direto nela. Só fazemos isso quando a
+   * instância não está pareada: pedir o QR reinicia o socket.
+   */
+  async function freshQr(): Promise<typeof lastQr> {
+    if (lastQr && Date.now() - lastQr.at < 20_000) return lastQr;
+    if (instanceState === 'open') return lastQr;
+    const qr = await evolution.getQrCode();
+    if (qr?.base64) {
+      lastQr = { ...qr, at: Date.now() };
+      console.log('[qrcode] QR buscado direto na Evolution');
+    }
+    return lastQr;
   }
 
   /* ------------------------------------------------------------------ *
@@ -209,42 +236,50 @@ export function createBridge(deps: BridgeDeps = {}): Bridge {
    * Pareamento (QR) — a Evolution manda o QR por webhook
    * ------------------------------------------------------------------ */
 
-  app.get('/qrcode', (_req, res) => {
-    if (!lastQr?.base64) {
+  app.get('/qrcode', async (_req, res) => {
+    const qr = await freshQr();
+    if (!qr?.base64) {
       res.status(404).send('<p>Sem QR code. Pareie pelo painel: http://192.168.15.100:8098/manager</p>');
       return;
     }
-    const img = `data:image/png;base64,${lastQr.base64}`;
-    const code = lastQr.pairingCode
-      ? `<h2>Código de pareamento</h2><p style="font-size:44px;letter-spacing:6px">${lastQr.pairingCode.slice(0, 4)}-${lastQr.pairingCode.slice(4, 8)}</p>` +
+    const img = `data:image/png;base64,${qr.base64}`;
+    const code = qr.pairingCode
+      ? `<h2>Código de pareamento</h2><p style="font-size:44px;letter-spacing:6px">${qr.pairingCode.slice(0, 4)}-${qr.pairingCode.slice(4, 8)}</p>` +
         `<p>WhatsApp → Aparelhos conectados → Conectar com número de telefone</p>`
       : '';
+    // o QR da Evolution gira a cada ~30s: a página se atualiza sozinha para
+    // nunca mostrar um QR vencido (senão o WhatsApp responde "não foi possível
+    // conectar o dispositivo").
+    res.setHeader('Cache-Control', 'no-store');
     res.type('html').send(
-      `<!doctype html><meta charset="utf-8"><title>wabridge — parear WhatsApp</title>` +
+      `<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="3">` +
+        `<title>wabridge — parear WhatsApp</title>` +
         `<body style="font-family:sans-serif;background:#111;color:#eee;text-align:center">` +
         `<h2>Escaneie no WhatsApp (Aparelhos conectados → Conectar)</h2>` +
         `<img src="${img}" style="background:#fff;padding:12px;border-radius:8px">` +
         code +
-        `<p>gerado em ${new Date(lastQr.at).toLocaleString('pt-BR')}</p></body>`,
+        `<p>atualiza sozinho a cada 3s · gerado em ${new Date(qr.at).toLocaleTimeString('pt-BR')}</p></body>`,
     );
   });
 
-  app.get('/qrcode.json', (_req, res) => {
-    if (!lastQr) {
+  app.get('/qrcode.json', async (_req, res) => {
+    const qr = await freshQr();
+    if (!qr) {
       res.status(404).json({ error: 'sem QR code' });
       return;
     }
-    res.json(lastQr);
+    res.json(qr);
   });
 
-  app.get('/qrcode.png', (_req, res) => {
-    if (!lastQr?.base64) {
+  app.get('/qrcode.png', async (_req, res) => {
+    const qr = await freshQr();
+    if (!qr?.base64) {
       res.status(404).json({ error: 'sem QR code' });
       return;
     }
     res.setHeader('Content-Type', 'image/png');
     res.setHeader('Cache-Control', 'no-store');
-    res.end(Buffer.from(lastQr.base64, 'base64'));
+    res.end(Buffer.from(qr.base64, 'base64'));
   });
 
   return { app, server, hub, pending };

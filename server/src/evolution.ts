@@ -141,6 +141,26 @@ export class EvolutionClient {
     throw new Error('Evolution downloadMedia: resposta sem base64 nem link');
   }
 
+  /** QR de pareamento (v2). Chamar isso reinicia a conexão do socket. */
+  async getQrCode(): Promise<{ base64?: string; ref?: string; pairingCode?: string } | null> {
+    try {
+      const res = await this.http.get(`/instance/connect/${this.instance}`, {
+        headers: { apikey: this.apiKey },
+      });
+      const body: any = res.data ?? {};
+      const raw: string | undefined = body.base64 ?? body.response?.base64;
+      if (typeof raw !== 'string' || raw.length === 0) return null;
+      const comma = raw.indexOf(',');
+      return {
+        base64: comma >= 0 ? raw.slice(comma + 1) : raw,
+        ref: body.ref ? String(body.ref) : body.code ? String(body.code) : undefined,
+        pairingCode: body.pairingCode ?? undefined,
+      };
+    } catch {
+      return null;
+    }
+  }
+
   /** Envia nota de voz (PTT) para o número informado (só dígitos). */
   async sendVoiceNote(number: string, ogg: Buffer, fileName = 'reply.ogg'): Promise<any> {
     const b64 = ogg.toString('base64');
