@@ -74,6 +74,12 @@ export function createBridge(deps: BridgeDeps = {}): Bridge {
       if (state) {
         instanceState = state;
         console.log(`[webhook] conexão: ${state}`);
+        if (state === 'refused') {
+          console.warn(
+            '[webhook] pareamento RECUSADO. Causa provável: a Evolution batou no ' +
+              'limite de QRs (QRCODE_LIMIT) — recrie a instância para zerar o contador.',
+          );
+        }
       }
       return;
     }

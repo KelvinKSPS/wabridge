@@ -30,6 +30,9 @@ services:
       # autenticacao
       AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY:-wabridge-dev}
       AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES: "false"
+      # a Evolution conta cada QR gerado e recusa o pareamento no limite
+      # (o padrao e' 30 e o QR gira a cada ~30s = 15 minutos de janela)
+      QRCODE_LIMIT: "500"
       # banco (obrigatorio na v2)
       DATABASE_PROVIDER: postgresql
       DATABASE_CONNECTION_URI: postgresql://evolution:evolution@evolution-postgres:5432/evolution_api
