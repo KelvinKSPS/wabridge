@@ -8,7 +8,7 @@ import { config, isAllowed } from './config';
 import { Hub } from './hub';
 import { EvolutionClient } from './evolution';
 import { ensureMediaDir, mediaPath, scheduleCleanup, toOggOpus, toWav16k, generateToneWav } from './media';
-import { normalize, isGroup } from './whatsapp';
+import { normalize, isPrivateChat } from './whatsapp';
 import type { CallPayload, PendingCall } from './types';
 
 export interface BridgeDeps {
@@ -58,6 +58,8 @@ export function createBridge(deps: BridgeDeps = {}): Bridge {
     // ack imediato; o processamento é assíncrono para não travar o Evolution.
     res.status(200).json({ ok: true });
     const event = String(req.params.event ?? '');
+    const kb = Math.round(Number(req.headers['content-length'] ?? 0) / 1024);
+    console.log(`[webhook] ${event || 'sem evento'} (${kb} KB)`);
     handleWebhook(req.body, event).catch((err) => console.error('[webhook] erro:', err.message));
   });
 
@@ -90,8 +92,8 @@ export function createBridge(deps: BridgeDeps = {}): Bridge {
     if (!evt) return;
     if (evt.fromMe) return;
 
-    if (isGroup(evt.remoteJid)) {
-      console.log('[webhook] grupo ignorado');
+    if (!isPrivateChat(evt.remoteJid)) {
+      console.log(`[webhook] não é conversa privada, ignorado (${evt.remoteJid})`);
       return;
     }
 

@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { test, describe } from 'node:test';
-import { normalize, findAudio, findKey, isGroup } from '../../src/whatsapp';
+import { normalize, findAudio, findKey, isGroup, isPrivateChat } from '../../src/whatsapp';
 
 describe('normalize — payload messages.upsert da Evolution API', () => {
   test('formato padrão (data.key + data.message.audio)', () => {
@@ -126,5 +126,16 @@ describe('isGroup', () => {
   test('g.us é grupo', () => {
     assert.equal(isGroup('123-456@g.us'), true);
     assert.equal(isGroup('5511999999999@s.whatsapp.net'), false);
+  });
+});
+
+describe('isPrivateChat', () => {
+  test('só conta conversa de pessoa', () => {
+    assert.equal(isPrivateChat('5511999999999@s.whatsapp.net'), true);
+    assert.equal(isPrivateChat('5511999999999@c.us'), true);
+    assert.equal(isPrivateChat('123-456@g.us'), false, 'grupo');
+    assert.equal(isPrivateChat('120363336020038705@newsletter'), false, 'canal');
+    assert.equal(isPrivateChat('1234@broadcast'), false, 'transmissão');
+    assert.equal(isPrivateChat('987654321@lid'), false, 'identidade privacy');
   });
 });

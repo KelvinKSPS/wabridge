@@ -107,3 +107,15 @@ export function normalize(body: any): IncomingAudio | null {
 export function isGroup(jid: string): boolean {
   return jid.endsWith('@g.us');
 }
+
+/**
+ * true se o jid é uma conversa privada (pessoa).
+ * Tudo que não for isso é ignorado pela ponte:
+ * - `@g.us` grupo
+ * - `@newsletter` canal do WhatsApp
+ * - `@broadcast` transmissão
+ * - `@lid` identidade privacy (não é número de telefone)
+ */
+export function isPrivateChat(jid: string): boolean {
+  return jid.endsWith('@s.whatsapp.net') || jid.endsWith('@c.us');
+}
