@@ -31,6 +31,8 @@ export function createBridge(deps: BridgeDeps = {}): Bridge {
   let lastQr: { base64?: string; ref?: string; pairingCode?: string; at: number } | null = null;
   /** Estado da conexão da instância ('connecting', 'open', 'close'...). */
   let instanceState = '';
+  /** Última vez que buscamos o QR direto na Evolution (reinicia a instância). */
+  let lastQrFetchAt = 0;
 
   const app = express();
   app.use(express.json({ limit: '4mb' }));
@@ -122,13 +124,20 @@ export function createBridge(deps: BridgeDeps = {}): Bridge {
   }
 
   /**
-   * QR atualizado. A Evolution manda por webhook, mas se o webhook falhar
-   * (ou estiver em backoff) buscamos direto nela. Só fazemos isso quando a
-   * instância não está pareada: pedir o QR reinicia o socket.
+   * QR atualizado.
+   *
+   * A Evolution renova o QR sozinha (~30 s) e avisa por webhook — é esse
+   * caminho que usamos. Só buscamos o QR direto nela se o webhook ficar
+   * mudo por mais de 2 minutos, porque pedir o QR **reinicia a instância** e
+   * um QR invalidado faz o WhatsApp responder "não foi possível conectar".
    */
   async function freshQr(): Promise<typeof lastQr> {
-    if (lastQr && Date.now() - lastQr.at < 20_000) return lastQr;
+    const age = lastQr ? Date.now() - lastQr.at : Infinity;
+    if (age < 120_000) return lastQr;
     if (instanceState === 'open') return lastQr;
+    if (Date.now() - lastQrFetchAt < 120_000) return lastQr;
+
+    lastQrFetchAt = Date.now();
     const qr = await evolution.getQrCode();
     if (qr?.base64) {
       lastQr = { ...qr, at: Date.now() };
