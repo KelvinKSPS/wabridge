@@ -28,7 +28,7 @@ export function createBridge(deps: BridgeDeps = {}): Bridge {
   const evolution = deps.evolution ?? new EvolutionClient();
   const pending = new Map<string, PendingCall>();
   /** Último QR code de pareamento recebido da Evolution (v2 manda por webhook). */
-  let lastQr: { base64?: string; ref?: string; at: number } | null = null;
+  let lastQr: { base64?: string; ref?: string; pairingCode?: string; at: number } | null = null;
 
   const app = express();
   app.use(express.json({ limit: '4mb' }));
@@ -215,13 +215,26 @@ export function createBridge(deps: BridgeDeps = {}): Bridge {
       return;
     }
     const img = `data:image/png;base64,${lastQr.base64}`;
+    const code = lastQr.pairingCode
+      ? `<h2>Código de pareamento</h2><p style="font-size:44px;letter-spacing:6px">${lastQr.pairingCode.slice(0, 4)}-${lastQr.pairingCode.slice(4, 8)}</p>` +
+        `<p>WhatsApp → Aparelhos conectados → Conectar com número de telefone</p>`
+      : '';
     res.type('html').send(
       `<!doctype html><meta charset="utf-8"><title>wabridge — parear WhatsApp</title>` +
         `<body style="font-family:sans-serif;background:#111;color:#eee;text-align:center">` +
         `<h2>Escaneie no WhatsApp (Aparelhos conectados → Conectar)</h2>` +
         `<img src="${img}" style="background:#fff;padding:12px;border-radius:8px">` +
+        code +
         `<p>gerado em ${new Date(lastQr.at).toLocaleString('pt-BR')}</p></body>`,
     );
+  });
+
+  app.get('/qrcode.json', (_req, res) => {
+    if (!lastQr) {
+      res.status(404).json({ error: 'sem QR code' });
+      return;
+    }
+    res.json(lastQr);
   });
 
   app.get('/qrcode.png', (_req, res) => {
@@ -238,16 +251,21 @@ export function createBridge(deps: BridgeDeps = {}): Bridge {
 }
 
 /** Procura o QR code (base64) em qualquer nível do payload da Evolution. */
-function pickQrcode(body: any): { base64?: string; ref?: string } | null {
+function pickQrcode(body: any): { base64?: string; ref?: string; pairingCode?: string } | null {
   const seen = new Set<any>();
-  const walk = (obj: any): { base64?: string; ref?: string } | null => {
+  const walk = (obj: any): { base64?: string; ref?: string; pairingCode?: string } | null => {
     if (!obj || typeof obj !== 'object' || seen.has(obj)) return null;
     seen.add(obj);
     if (typeof obj.base64 === 'string' && obj.base64.length > 0) {
       // pode vir como data URI: data:image/png;base64,XXXX
       const comma = obj.base64.indexOf(',');
       const b64 = comma >= 0 ? obj.base64.slice(comma + 1) : obj.base64;
-      return { base64: b64, ref: obj.ref ? String(obj.ref) : undefined };
+      const code = obj.pairingCode ?? obj.pairing_code;
+      return {
+        base64: b64,
+        ref: obj.ref ? String(obj.ref) : undefined,
+        pairingCode: typeof code === 'string' && code.length > 0 ? code : undefined,
+      };
     }
     for (const v of Object.values(obj)) {
       const r = walk(v);
