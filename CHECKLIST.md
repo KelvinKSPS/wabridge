@@ -47,6 +47,11 @@ Legenda: `[x]` pronto · `[ ]` em andamento / delegado / pendente
 - [x] Suíte Android executada por Gradle (20/20 aqui, 40/40 no PC Windows)
 - [x] Teste ponta a ponta com Evolution falsa (`server/test/`)
 
+- [x] Chamada por cima evitada (fila: uma por vez, a próxima toca depois)
+- [x] Resposta muda evitada (tela mostra o estado + 1,5 s de gravação mínima)
+- [x] Crash do Telecom com conta nula corrigido (`onCreateIncomingConnectionFailed`)
+- [x] `ForegroundServiceStartNotAllowedException` corrigido (serviço não morre mais)
+
 ## Infra e entrega
 
 - [x] aapt2 em ARM (sysroot x86 + qemu-user; o SDK traz binário x86-64)
@@ -66,3 +71,4 @@ Legenda: `[x]` pronto · `[ ]` em andamento / delegado / pendente
 - [x] Evolution API **pareada** (número 5519982617622) — estado `open`
 - [x] Ida e volta validadas com WhatsApp real (áudio baixado da Evolution em base64 → wav 16k mono; resposta gravada entregue no WhatsApp)
 - [ ] `ALLOWED_NUMBERS` definido no `server/.env` (hoje aceita qualquer remetente)
+- [x] CI no GitHub Actions (testes do servidor + testes e build do APK; release assinada por tag)

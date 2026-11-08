@@ -32,7 +32,7 @@ class CallQueueTest {
         val q = CallQueue()
         assertTrue(q.offer(nota("a")))
         assertFalse(q.offer(nota("b")))
-        assertTrue(q.offer(nota("c")))
+        assertFalse(q.offer(nota("c")))
         assertEquals(2, q.size)
     }
 

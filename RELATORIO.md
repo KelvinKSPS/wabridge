@@ -29,6 +29,23 @@ webhook (v2)  -> Evolution /chat/getBase64FromMediaMessage (base64 real)
 ```
 
 ### Bugs do dia (todos corrigidos)
+5. **O app crashou no aparelho do usuário** (achados pelo logcat real):
+   - `NullPointerException` em `onCreateIncomingConnectionFailed`: o Telecom
+     chama esse método com a conta **nula** quando não encontra a
+     PhoneAccount; o parâmetro estava declarado como não-nulo e o Kotlin
+     estourava. O processo morria — e o WebSocket junto.
+   - `ForegroundServiceStartNotAllowedException`: `startForeground()` é
+     bloqueado no Android 12+ quando o serviço é criado em segundo plano.
+     O serviço morria na criação → **as notas de voz paravam de chegar**.
+   - **Chamada por cima**: uma nota que chegava durante outra chamada
+     abria uma segunda chamada. Agora há fila (`CallQueue`): uma por vez.
+   - **Resposta muda**: o usuário desligava logo depois do bipe e mandava
+     0,5 s de silêncio (1.831 bytes). Agora a tela mostra o estado
+     ("tocando" / "grave sua resposta" / segundos) e o desligar só passa
+     depois de 1,5 s de gravação.
+6. **A release v1.0.1 do GitHub era anterior ao fix** do crash por
+   `READ_PHONE_STATE` (fix 13:06, release 12:00) — quem instalou aquele
+   APK teve o serviço morrendo ao abrir. republished em v1.0.2.
 
 1. **A Evolution parou de aceitar pareamento.** Ela conta cada QR gerado (o
    QR gira a cada ~30 s) e recusa no limite — o padrão é 30, ou seja, ~15

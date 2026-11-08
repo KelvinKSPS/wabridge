@@ -24,6 +24,8 @@ jobs:
           node-version: '24'
           cache: npm
           cache-dependency-path: server/package-lock.json
+      - name: instala o ffmpeg (conversao opus <-> wav)
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
