@@ -2,6 +2,49 @@
 
 Data: 08/11/2026
 
+## Validação com WhatsApp real (08/11)
+
+O WhatsApp foi pareado de verdade na Evolution v2.3.7 (número
+**5519982617622**). As duas direções foram exercitadas com mídia real, não
+só com mock:
+
+**Entrada** — uma nota de voz real do WhatsApp (buscada no histórico da
+Evolution) foi injetada no webhook e percorreu a ponte inteira:
+
+```
+webhook (v2)  -> Evolution /chat/getBase64FromMediaMessage (base64 real)
+              -> ffmpeg -> wav
+              -> wav baixado: 150.270 bytes | RIFF | mono | 16 kHz
+              -> push NEW_VOICE_NOTE no WebSocket
+```
+
+**Saída** — uma gravação (m4a AAC 16 kHz, como a do relógio) foi enviada via
+`POST /reply/audio` e o WhatsApp aceitou:
+
+```json
+{"ok": true, "to": "5519982617622",
+ "sent": {"key": {"id": "3EB088947CC694A059D955", "fromMe": true},
+          "status": "PENDING",
+          "message": {"audioMessage": {"url": "https://mmg.whatsapp.net/..."}}}}
+```
+
+### Bugs do dia (todos corrigidos)
+
+1. **A Evolution parou de aceitar pareamento.** Ela conta cada QR gerado (o
+   QR gira a cada ~30 s) e recusa no limite — o padrão é 30, ou seja, ~15
+   minutos de janela. Depois disso o estado ia para `refused` e o WhatsApp
+   respondia "não foi possível conectar o dispositivo".
+   `QRCODE_LIMIT` agora é 500.
+2. **A ponte reiniciava a instância ao buscar o QR**, o que invalidava o QR
+   que o usuário estava escaneando. Agora o QR vem só do webhook.
+3. **Webhook descartado por corpo grande**: a Evolution v2 manda payload de
+   vários MB; o limite de 4 MB do `express.json` respondia 413 e o evento
+   morria (59 descartes no log). Limite agora 50 MB.
+4. **Canal do WhatsApp tocava o relógio**: o filtro só pegava `@g.us`, então
+   `@newsletter` (canal), `@broadcast` e `@lid` passavam como conversa
+   privada. Agora só `@s.whatsapp.net`/`@c.us` tocam o relógio.
+
+
 ## Atualização de 08/11 — Evolution API v2 no ar
 
 A imagem antiga (`atendai/evolution-api`) saiu do Docker Hub; o projeto hoje é

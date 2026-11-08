@@ -63,5 +63,6 @@ Legenda: `[x]` pronto · `[ ]` em andamento / delegado / pendente
 - [x] Evolution API v2.3.7 no ar (`:8098`, com Postgres e Redis), instância `wabridge` criada
 - [x] Webhook global da Evolution apontando para a ponte (evento no caminho: `/webhook/whatsapp/messages-upsert`)
 - [x] QR de pareamento exposto pela ponte (`GET /qrcode`, `GET /qrcode.png`)
-- [ ] Evolution API pareada por QR (precisa do celular do usuário)
+- [x] Evolution API **pareada** (número 5519982617622) — estado `open`
+- [x] Ida e volta validadas com WhatsApp real (áudio baixado da Evolution em base64 → wav 16k mono; resposta gravada entregue no WhatsApp)
 - [ ] `ALLOWED_NUMBERS` definido no `server/.env` (hoje aceita qualquer remetente)
