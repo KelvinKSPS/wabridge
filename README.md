@@ -35,8 +35,11 @@ cp .env.example .env      # ajuste ALLOWED_NUMBERS e PUBLIC_HOST
 npm install
 npm run dev               # ou: npm run build && npm start
 
-# 2. Evolution API
-#    aponte o webhook para http://<IP_SERVIDOR>:8097/webhook/whatsapp
+# 2. Evolution API (v2.3.7)
+cd ..
+docker compose up -d          # Evolution em :8098 + postgres + redis
+#    painel: http://192.168.15.100:8098/manager  (criar a instância e parear o QR)
+#    o webhook global já aponta para http://192.168.15.100:8097/webhook/whatsapp
 
 # 3. app
 cd ../android-bridge
@@ -67,7 +70,7 @@ Isso valida tudo menos o lado do WhatsApp (Evolution API + pareamento por QR).
 | APK release assinado | release v1.0.1 no GitHub |
 | Chave de assinatura | `android-bridge/wabridge.jks` (cópia em `~/wabridge-keys/`) |
 | Servidor rodando | pm2, `http://192.168.15.100:8097` (`pm2 logs wabridge`) |
-| Evolution API | `docker-compose.yml` na raiz do projeto |
+| Evolution API | `docker-compose.yml` na raiz — v2.3.7 em `http://192.168.15.100:8098` (painel em `/manager`) |
 | Relatório de validação | `RELATORIO.md` |
 | Progresso | `CHECKLIST.md` e `docs/checklist.html` |
 
@@ -78,7 +81,7 @@ Isso valida tudo menos o lado do WhatsApp (Evolution API + pareamento por QR).
 | `PORT` | `8090` | porta HTTP/WS |
 | `PUBLIC_HOST` | IP local detectado | URL usada pelo relógio para baixar o áudio |
 | `ALLOWED_NUMBERS` | vazio (aceita todos) | lista branca de remetentes |
-| `EVOLUTION_API_URL` | `http://127.0.0.1:8080` | Evolution API |
+| `EVOLUTION_API_URL` | `http://127.0.0.1:8098` | Evolution API |
 | `EVOLUTION_INSTANCE` | `wabridge` | nome da instância |
 | `EVOLUTION_API_KEY` | vazio | chave da Evolution API |
 | `FFMPEG_PATH` | `ffmpeg` | binário do ffmpeg |
@@ -87,11 +90,12 @@ Isso valida tudo menos o lado do WhatsApp (Evolution API + pareamento por QR).
 
 | Rota | Uso |
 |---|---|
-| `POST /webhook/whatsapp` | entrada dos eventos do WhatsApp |
+| `POST /webhook/whatsapp` | entrada dos eventos do WhatsApp (a Evolution v2 acrescenta o evento no caminho: `/webhook/whatsapp/messages-upsert`) |
 | `GET /media/:audioId.wav` | áudio recebido em cache (PCM 16k mono) |
 | `POST /reply/audio` | resposta do relógio (`multipart`: `file`, `audioId`, `to`) |
 | `GET /health` | estado do servidor |
 | `GET /pending` | conversas em aberto |
+| `GET /qrcode` · `GET /qrcode.png` | QR de pareamento (Evolution v2) |
 | `ws://host:8097/ws` | eventos para o app |
 
 ## Pendente: chave de assinatura (PK)

@@ -79,13 +79,21 @@ function postFile(p, filePath, fields) {
 
   await new Promise((r) => ws.on('open', r));
 
-  const wh = await postJson('/webhook/whatsapp', {
+  // Payload no formato da Evolution v2: data é uma lista e o evento vai na URL.
+  const wh = await postJson('/webhook/whatsapp/messages-upsert', {
+    event: 'messages.upsert',
     instance: 'wabridge',
-    data: {
-      key: { remoteJid: '5511999999999@s.whatsapp.net', fromMe: false, id: 'MSG_ABC_123' },
-      pushName: 'João da Silva',
-      message: { audio: { mimetype: 'audio/ogg; codecs=opus', url: 'https://mmg.whatsapp.net/media/xyz' } },
-    },
+    data: [
+      {
+        key: { remoteJid: '5511999999999@s.whatsapp.net', fromMe: false, id: 'MSG_ABC_123' },
+        pushName: 'João da Silva',
+        messageType: 'audio',
+        messageTimestamp: 1700000000,
+        message: {
+          audioMessage: { mimetype: 'audio/ogg; codecs=opus', fileLength: 1234, ptt: true },
+        },
+      },
+    ],
   });
   console.log('webhook  ->', wh.status, wh.body);
 

@@ -20,8 +20,13 @@ const EXT_BY_MIME: Record<string, string> = {
 };
 
 /**
- * Cliente mínimo da Evolution API (v2). Só o que a ponte precisa:
- * baixar mídia recebida e enviar nota de voz.
+ * Cliente da Evolution API. Só o que a ponte precisa: baixar a mídia
+ * recebida e enviar nota de voz.
+ *
+ * - v2 (Evolution API 2.x): a mídia é baixada passando a mensagem
+ * inteira para `getBase64FromMediaMessage`, e a nota de voz vai como base64
+ * em `message/sendWhatsAppAudio`. A v1 continua suportada como reserva
+ * (link público + `/chat/sendAudio`).
  */
 export class EvolutionClient {
   private readonly http: AxiosInstance;
@@ -44,41 +49,93 @@ export class EvolutionClient {
     return { 'Content-Type': 'application/json', apikey: this.apiKey };
   }
 
+  /** Extrai o base64 de qualquer formato de resposta da Evolution. */
+  private static pickBase64(body: any): string | undefined {
+    const candidates = [
+      body?.base64,
+      body?.response?.base64,
+      body?.data?.base64,
+      body?.response?.data?.base64,
+      body?.response?.buffer,
+    ];
+    for (const c of candidates) {
+      if (typeof c === 'string' && c.length > 0) return c.includes(',') ? c.slice(c.indexOf(',') + 1) : c;
+      // Buffer serializado em JSON: { type: 'Buffer', data: [...] }
+      if (c && typeof c === 'object' && Array.isArray(c.data)) {
+        return Buffer.from(c.data).toString('base64');
+      }
+    }
+    return undefined;
+  }
+
   /** Baixa a mídia (opus/ogg) do WhatsApp. */
-  async downloadMedia(mediaUrl: string, mimetype = 'audio/ogg'): Promise<DownloadedMedia> {
-    const res = await this.http.post(
-      `/chat/downloadMedia/${this.instance}`,
-      { mediaLink: mediaUrl, mimetype },
-      { headers: this.headers, responseType: 'json' },
-    );
+  async downloadMedia(evt: {
+    message?: any;
+    audioUrl?: string;
+    mimetype?: string;
+  }): Promise<DownloadedMedia> {
+    const mimetype = evt.mimetype ?? 'audio/ogg';
 
-    const body: any = res.data ?? {};
-
-    // Evolution v2.1+: { status, base64, mimetype }
-    const b64: string | undefined = body.base64 ?? body.data ?? body.response?.base64;
-    if (typeof b64 === 'string' && b64.length > 0) {
-      const clean = b64.includes(',') ? b64.slice(b64.indexOf(',') + 1) : b64;
-      return {
-        data: Buffer.from(clean, 'base64'),
-        extension: EXT_BY_MIME[body.mimetype ?? mimetype] ?? 'ogg',
-        mimetype: body.mimetype ?? mimetype,
-      };
+    // v2: manda a mensagem inteira e recebe base64.
+    if (evt.message && typeof evt.message === 'object') {
+      try {
+        const res = await this.http.post(
+          `/chat/getBase64FromMediaMessage/${this.instance}`,
+          { message: evt.message },
+          { headers: this.headers, responseType: 'json' },
+        );
+        const body: any = res.data ?? {};
+        const payload = body?.response ?? body;
+        const b64 = EvolutionClient.pickBase64(body);
+        if (b64) {
+          const mime = payload?.mimetype ?? mimetype;
+          return {
+            data: Buffer.from(b64, 'base64'),
+            extension: EXT_BY_MIME[mime] ?? 'ogg',
+            mimetype: mime,
+          };
+        }
+      } catch (err: any) {
+        const status = err?.response?.status;
+        // 404/405: rota inexistente nesta versão. 400: mensagem não reconhecida.
+        if (status !== 404 && status !== 405 && status !== 400) throw err;
+      }
     }
 
-    // Versões antigas devolvem um link temporário.
-    const link: string | undefined = body.link ?? body.url ?? body.mediaUrl;
-    if (typeof link === 'string' && link.length > 0) {
-      const bin = await this.http.get(link, { responseType: 'arraybuffer' });
-      return {
-        data: Buffer.from(bin.data),
-        extension: EXT_BY_MIME[body.mimetype ?? mimetype] ?? 'ogg',
-        mimetype: body.mimetype ?? mimetype,
-      };
-    }
+    // v1: link público para o arquivo.
+    if (evt.audioUrl) {
+      const res = await this.http.post(
+        `/chat/downloadMedia/${this.instance}`,
+        { mediaLink: evt.audioUrl, mimetype },
+        { headers: this.headers, responseType: 'json' },
+      );
 
-    // Alguns deployments devolvem o binário direto.
-    if (Buffer.isBuffer(res.data)) {
-      return { data: res.data, extension: EXT_BY_MIME[mimetype] ?? 'ogg', mimetype };
+      const body: any = res.data ?? {};
+
+      const b64 = EvolutionClient.pickBase64(body);
+      if (b64) {
+        return {
+          data: Buffer.from(b64, 'base64'),
+          extension: EXT_BY_MIME[body.mimetype ?? mimetype] ?? 'ogg',
+          mimetype: body.mimetype ?? mimetype,
+        };
+      }
+
+      // Versões antigas devolvem um link temporário.
+      const link: string | undefined = body.link ?? body.url ?? body.mediaUrl;
+      if (typeof link === 'string' && link.length > 0) {
+        const bin = await this.http.get(link, { responseType: 'arraybuffer' });
+        return {
+          data: Buffer.from(bin.data),
+          extension: EXT_BY_MIME[body.mimetype ?? mimetype] ?? 'ogg',
+          mimetype: body.mimetype ?? mimetype,
+        };
+      }
+
+      // Alguns deployments devolvem o binário direto.
+      if (Buffer.isBuffer(res.data)) {
+        return { data: res.data, extension: EXT_BY_MIME[mimetype] ?? 'ogg', mimetype };
+      }
     }
 
     throw new Error('Evolution downloadMedia: resposta sem base64 nem link');
@@ -86,7 +143,7 @@ export class EvolutionClient {
 
   /** Envia nota de voz (PTT) para o número informado (só dígitos). */
   async sendVoiceNote(number: string, ogg: Buffer, fileName = 'reply.ogg'): Promise<any> {
-    const dataUri = `data:audio/ogg;base64,${ogg.toString('base64')}`;
+    const b64 = ogg.toString('base64');
     const payloadBase = {
       number,
       mimetype: 'audio/ogg',
@@ -94,7 +151,20 @@ export class EvolutionClient {
       ptt: true,
     };
 
-    // API dedicada de áudio (presente na maioria das versões).
+    // v2: base64 puro no corpo.
+    try {
+      return await this.http.post(
+        `/message/sendWhatsAppAudio/${this.instance}`,
+        { ...payloadBase, audio: b64 },
+        { headers: this.headers },
+      );
+    } catch (err: any) {
+      const status = err?.response?.status;
+      if (status !== 404 && status !== 405) throw err;
+    }
+
+    // v1: data URI na API dedicada de áudio.
+    const dataUri = `data:audio/ogg;base64,${b64}`;
     try {
       return await this.http.post(`/chat/sendAudio/${this.instance}`, {
         ...payloadBase,

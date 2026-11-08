@@ -15,7 +15,9 @@ no Node 20+ ou exporte no shell).
 ## Requisitos
 
 - `ffmpeg` com `libopus` e `pcm_s16le` (`ffmpeg -encoders | grep opus`).
-- Evolution API v2 com o webhook apontando para `/webhook/whatsapp`.
+- Evolution API (v1 ou v2). Na v2 o webhook global aponta para
+  `http://<IP_DA_PONTE>:8097/webhook/whatsapp` — a Evolution acrescenta o
+  evento no final do caminho (`/webhook/whatsapp/messages-upsert`).
 
 ## Rotas
 
@@ -29,7 +31,9 @@ fora da lista branca são ignorados.
 
 Sequência do processamento:
 
-1. `POST {EVOLUTION}/chat/downloadMedia/{instance}` → base64 do opus.
+1. Baixa o áudio: na **v2** a mensagem inteira vai para
+   `POST {EVOLUTION}/chat/getBase64FromMediaMessage/{instance}` (a v2 não
+   expõe link público); a **v1** usa `chat/downloadMedia` com o link.
 2. `ffmpeg` → `wav` PCM 16kHz mono (obrigatório para o SCO do Android).
 3. Publica `NEW_VOICE_NOTE` no WebSocket.
 4. Cache expira em `MEDIA_TTL_MS`.
@@ -48,8 +52,14 @@ Serve o wav em cache. O `audioId` é o id da mensagem sanitizado.
 | `audioId` | não | id do áudio original (resolve o destinatário) |
 | `to` | não | número do destinatente, só dígitos |
 
-Converte para `ogg`/Opus e envia como nota de voz (`ptt: true`) via
-`chat/sendAudio` (fallback `chat/sendMedia`).
+Converte para `ogg`/Opus e envia como nota de voz (`ptt: true`): na **v2**
+vai como base64 em `POST {EVOLUTION}/message/sendWhatsAppAudio/{instance}`;
+a v1 usa `chat/sendAudio` (fallback `chat/sendMedia`).
+
+### `GET /qrcode` e `GET /qrcode.png`
+
+Último QR code de pareamento enviado pela Evolution (v2). O QR expira em
+~30 s — o painel da Evolution (`/manager`) gera um novo a qualquer momento.
 
 ## Teste sem WhatsApp real
 

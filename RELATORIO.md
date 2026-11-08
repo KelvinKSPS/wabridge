@@ -1,6 +1,45 @@
-# Relatório — wabridge v1.0.1
+# Relatório — wabridge v1.0.2
 
-Data: 07/11/2026
+Data: 08/11/2026
+
+## Atualização de 08/11 — Evolution API v2 no ar
+
+A imagem antiga (`atendai/evolution-api`) saiu do Docker Hub; o projeto hoje é
+`evolution-foundation/evolution-api` e a imagem é **`evoapicloud/evolution-api`**
+(v2.3.7). Subir isso derrubou o servidor: a v2 mudou as rotas e o formato do
+webhook.
+
+| Antes (v1) | Agora (v2) |
+|---|---|
+| `POST /chat/downloadMedia/{inst}` com `mediaLink` | `POST /chat/getBase64FromMediaMessage/{inst}` com a **mensagem inteira** (a v2 não expõe link público do áudio) |
+| `POST /chat/sendAudio/{inst}` com data URI | `POST /message/sendWhatsAppAudio/{inst}` com base64 puro |
+| webhook em `/webhook/whatsapp` | a Evolution **acrescenta o evento**: `/webhook/whatsapp/messages-upsert` |
+
+O que mudou no código:
+
+1. `src/whatsapp.ts` — normalizador aceita o payload v2 (`data` é lista,
+   `audioMessage` sem link) e passa a mensagem crua adiante; grupos seguem
+   bloqueados por `remoteJid`.
+2. `src/evolution.ts` — cliente **v2-first com fallback v1**: tenta a rota v2 e,
+   se a rota não existir (404/405) ou a mensagem não for reconhecida (400),
+   cai na v1.
+3. `src/index.ts` — rota do webhook aceita `/webhook/whatsapp` **e**
+   `/webhook/whatsapp/:event`; o evento `qrcode-updated` é guardado e
+   exposto em `GET /qrcode` e `GET /qrcode.png` (QR de pareamento).
+4. `test/mock-evolution.js` e `test/e2e.js` — passam a usar o formato v2.
+5. `test/unit/evolution.test.ts` — novo: 5 casos para o cliente (v2, fallback
+   v1, envio de nota de voz, headers).
+
+Infra: a Evolution v2 exige **PostgreSQL e Redis**, então o `docker-compose.yml`
+ganhou três serviços (`evolution`, `evolution-postgres`, `evolution-redis`).
+A porta 8080 do host é do qbittorrent, então a Evolution ficou na **8098**
+(`EVOLUTION_API_URL=http://127.0.0.1:8098`).
+
+Estado atual: Evolution v2.3.7 no ar, instância `wabridge` criada
+(`integration: WHATSAPP-BAILEYS`) e o webhook global já apontando para a ponte
+— o evento `qrcode-updated` chega e o QR aparece em
+`http://192.168.15.100:8097/qrcode`. **Falta só escanear o QR com o
+celular** (ou pelo painel `http://192.168.15.100:8098/manager`).
 
 ## O que foi entregue
 
@@ -8,20 +47,21 @@ Data: 07/11/2026
 |---|---|---|
 | Servidor (Node 24 / TypeScript) | `server/` | no ar em `http://192.168.15.100:8097` (pm2, reinicia sozinho) |
 | App Android (Kotlin) | `android-bridge/` | APK release assinado, publicado na release v1.0.1 |
-| Testes | `server/test/unit/`, `app/src/test/` | 52 testes, todos verdes |
+| Testes | `server/test/unit/`, `app/src/test/` | 40 (servidor) + 21 (app), todos verdes |
 | Chave de assinatura | `android-bridge/wabridge.jks` | gerada; cópia em `~/wabridge-keys/` |
-| Evolution API | `docker-compose.yml` | pronta para subir; falta parear o QR |
+| Evolution API | `docker-compose.yml` | v2.3.7 no ar em `http://192.168.15.100:8098`; instância `wabridge` criada; **falta parear o QR** |
 
 ## Testes
 
-**Servidor — 32 testes (`npm test` na pasta `server/`)**
+**Servidor — 40 testes (`npm test` na pasta `server/`)**
 
 | Arquivo | Casos | O que cobre |
 |---|---|---|
-| `whatsapp.test.ts` | 9 | normalização do webhook (4 formatos), `document` de áudio, grupo, `fromMe`, jid inválido |
+| `whatsapp.test.ts` | 10 | normalização do webhook (4 formatos + payload v2), `document` de áudio, grupo, `fromMe`, jid inválido |
 | `config.test.ts` | 6 | lista branca: exato, sufixo, lista vazia, número inválido |
 | `media.test.ts` | 4 | ffmpeg: opus → wav PCM 16 kHz mono, opus → opus, entrada inválida |
-| `routes.test.ts` | 10 | rotas HTTP, push no WebSocket, `/media`, `/media/test.wav`, `/reply/audio` com `ptt`, bloqueio, grupo |
+| `routes.test.ts` | 12 | rotas HTTP, push no WebSocket, `/media`, `/media/test.wav`, `/reply/audio` com `ptt`, bloqueio, grupo, webhook v2, QR de pareamento |
+| `evolution.test.ts` | 5 | cliente v2 (download por mensagem, envio de nota de voz) e fallback para a v1 |
 
 **App — 21 testes JUnit (`./gradlew test`)**
 
@@ -94,11 +134,28 @@ Feita pelo outro agente, com `scripts/remote-validate.ps1`:
 
 ## Pendências (precisa de ação humana)
 
-1. **Evolution API**: `docker compose up -d` (na raiz do projeto) e parear o
-   WhatsApp lendo o QR. Sem isso o servidor fica esperando a conexão.
+1. **Parear o WhatsApp** (única etapa que falta no lado do Evolution): a
+   instância `wabridge` já existe e o QR chega na ponte. Duas formas:
+   - painel `http://192.168.15.100:8098/manager` → QR na tela; ou
+   - `http://192.168.15.100:8097/qrcode` (a ponte mostra o QR que a Evolution
+     mandou por webhook — expira em ~30 s, então o painel é melhor).
 2. **Lista branca**: `ALLOWED_NUMBERS` no `server/.env` está vazio (aceita
    qualquer remetente). Definir antes de usar de verdade.
 3. **Chave**: guardar `~/wabridge-keys/wabridge.jks` — sem ela não dá para
    atualizar o app no relógio, só reinstalar.
 4. **Teste no relógio de verdade**: instalar o APK, abrir, colocar a URL
    `http://192.168.15.100:8097`, conectar e tocar em **Testar chamada**.
+
+## Detalhes que custaram tempo (2ª rodada)
+
+1. **A imagem `atendai/evolution-api` não existe mais** — o Docker Hub devolve
+   "pull access denied". A imagem atual é `evoapicloud/evolution-api` (v2.3.7).
+2. **A v2 exige Postgres e Redis** — não sobe só com o container da API.
+3. **A v2 anexa o evento na URL do webhook** (`/webhook/whatsapp/qrcode-updated`).
+   Com o path fixo a Evolution recebia 404 e o webhook morria.
+4. **A v2 não expõe link público da mídia** — o áudio é baixado passando a
+   mensagem inteira para `getBase64FromMediaMessage`.
+5. **Porta 8080 do host é do qbittorrent** — a Evolution foi para a 8098.
+6. **`/var/log` é tmpfs de 47 MB e encheu** com o `sysstat` (62 arquivos
+   `saNN`); a máquina ficou com CPU em 100%. Precisa de `sudo` para limpar
+   (não disponível sem senha nesta sessão).

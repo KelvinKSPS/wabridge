@@ -163,9 +163,63 @@ describe('rotas HTTP', () => {
     assert.equal(wav.readUInt32LE(24), 16000, '16 kHz');
     assert.ok(wav.length > 1000, 'tem áudio');
   });
+
+  test('QR code da Evolution v2 fica disponível para parear', async () => {
+    const png = Buffer.from('fake-png');
+    const res = await fetch(`${baseUrl}/webhook/whatsapp/qrcode-updated`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        event: 'qrcode-updated',
+        instance: 'wabridge',
+        data: { qrcode: { base64: png.toString('base64'), ref: 'REF_1' } },
+      }),
+    });
+    assert.equal(res.status, 200);
+
+    const img = await fetch(`${baseUrl}/qrcode.png`);
+    assert.equal(img.status, 200);
+    assert.equal(img.headers.get('content-type'), 'image/png');
+    assert.deepEqual(Buffer.from(await img.arrayBuffer()), png);
+
+    const page = await fetch(`${baseUrl}/qrcode`);
+    assert.equal(page.status, 200);
+    assert.ok((await page.text()).includes('data:image/png;base64,'));
+  });
 });
 
 describe('fluxo completo do webhook', () => {
+  test('payload da Evolution v2 (data é lista, evento na URL) vira chamada', async () => {
+    const client = new WsClient(wsUrl);
+    await client.ready();
+
+    const res = await fetch(`${baseUrl}/webhook/whatsapp/messages-upsert`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        event: 'messages.upsert',
+        instance: 'wabridge',
+        data: [
+          {
+            key: { remoteJid: '5511999999999@s.whatsapp.net', fromMe: false, id: 'MSG_V2' },
+            pushName: 'Maria',
+            messageType: 'audio',
+            message: { audioMessage: { mimetype: 'audio/ogg; codecs=opus', ptt: true } },
+          },
+        ],
+      }),
+    });
+    assert.equal(res.status, 200);
+
+    const push = await client.waitFor('NEW_VOICE_NOTE');
+    assert.equal(push.senderNumber, '5511999999999');
+    assert.equal(push.senderName, 'Maria');
+    assert.equal(push.audioId, 'MSG_V2');
+    assert.equal(push.audioUrl, 'http://test.local/media/MSG_V2.wav');
+
+    client.close();
+  });
+
   test('áudio permitido vira chamada no WebSocket e serve o wav', async () => {
     const client = new WsClient(wsUrl);
     await client.ready();
@@ -243,9 +297,9 @@ describe('fluxo completo do webhook', () => {
     assert.equal(fake.sent[0].number, '5511999999999');
     assert.ok(fake.sent[0].bytes > 0, 'enviou áudio');
 
-    // pendência é removida depois do envio
+    // a pendência da conversa respondida é removida depois do envio
     const pending = await (await fetch(`${baseUrl}/pending`)).json();
-    assert.equal(pending.length, 0);
+    assert.equal(pending.find((p: any) => p.audioId === 'MSG_TEST_1'), undefined);
   });
 
   test('sem destino nem pendência, o reply é recusado', async () => {

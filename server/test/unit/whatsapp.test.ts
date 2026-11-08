@@ -78,6 +78,29 @@ describe('normalize — payload messages.upsert da Evolution API', () => {
   test('jid sem número devolve null', () => {
     assert.equal(normalize({ data: { key: { remoteJid: '@s.whatsapp.net' }, message: { audio: { url: 'u' } } } }), null);
   });
+
+  test('formato v2 (data é lista, audioMessage sem link público)', () => {
+    const evt = normalize({
+      event: 'messages.upsert',
+      instance: 'wabridge',
+      data: [
+        {
+          key: { remoteJid: '5511919191919@s.whatsapp.net', fromMe: false, id: 'V2_1' },
+          pushName: 'Ana',
+          messageType: 'audio',
+          message: { audioMessage: { mimetype: 'audio/ogg; codecs=opus', ptt: true } },
+        },
+      ],
+    });
+    assert.ok(evt);
+    assert.equal(evt!.number, '5511919191919');
+    assert.equal(evt!.messageId, 'V2_1');
+    assert.equal(evt!.pushName, 'Ana');
+    assert.equal(evt!.audioUrl, '', 'v2 não expõe link: o áudio vem na mensagem');
+    assert.equal(evt!.mimetype, 'audio/ogg; codecs=opus');
+    assert.ok(evt!.message, 'a mensagem crua vai junto para baixar o áudio');
+    assert.equal((evt!.message as any).messageType, 'audio');
+  });
 });
 
 describe('findAudio', () => {

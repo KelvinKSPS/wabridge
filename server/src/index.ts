@@ -27,6 +27,8 @@ export interface Bridge {
 export function createBridge(deps: BridgeDeps = {}): Bridge {
   const evolution = deps.evolution ?? new EvolutionClient();
   const pending = new Map<string, PendingCall>();
+  /** Último QR code de pareamento recebido da Evolution (v2 manda por webhook). */
+  let lastQr: { base64?: string; ref?: string; at: number } | null = null;
 
   const app = express();
   app.use(express.json({ limit: '4mb' }));
@@ -44,19 +46,30 @@ export function createBridge(deps: BridgeDeps = {}): Bridge {
    * Webhook do WhatsApp
    * ------------------------------------------------------------------ */
 
-  app.post('/webhook/whatsapp', (req, res) => {
+  // A Evolution v2 anexa o evento ao caminho do webhook
+  // (ex.: /webhook/whatsapp/messages-upsert), então as duas formas valem.
+  app.post(['/webhook/whatsapp', '/webhook/whatsapp/:event'], (req, res) => {
     // ack imediato; o processamento é assíncrono para não travar o Evolution.
     res.status(200).json({ ok: true });
-    handleWebhook(req.body).catch((err) => console.error('[webhook] erro:', err.message));
+    const event = String(req.params.event ?? '');
+    handleWebhook(req.body, event).catch((err) => console.error('[webhook] erro:', err.message));
   });
 
-  async function handleWebhook(body: any): Promise<void> {
+  async function handleWebhook(body: any, event = ''): Promise<void> {
+    if (event.startsWith('qrcode')) {
+      const qr = pickQrcode(body);
+      if (qr) {
+        lastQr = { ...qr, at: Date.now() };
+        console.log(`[webhook] QRcode recebido (${qr.ref ?? 'sem ref'})`);
+      }
+      return;
+    }
+
     const evt = normalize(body);
     if (!evt) return;
     if (evt.fromMe) return;
 
-    const jid = String(body?.data?.key?.remoteJid ?? '');
-    if (isGroup(jid)) {
+    if (isGroup(evt.remoteJid)) {
       console.log('[webhook] grupo ignorado');
       return;
     }
@@ -69,7 +82,7 @@ export function createBridge(deps: BridgeDeps = {}): Bridge {
     const audioId = evt.messageId.replace(/[^\w.-]/g, '_');
     console.log(`[webhook] áudio de ${evt.number} (${evt.messageId})`);
 
-    const media = await evolution.downloadMedia(evt.audioUrl, evt.mimetype);
+    const media = await evolution.downloadMedia(evt);
     const rawName = `${audioId}.${media.extension}`;
     const wavName = `${audioId}.wav`;
 
@@ -192,7 +205,57 @@ export function createBridge(deps: BridgeDeps = {}): Bridge {
     res.json([...pending.values()]);
   });
 
+  /* ------------------------------------------------------------------ *
+   * Pareamento (QR) — a Evolution manda o QR por webhook
+   * ------------------------------------------------------------------ */
+
+  app.get('/qrcode', (_req, res) => {
+    if (!lastQr?.base64) {
+      res.status(404).send('<p>Sem QR code. Pareie pelo painel: http://192.168.15.100:8098/manager</p>');
+      return;
+    }
+    const img = `data:image/png;base64,${lastQr.base64}`;
+    res.type('html').send(
+      `<!doctype html><meta charset="utf-8"><title>wabridge — parear WhatsApp</title>` +
+        `<body style="font-family:sans-serif;background:#111;color:#eee;text-align:center">` +
+        `<h2>Escaneie no WhatsApp (Aparelhos conectados → Conectar)</h2>` +
+        `<img src="${img}" style="background:#fff;padding:12px;border-radius:8px">` +
+        `<p>gerado em ${new Date(lastQr.at).toLocaleString('pt-BR')}</p></body>`,
+    );
+  });
+
+  app.get('/qrcode.png', (_req, res) => {
+    if (!lastQr?.base64) {
+      res.status(404).json({ error: 'sem QR code' });
+      return;
+    }
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Cache-Control', 'no-store');
+    res.end(Buffer.from(lastQr.base64, 'base64'));
+  });
+
   return { app, server, hub, pending };
+}
+
+/** Procura o QR code (base64) em qualquer nível do payload da Evolution. */
+function pickQrcode(body: any): { base64?: string; ref?: string } | null {
+  const seen = new Set<any>();
+  const walk = (obj: any): { base64?: string; ref?: string } | null => {
+    if (!obj || typeof obj !== 'object' || seen.has(obj)) return null;
+    seen.add(obj);
+    if (typeof obj.base64 === 'string' && obj.base64.length > 0) {
+      // pode vir como data URI: data:image/png;base64,XXXX
+      const comma = obj.base64.indexOf(',');
+      const b64 = comma >= 0 ? obj.base64.slice(comma + 1) : obj.base64;
+      return { base64: b64, ref: obj.ref ? String(obj.ref) : undefined };
+    }
+    for (const v of Object.values(obj)) {
+      const r = walk(v);
+      if (r) return r;
+    }
+    return null;
+  };
+  return walk(body);
 }
 
 export function localAddress(): string {

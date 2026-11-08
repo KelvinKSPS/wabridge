@@ -6,8 +6,8 @@ Legenda: `[x]` pronto · `[ ]` em andamento / delegado / pendente
 
 - [x] Estrutura do projeto e build (tsconfig strict, scripts npm)
 - [x] Configuração por ambiente (PORT, PUBLIC_HOST, ALLOWED_NUMBERS, EVOLUTION_*, FFMPEG_PATH)
-- [x] Cliente da Evolution API (download de mídia e envio de nota de voz com `ptt`)
-- [x] Normalizador do webhook (aceita `message.audio`, `audioMessage` e `document` de áudio)
+- [x] Cliente da Evolution API (v2: `getBase64FromMediaMessage` + `message/sendWhatsAppAudio`; fallback v1)
+- [x] Normalizador do webhook (aceita `message.audio`, `audioMessage`, `document` de áudio e o payload v2)
 - [x] Filtro de remetentes (lista branca, grupos e mensagens de saída ignorados)
 - [x] Conversão opus → wav PCM 16 kHz mono (exigido pelo SCO)
 - [x] Conversão m4a → ogg opus (resposta do relógio)
@@ -36,10 +36,11 @@ Legenda: `[x]` pronto · `[ ]` em andamento / delegado / pendente
 
 ## Testes
 
-- [x] Normalização do webhook — 9 casos
+- [x] Normalização do webhook — 10 casos (inclui o payload da Evolution v2)
 - [x] Lista branca de números — 6 casos
 - [x] Conversão de mídia (ffmpeg) — 4 casos
-- [x] Rotas e fluxo completo (Evolution falsa) — 9 casos
+- [x] Rotas e fluxo completo (Evolution falsa) — 12 casos
+- [x] Cliente da Evolution v2 e fallback para a v1 — 5 casos
 - [x] Máquina de estados da chamada — 8 casos
 - [x] URLs de WebSocket e HTTP — 7 casos
 - [x] Payload da chamada (JSON) — 5 casos
@@ -59,5 +60,8 @@ Legenda: `[x]` pronto · `[ ]` em andamento / delegado / pendente
 - [x] Instalação em emulador (instalou, abriu a tela principal, sem crash)
 - [x] Chamada validada no emulador (tela RINGING, Atender → ACTIVE, tom toca sem crash)
 - [x] Servidor no ar com pm2 (reinicia sozinho, `http://192.168.15.100:8097`)
+- [x] Evolution API v2.3.7 no ar (`:8098`, com Postgres e Redis), instância `wabridge` criada
+- [x] Webhook global da Evolution apontando para a ponte (evento no caminho: `/webhook/whatsapp/messages-upsert`)
+- [x] QR de pareamento exposto pela ponte (`GET /qrcode`, `GET /qrcode.png`)
 - [ ] Evolution API pareada por QR (precisa do celular do usuário)
 - [ ] `ALLOWED_NUMBERS` definido no `server/.env` (hoje aceita qualquer remetente)

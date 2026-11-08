@@ -21,4 +21,12 @@ export interface IncomingAudio {
   pushName: string;
   audioUrl: string;
   mimetype: string;
+  /** jid original (usado para detectar grupo). */
+  remoteJid: string;
+  /**
+   * Mensagem crua como a Evolution entregou (formato v2).
+   * A v2 não expõe link público do áudio: ele é baixado passando a mensagem
+   * inteira para `getBase64FromMediaMessage`.
+   */
+  message?: any;
 }

@@ -34,6 +34,35 @@ http
         return;
       }
 
+      // v2: a mensagem inteira vai no corpo e a API devolve base64.
+      if (req.url.startsWith('/chat/getBase64FromMediaMessage')) {
+        res.setHeader('Content-Type', 'application/json');
+        res.end(
+          JSON.stringify({
+            status: 201,
+            response: {
+              mediaType: 'audio',
+              fileName: 'sample.ogg',
+              mimetype: 'audio/ogg; codecs=opus',
+              base64: opus.toString('base64'),
+            },
+          }),
+        );
+        return;
+      }
+
+      // v2: nota de voz com base64 puro.
+      if (req.url.startsWith('/message/sendWhatsAppAudio')) {
+        const raw = json.audio || '';
+        const b64 = raw.includes(',') ? raw.slice(raw.indexOf(',') + 1) : raw;
+        const buf = Buffer.from(b64, 'base64');
+        fs.writeFileSync(path.join(__dirname, 'recebido.ogg'), buf);
+        console.log(`[mock] nota de voz (v2) ptt=${json.ptt} para ${json.number} (${buf.length} bytes)`);
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ status: 201, response: { key: { id: 'MOCK123' } } }));
+        return;
+      }
+
       if (req.url.startsWith('/chat/sendAudio') || req.url.startsWith('/chat/sendMedia')) {
         const raw = json.audio || json.file || '';
         const b64 = raw.includes(',') ? raw.slice(raw.indexOf(',') + 1) : raw;
