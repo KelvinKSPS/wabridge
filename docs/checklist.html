@@ -225,7 +225,7 @@
     <ul>
       <li data-done="1"><input type="checkbox" checked><div><span class="t">Estrutura do projeto e build</span><span class="d">tsconfig strict, npm scripts (build/start/dev/typecheck)</span></div><span class="chip ok">feito</span></li>
       <li data-done="1"><input type="checkbox" checked><div><span class="t">Configuração por ambiente</span><span class="d">PORT, PUBLIC_HOST, ALLOWED_NUMBERS, EVOLUTION_*, FFMPEG_PATH</span></div><span class="chip ok">feito</span></li>
-      <li data-done="1"><input type="checkbox" checked><div><span class="t">Cliente da Evolution API</span><span class="d">download de mídia e envio de nota de voz com ptt</span></div><span class="chip ok">feito</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Cliente da Evolution API</span><span class="d">v2: download por mensagem e nota de voz com ptt (fallback v1)</span></div><span class="chip ok">feito</span></li>
       <li data-done="1"><input type="checkbox" checked><div><span class="t">Normalizador do webhook</span><span class="d">aceita message.audio, audioMessage e document de áudio</span></div><span class="chip ok">feito</span></li>
       <li data-done="1"><input type="checkbox" checked><div><span class="t">Filtro de remetentes</span><span class="d">lista branca, grupos e mensagens de saída são ignorados</span></div><span class="chip ok">feito</span></li>
       <li data-done="1"><input type="checkbox" checked><div><span class="t">Conversão opus → wav</span><span class="d">PCM 16 kHz mono, formato exigido pelo SCO</span></div><span class="chip ok">feito</span></li>
@@ -261,10 +261,10 @@
   <section>
     <h2>Testes <span>server: node:test · android: JUnit</span></h2>
     <ul>
-      <li data-done="1"><input type="checkbox" checked><div><span class="t">Normalização do webhook</span><span class="d">9 casos: 4 formatos de payload, grupo, fromMe, jid inválido</span></div><span class="chip ok">9/9</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Normalização do webhook</span><span class="d">10 casos: 4 formatos de payload, payload v2, grupo, fromMe, jid inválido</span></div><span class="chip ok">10/10</span></li>
       <li data-done="1"><input type="checkbox" checked><div><span class="t">Lista branca de números</span><span class="d">6 casos: exato, sufixo, lista vazia, número inválido</span></div><span class="chip ok">6/6</span></li>
       <li data-done="1"><input type="checkbox" checked><div><span class="t">Conversão de mídia</span><span class="d">4 casos: opus para wav 16 kHz mono, opus para opus, entrada inválida</span></div><span class="chip ok">4/4</span></li>
-      <li data-done="1"><input type="checkbox" checked><div><span class="t">Rotas e fluxo completo</span><span class="d">9 casos: webhook, push no WebSocket, mídia, resposta PTT, bloqueio, grupo</span></div><span class="chip ok">9/9</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Rotas e fluxo completo</span><span class="d">12 casos: webhook (v1 e v2), push no WebSocket, mídia, resposta PTT, bloqueio, grupo, QR</span></div><span class="chip ok">12/12</span></li>
       <li data-done="1"><input type="checkbox" checked><div><span class="t">Máquina de estados da chamada</span><span class="d">8 casos: transições, ordem errada, desligar duas vezes, timeout de 90 s</span></div><span class="chip ok">8/8</span></li>
       <li data-done="1"><input type="checkbox" checked><div><span class="t">URLs de WebSocket e HTTP</span><span class="d">7 casos: http para ws, https para wss, barra final, caminho extra</span></div><span class="chip ok">7/7</span></li>
       <li data-done="1"><input type="checkbox" checked><div><span class="t">Payload da chamada</span><span class="d">5 casos: round trip do JSON, payload inválido, parse do servidor</span></div><span class="chip ok">5/5</span></li>
@@ -288,7 +288,7 @@
       <li data-done="1"><input type="checkbox" checked><div><span class="t">Instalação em emulador</span><span class="d">instalou, abriu a tela principal, processo do app sem crash</span></div><span class="chip ok">feito</span></li>
       <li data-done="1"><input type="checkbox" checked><div><span class="t">Chamada validada no emulador</span><span class="d">tela aparece (RINGING), Atender funciona (ACTIVE), tom toca sem crash</span></div><span class="chip ok">feito</span></li>
       <li data-done="1"><input type="checkbox" checked><div><span class="t">Servidor no ar</span><span class="d">pm2 em http://192.168.15.100:8097, reinicia sozinho</span></div><span class="chip ok">feito</span></li>
-      <li><input type="checkbox"><div><span class="t">Evolution API pareada</span><span class="d">docker compose up -d e ler o QR com o celular</span></div><span class="chip crit">falta</span></li>
+      <li data-done="1"><input type="checkbox" checked><div><span class="t">Evolution API v2 no ar</span><span class="d">v2.3.7 em :8098 com postgres e redis, instância wabridge criada</span></div><span class="chip ok">feito</span></li><li data-done="1"><input type="checkbox" checked><div><span class="t">QR de pareamento exposto</span><span class="d">GET /qrcode e /qrcode.png na ponte</span></div><span class="chip ok">feito</span></li><li><input type="checkbox"><div><span class="t">Evolution API pareada</span><span class="d">ler o QR com o celular (painel :8098/manager ou :8097/qrcode)</span></div><span class="chip crit">falta</span></li>
       <li><input type="checkbox"><div><span class="t">Lista branca liberada</span><span class="d">ALLOWED_NUMBERS no server/.env está vazio por enquanto</span></div><span class="chip warn">pendente</span></li>
     </ul>
   </section>
