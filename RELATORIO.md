@@ -111,9 +111,27 @@ celular** (ou pelo painel `http://192.168.15.100:8098/manager`).
 | Chave de assinatura | `android-bridge/wabridge.jks` | gerada; cópia em `~/wabridge-keys/` |
 | Evolution API | `docker-compose.yml` | v2.3.7 no ar em `http://192.168.15.100:8098`; instância `wabridge` criada; **falta parear o QR** |
 
+## CI no GitHub Actions
+
+`.github/workflows/ci.yml` — a cada push na `master`:
+
+| Job | O que faz |
+|---|---|
+| `servidor (Node)` | `npm ci`, typecheck, **45 testes**, build |
+| `android (Kotlin)` | **28 testes** JUnit + `assembleDebug` (APK como artefato) |
+| `release assinada` | só em tag `v*`: `assembleRelease` com a chave do secret e publica na release |
+
+O runner do GitHub é x86_64, então **não precisa do wrapper de aapt2/qemu**
+(que só existe na Orange Pi ARM) — o build do APK sai em ~1 min em vez de
+~20-30 min na board. O CI também não depende do PC Windows.
+
+Detalhe: o runner não vem com `ffmpeg`; sem ele a conversão opus→wav
+falhava, o push não saía e o `/reply/audio` devolvia 502. O workflow instala
+o ffmpeg.
+
 ## Testes
 
-**Servidor — 40 testes (`npm test` na pasta `server/`)**
+**Servidor — 45 testes (`npm test` na pasta `server/`)**
 
 | Arquivo | Casos | O que cobre |
 |---|---|---|
@@ -122,14 +140,16 @@ celular** (ou pelo painel `http://192.168.15.100:8098/manager`).
 | `media.test.ts` | 4 | ffmpeg: opus → wav PCM 16 kHz mono, opus → opus, entrada inválida |
 | `routes.test.ts` | 12 | rotas HTTP, push no WebSocket, `/media`, `/media/test.wav`, `/reply/audio` com `ptt`, bloqueio, grupo, webhook v2, QR de pareamento |
 | `evolution.test.ts` | 5 | cliente v2 (download por mensagem, envio de nota de voz) e fallback para a v1 |
+| `hub.test.ts` | 4 | HELLO, broadcast para todos os clientes, remoção de cliente desconectado, ping/pong |
 
-**App — 21 testes JUnit (`./gradlew test`)**
+**App — 28 testes JUnit (`./gradlew testDebugUnitTest`)**
 
 | Arquivo | Casos | O que cobre |
 |---|---|---|
 | `CallStateMachineTest` | 9 | transições da chamada, sessão sem Telecom, ordem errada, desligar duas vezes, timeout de 90 s |
 | `WsUrlsTest` | 7 | http → ws, https → wss, barra final, caminho extra, url de upload |
 | `CallPayloadTest` | 5 | round trip do JSON, payload inválido, parse do evento do servidor |
+| `CallQueueTest` | 5 | fila de chamadas: uma por vez, ordem, liberação |
 
 Rodados em dois lugares:
 
