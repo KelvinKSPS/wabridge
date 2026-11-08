@@ -35,8 +35,10 @@ export function createBridge(deps: BridgeDeps = {}): Bridge {
   let lastQrFetchAt = 0;
 
   const app = express();
-  app.use(express.json({ limit: '4mb' }));
-  app.use(express.urlencoded({ extended: true }));
+  // a Evolution v2 manda o webhook bem grande (mensagem + mídia + perfil):
+  // com 4 mb a ponte respondia 413 e o evento era perdido.
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
   const server = http.createServer((req, res) => app(req, res));
   const hub = new Hub(server, '/ws');
