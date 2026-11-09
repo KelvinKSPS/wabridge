@@ -76,7 +76,8 @@ class VoiceSession(
         val v = value.coerceIn(0.5f, 2.0f)
         val p = player ?: return speed
         runCatching {
-            p.playbackParams = p.playbackParams?.setSpeed(v)
+            val params = p.playbackParams ?: android.media.PlaybackParams()
+            p.playbackParams = params.setSpeed(v)
             speed = v
             Log.i(TAG, "velocidade: ${v}x")
         }.onFailure {
