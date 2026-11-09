@@ -53,7 +53,7 @@ jobs:
           GOOS=android GOARCH=arm64 CGO_ENABLED=0 \
             go build -ldflags="-s -w" \
             -o ../android-bridge/app/src/main/jniLibs/arm64-v8a/libwabridge_core.so .
-          ls -lh ../android-bridge/app/src/main/jniLibs/arm64-v8a/libwabridge_core.so
+          ls -lh "${{ github.workspace }}/android-bridge/app/src/main/jniLibs/arm64-v8a/libwabridge_core.so"
       - uses: actions/upload-artifact@v4
         with:
           name: wabridge-daemon
@@ -80,7 +80,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: wabridge-daemon
-          path: app/src/main/jniLibs/arm64-v8a
+          path: ${{ github.workspace }}/android-bridge/app/src/main/jniLibs/arm64-v8a
       - name: testes unitarios
         run: ./gradlew testDebugUnitTest --console=plain
       - name: build do APK de debug
@@ -112,11 +112,11 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: wabridge-daemon
-          path: app/src/main/jniLibs/arm64-v8a
+          path: ${{ github.workspace }}/android-bridge/app/src/main/jniLibs/arm64-v8a
       - name: confere se o daemon foi embutido
         run: |
           set -euo pipefail
-          ls -lh app/src/main/jniLibs/arm64-v8a/libwabridge_core.so
+          ls -lh "${{ github.workspace }}/android-bridge/app/src/main/jniLibs/arm64-v8a/libwabridge_core.so"
       - name: monta o keystore a partir do segredo
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
