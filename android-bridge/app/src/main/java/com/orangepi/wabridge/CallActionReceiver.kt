@@ -22,13 +22,7 @@ class CallActionReceiver : BroadcastReceiver() {
     /** Troca a velocidade de reprodução: 1x → 1.25x → 1.5x → 2x → 1x. */
     private fun cycleSpeed(context: Context) {
         val session = VoiceSession.current ?: return
-        val next = when (session.speed) {
-            1.0f -> 1.25f
-            1.25f -> 1.5f
-            1.5f -> 2.0f
-            else -> 1.0f
-        }
-        session.setSpeed(next)
+        val next = session.setSpeed(PlaybackSpeed.next(session.speed))
         // Atualiza a notificação de serviço para mostrar a nova velocidade
         val svc = BridgeForegroundService.instance
         if (svc != null) {
@@ -38,7 +32,7 @@ class CallActionReceiver : BroadcastReceiver() {
                 as? android.app.NotificationManager ?: return
             manager.notify(
                 CallNotifier.NOTIFICATION_ID,
-                CallNotifier.serviceNotification(context, "velocidade ${next}x"),
+                CallNotifier.serviceNotification(context, "velocidade ${PlaybackSpeed.label(next)}"),
             )
         }
     }

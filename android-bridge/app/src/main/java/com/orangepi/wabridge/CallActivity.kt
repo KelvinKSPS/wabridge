@@ -84,14 +84,8 @@ class CallActivity : Activity() {
         // botão de velocidade: só faz sentido enquanto o áudio toca
         speedButton.setOnClickListener {
             val session = VoiceSession.current ?: return@setOnClickListener
-            val next = when (session.speed) {
-                1.0f -> 1.25f
-                1.25f -> 1.5f
-                1.5f -> 2.0f
-                else -> 1.0f
-            }
-            session.setSpeed(next)
-            speedButton.text = getString(R.string.speed_value, "${next}x")
+            val next = session.setSpeed(PlaybackSpeed.next(session.speed))
+            speedButton.text = getString(R.string.speed_value, PlaybackSpeed.label(next))
         }
 
         // A tela de chamada garante que o app está em primeiro plano: é o
@@ -136,7 +130,7 @@ class CallActivity : Activity() {
                 statusLine.visibility = android.view.View.VISIBLE
                 statusLine.setText(R.string.status_playing)
                 speedButton.visibility = android.view.View.VISIBLE
-                speedButton.text = getString(R.string.speed_value, "${session.speed}x")
+                speedButton.text = getString(R.string.speed_value, PlaybackSpeed.label(session.speed))
             }
             CallPhase.RECORDING -> {
                 speedButton.visibility = android.view.View.GONE

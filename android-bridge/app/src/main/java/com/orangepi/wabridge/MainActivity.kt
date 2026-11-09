@@ -18,6 +18,10 @@ class MainActivity : Activity() {
 
     private lateinit var urlInput: EditText
     private lateinit var statusText: TextView
+    private lateinit var speedSpinner: android.widget.Spinner
+
+    /** Velocidades oferecidas no menu (mesma ordem do array de recursos). */
+    private val speedOptions = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f)
 
     private val statusReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -31,7 +35,19 @@ class MainActivity : Activity() {
 
         urlInput = findViewById(R.id.urlInput)
         statusText = findViewById(R.id.statusText)
+        speedSpinner = findViewById(R.id.speedSpinner)
         urlInput.setText(Prefs.url(this))
+
+        // velocidade padrão de reprodução
+        val current = Prefs.speed(this)
+        speedSpinner.setSelection(speedOptions.indexOfFirst { it == current }.coerceAtLeast(0))
+        speedSpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: android.view.View?, pos: Int, id: Long) {
+                Prefs.setSpeed(this@MainActivity, speedOptions.getOrElse(pos) { 1.0f })
+            }
+
+            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) = Unit
+        }
 
         findViewById<Button>(R.id.connectButton).setOnClickListener {
             Prefs.setUrl(this, urlInput.text.toString())

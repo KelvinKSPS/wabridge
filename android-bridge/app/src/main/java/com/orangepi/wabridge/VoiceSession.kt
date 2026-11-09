@@ -121,6 +121,9 @@ class VoiceSession(
             // buffer de negociação: o canal SCO precisa estabilizar antes do áudio
             delay(SCO_SETTLE_MS)
             startPlayback()
+            // velocidade padrão configurada pelo usuário
+            val default = Prefs.speed(ctx)
+            if (default != 1.0f) delay(200).let { setSpeed(default) }
         }
         return true
     }

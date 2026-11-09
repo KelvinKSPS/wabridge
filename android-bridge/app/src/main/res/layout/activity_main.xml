@@ -24,6 +24,19 @@
             android:importantForAutofill="no"
             android:maxLines="1" />
 
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="@string/speed_label"
+            android:textStyle="bold" />
+
+        <Spinner
+            android:id="@+id/speedSpinner"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:entries="@array/speed_values" />
+
         <Button
             android:id="@+id/connectButton"
             android:layout_width="match_parent"

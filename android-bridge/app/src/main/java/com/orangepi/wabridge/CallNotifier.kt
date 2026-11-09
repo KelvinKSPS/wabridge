@@ -67,7 +67,7 @@ object CallNotifier {
             .addAction(
                 Notification.Action.Builder(
                     null,
-                    context.getString(R.string.speed_value, "${VoiceSession.current?.speed ?: 1.0f}x"),
+                    context.getString(R.string.speed_value, PlaybackSpeed.label(VoiceSession.current?.speed ?: PlaybackSpeed.DEFAULT)),
                     speed,
                 ).build(),
             )
