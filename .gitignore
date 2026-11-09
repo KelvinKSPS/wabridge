@@ -13,3 +13,6 @@ keystore.properties
 
 # artefato do teste e2e
 server/test/recebido.ogg
+
+# worktrees de agentes
+.claude/
