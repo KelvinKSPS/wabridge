@@ -25,7 +25,7 @@ jobs:
           go get modernc.org/sqlite@latest
           go get github.com/skip2/go-qrcode@latest
           go get github.com/fgn/puropus@latest
-          go mod tidy || true
+          echo "deps resolvidas"
       - name: dump da API
         run: |
           set +e
