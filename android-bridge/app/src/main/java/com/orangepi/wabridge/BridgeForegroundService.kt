@@ -272,6 +272,18 @@ class BridgeForegroundService : Service() {
         var instance: BridgeForegroundService? = null
             private set
 
+        /** Sobe o serviço em foreground (usado pelo boot e pelo botão da tela). */
+        fun start(context: Context) {
+            runCatching {
+                ContextCompat.startForegroundService(
+                    context,
+                    Intent(context, BridgeForegroundService::class.java),
+                )
+            }.onFailure {
+                Log.w(TAG, "não foi possível subir o serviço: ${it.message}")
+            }
+        }
+
         /** Avisa o serviço de que a chamada terminou. */
         fun notifyCallEnded(context: Context) {
             val svc = instance
