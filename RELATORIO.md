@@ -28,6 +28,16 @@ webhook (v2)  -> Evolution /chat/getBase64FromMediaMessage (base64 real)
           "message": {"audioMessage": {"url": "https://mmg.whatsapp.net/..."}}}}
 ```
 
+7. ** microfone mudo quando o app não está na tela** — o Android silencia o
+   microfone quando o app vai para background e o foreground service não
+   declara o tipo `microphone`. Como a chamada pode ser atendida pelo
+   discador do sistema (o app fecha a própria tela e vai para background),
+   a resposta saía com 0,4 s de silêncio. Correções: permissão
+   `FOREGROUND_SERVICE_MICROPHONE` + tipo `specialUse|microphone` no
+   manifesto, o tipo é pedido só com o app em foreground (tela de chamada e
+   início da gravação), foco de áudio durante a gravação, fonte `MIC` quando
+   não há SCO em uso, e vigia de silêncio no log.
+
 ### Bugs do dia (todos corrigidos)
 5. **O app crashou no aparelho do usuário** (achados pelo logcat real):
    - `NullPointerException` em `onCreateIncomingConnectionFailed`: o Telecom
@@ -119,7 +129,14 @@ celular** (ou pelo painel `http://192.168.15.100:8098/manager`).
 |---|---|
 | `servidor (Node)` | `npm ci`, typecheck, **45 testes**, build |
 | `android (Kotlin)` | **28 testes** JUnit + `assembleDebug` (APK como artefato) |
-| `release assinada` | só em tag `v*`: `assembleRelease` com a chave do secret e publica na release |
+| `release assinada` | só em tag `v*`: `assembleRelease` com a chave do secret, confere a assinatura e publica na release |
+
+A chave de assinatura foi para os secrets do GitHub (`ANDROID_KEYSTORE_*`),
+então **qualquer release agora sai do CI em ~2 minutos**, sem depender da
+Orange Pi (que leva ~25 min) nem do PC Windows. O APK gerado pelo CI tem
+exatamente a mesma chave (`CN=WA Bridge`, SHA-256
+`27405a554f869dbe46d9eda85d35879baaee489805fa39c1cc65be89f442844b`), então
+atualiza por cima das versões anteriores sem desinstalar.
 
 O runner do GitHub é x86_64, então **não precisa do wrapper de aapt2/qemu**
 (que só existe na Orange Pi ARM) — o build do APK sai em ~1 min em vez de

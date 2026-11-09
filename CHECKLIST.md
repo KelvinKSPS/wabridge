@@ -72,3 +72,4 @@ Legenda: `[x]` pronto · `[ ]` em andamento / delegado / pendente
 - [x] Ida e volta validadas com WhatsApp real (áudio baixado da Evolution em base64 → wav 16k mono; resposta gravada entregue no WhatsApp)
 - [ ] `ALLOWED_NUMBERS` definido no `server/.env` (hoje aceita qualquer remetente)
 - [x] CI no GitHub Actions (testes do servidor + testes e build do APK; release assinada por tag)
+- [x] Microfone mudo em background corrigido (tipo `microphone` no foreground service)
