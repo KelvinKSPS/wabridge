@@ -23,6 +23,7 @@
     <string name="status_wait">⏳ pode desligar em %1$d s</string>
     <string name="status_too_short">fale um pouco antes de desligar</string>
     <string name="speed">Velocidade: 1x</string>
+    <string name="speed_label">velocidade padrão de reprodução</string>
     <string name="speed_value">Velocidade: %1$s</string>
     <string name="quick_reply_busy">Não posso atender o telefone no momento.</string>
     <string name="action_quick_reply">Não posso atender</string>
