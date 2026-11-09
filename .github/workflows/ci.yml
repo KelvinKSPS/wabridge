@@ -95,11 +95,19 @@ jobs:
         run: ./gradlew assembleRelease --console=plain
       - name: confere a assinatura do APK
         run: |
-          set -euo pipefail
-          "$ANDROID_HOME"/build-tools/*/apksigner verify --print-certs \
-            app/build/outputs/apk/release/app-release.apk | head -5
-          "$ANDROID_HOME"/build-tools/*/aapt2 dump badging \
-            app/build/outputs/apk/release/app-release.apk | head -1
+          set -uo pipefail
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | tail -1)
+          "$BT/apksigner" verify --print-certs \
+            app/build/outputs/apk/release/app-release.apk > /tmp/certs.txt
+          rc=$?
+          head -5 /tmp/certs.txt
+          if [ $rc -ne 0 ]; then
+            echo "::error::APK sem assinatura valida"
+            exit 1
+          fi
+          "$BT/aapt2" dump badging \
+            app/build/outputs/apk/release/app-release.apk > /tmp/badging.txt
+          head -1 /tmp/badging.txt
       - name: publica na release
         uses: softprops/action-gh-release@v2
         with:
