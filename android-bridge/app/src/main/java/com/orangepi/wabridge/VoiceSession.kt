@@ -111,14 +111,14 @@ class VoiceSession(
     private fun routeToScoDevice() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
         runCatching {
-            val active = audio.activeCommunicationDevice
-            if (active != null && active.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO) {
-                audio.setCommunicationDevice(active)
-                Log.i(TAG, "dispositivo de comunicação: ${active.productName}")
+            val current = audio.communicationDevice
+            if (current != null && current.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO) {
+                audio.setCommunicationDevice(current)
+                Log.i(TAG, "dispositivo de comunicação: ${current.productName}")
             } else {
                 Log.i(
                     TAG,
-                    "sem SCO em uso (ativo=${active?.productName}); microfone fica no aparelho",
+                    "sem SCO em uso (atual=${current?.productName}); microfone fica no aparelho",
                 )
             }
         }
@@ -238,13 +238,13 @@ class VoiceSession(
         // pega o microfone dele. Sem SCO, o microfone é o do aparelho:
         // VOICE_COMMUNICATION nesse caso fica muda quando o app está em
         // background (o sistema corta a "fonte de voz").
-        val scoConnected = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            runCatching {
-                audio.activeCommunicationDevice?.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO
-            }.getOrDefault(false)
-        } else {
-            runCatching { audio.isBluetoothScoOn }.getOrDefault(false)
-        }
+        val scoConnected = runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                audio.communicationDevice?.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO
+            } else {
+                audio.isBluetoothScoOn
+            }
+        }.getOrDefault(false)
         val sources = if (scoConnected) {
             listOf(
                 MediaRecorder.AudioSource.VOICE_COMMUNICATION,

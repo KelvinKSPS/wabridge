@@ -92,6 +92,13 @@ jobs:
           EOF
       - name: build do APK release
         run: ./gradlew assembleRelease --console=plain
+      - name: confere a assinatura do APK
+        run: |
+          set -euo pipefail
+          "$ANDROID_HOME"/build-tools/*/apksigner verify --print-certs \
+            app/build/outputs/apk/release/app-release.apk | head -5
+          "$ANDROID_HOME"/build-tools/*/aapt2 dump badging \
+            app/build/outputs/apk/release/app-release.apk | head -1
       - name: publica na release
         uses: softprops/action-gh-release@v2
         with:
