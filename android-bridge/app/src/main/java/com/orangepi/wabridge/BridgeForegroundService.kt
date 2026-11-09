@@ -129,8 +129,17 @@ class BridgeForegroundService : Service() {
 
     private fun startSocket() {
         if (ws != null) return
+        // No modo embutido o daemon mora no APK: sobe ele antes de conectar.
+        if (Prefs.mode(this) == Prefs.Engine.EMBUTIDO) {
+            if (!DaemonManager.start(this)) {
+                broadcastStatus("daemon não disponível neste APK")
+                return
+            }
+            // o processo leva um instante para abrir a porta
+            Thread.sleep(1500)
+        }
         ws = WsManager(
-            urlProvider = { Prefs.url(this) },
+            urlProvider = { Prefs.engineUrl(this) },
             onEvent = { json -> onServerEvent(json) },
             onState = { state -> broadcastStatus(state) },
         ).also { it.start() }
@@ -150,7 +159,7 @@ class BridgeForegroundService : Service() {
 
     /** Chamada de teste: usa o wav sintético do servidor. */
     private fun testPayload(): CallPayload? {
-        val base = Prefs.url(this)
+        val base = Prefs.engineUrl(this)
         return CallPayload(
             audioId = "teste_${System.currentTimeMillis()}",
             senderName = getString(R.string.test_caller),

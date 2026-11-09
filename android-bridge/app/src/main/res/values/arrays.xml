@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Modo de operação: motor embutido no APK ou servidor externo. -->
+    <string-array name="engine_modes">
+        <item>embutido (sem servidor)</item>
+        <item>servidor externo</item>
+    </string-array>
+
     <!-- Velocidades padrão de reprodução das notas de voz. -->
     <string-array name="speed_values">
         <item>0.5x</item>

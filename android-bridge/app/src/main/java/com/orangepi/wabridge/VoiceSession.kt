@@ -37,7 +37,7 @@ import java.io.File
 class VoiceSession(
     private val ctx: Context,
     private val payload: CallPayload,
-    private val baseUrl: String = Prefs.url(ctx),
+    private val baseUrl: String = Prefs.engineUrl(ctx),
     /** Chamado quando a sessão termina (timeout, hangup do usuário...). */
     private val onEnded: (() -> Unit)? = null,
     /** Chamado quando o usuário tentou desligar antes da gravação mínima. */

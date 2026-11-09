@@ -6,12 +6,61 @@ object Prefs {
     private const val FILE = "wabridge"
     private const val KEY_URL = "server_url"
     private const val KEY_SPEED = "playback_speed"
+    private const val KEY_MODE = "engine_mode"
+    private const val KEY_PHONE = "phone_number"
+    private const val KEY_ALLOWED = "allowed_numbers"
 
     /** Endereço do servidor Node (padrão = IP da rede local). */
     const val DEFAULT_URL = "http://192.168.15.100:8097"
 
     /** Velocidade padrão de reprodução das notas de voz. */
     val DEFAULT_SPEED = 1.0f
+
+    /** Como o app fala com o WhatsApp. */
+    enum class Engine { EMBUTIDO, EXTERNO }
+
+    /** Modo do motor: embutido (daemon no APK) ou servidor externo. */
+    fun mode(ctx: Context): Engine {
+        val v = ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .getString(KEY_MODE, Engine.EMBUTIDO.name)
+        return runCatching { Engine.valueOf(v ?: Engine.EMBUTIDO.name) }.getOrDefault(Engine.EMBUTIDO)
+    }
+
+    fun setMode(ctx: Context, mode: Engine) {
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_MODE, mode.name)
+            .apply()
+    }
+
+    /** URL efetiva do motor (o embutido é sempre 127.0.0.1:8097). */
+    fun engineUrl(ctx: Context): String =
+        if (mode(ctx) == Engine.EMBUTIDO) DaemonManager.EMBEDDED_URL else url(ctx)
+
+    /** Telefone usado no pareamento por código (para não digitar de novo). */
+    fun phone(ctx: Context): String =
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString(KEY_PHONE, "") ?: ""
+
+    fun setPhone(ctx: Context, value: String) {
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_PHONE, value.trim())
+            .apply()
+    }
+
+    /** Números permitidos (vazio = todos). */
+    fun allowedNumbers(ctx: Context): List<String> =
+        (ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString(KEY_ALLOWED, "") ?: "")
+            .split(',', '\n')
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+
+    fun setAllowedNumbers(ctx: Context, value: String) {
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_ALLOWED, value.trim())
+            .apply()
+    }
 
     fun url(ctx: Context): String =
         ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)

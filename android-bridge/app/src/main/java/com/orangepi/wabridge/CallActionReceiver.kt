@@ -44,7 +44,7 @@ class CallActionReceiver : BroadcastReceiver() {
     private fun quickReply(context: Context) {
         val payload = WatchCallConnection.current?.payload ?: CallPayload.current ?: return
         val text = context.getString(R.string.quick_reply_busy)
-        Uploader.sendText(Prefs.url(context), payload.audioId, payload.senderNumber, text)
+        Uploader.sendText(Prefs.engineUrl(context), payload.audioId, payload.senderNumber, text)
         WatchCallConnection.current?.rejectNow()
     }
 

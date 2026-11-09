@@ -12,6 +12,25 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:text="@string/engine_label"
+            android:textStyle="bold" />
+
+        <Spinner
+            android:id="@+id/modeSpinner"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:entries="@array/engine_modes" />
+
+        <TextView
+            android:id="@+id/engineStatusText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="12sp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
             android:text="@string/server_label"
             android:textStyle="bold" />
 
@@ -36,6 +55,60 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:entries="@array/speed_values" />
+
+        <!-- Pareamento do WhatsApp no próprio celular (código de 8 dígitos). -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/pairing_label"
+            android:textStyle="bold" />
+
+        <EditText
+            android:id="@+id/phoneInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/phone_hint"
+            android:inputType="phone"
+            android:importantForAutofill="no"
+            android:maxLines="1" />
+
+        <Button
+            android:id="@+id/pairButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/pair" />
+
+        <TextView
+            android:id="@+id/pairResultText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/batteryButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/battery"
+            android:visibility="gone" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/allowed_label"
+            android:textStyle="bold" />
+
+        <EditText
+            android:id="@+id/allowedInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/allowed_hint"
+            android:importantForAutofill="no"
+            android:maxLines="2" />
 
         <Button
             android:id="@+id/connectButton"
