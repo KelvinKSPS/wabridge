@@ -53,4 +53,26 @@ class CallPayloadTest {
         assertEquals("Ana", parsed.senderName)
         assertEquals("5511888888888", parsed.senderNumber)
     }
+
+    @Test
+    fun `formata a duracao`() {
+        assertEquals("0:12", CallPayload.formatDuration(12))
+        assertEquals("1:05", CallPayload.formatDuration(65))
+        assertEquals("2:00", CallPayload.formatDuration(120))
+        assertEquals("1:00:10", CallPayload.formatDuration(3610))
+    }
+
+    @Test
+    fun `nome exibido inclui a duracao`() {
+        val comDuracao = payload.copy(durationSec = 12)
+        assertEquals("João da Silva · 0:12", comDuracao.displayName)
+        assertEquals("João da Silva", payload.displayName)
+    }
+
+    @Test
+    fun `duracao sobrevive ao round trip`() {
+        val parsed = CallPayload.fromJson(payload.copy(durationSec = 42).toJson())
+        assertNotNull(parsed)
+        assertEquals(42, parsed!!.durationSec)
+    }
 }

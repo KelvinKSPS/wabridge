@@ -14,6 +14,7 @@ const SAMPLE = path.join(__dirname, '..', 'sample.ogg');
 /** Evolution API falsa: devolve o sample e registra o que foi enviado. */
 class FakeEvolution {
   sent: { number: string; ptt: unknown; bytes: number }[] = [];
+  texts: { number: string; text: string }[] = [];
   downloadCalls = 0;
 
   async downloadMedia() {
@@ -28,6 +29,11 @@ class FakeEvolution {
   async sendVoiceNote(number: string, ogg: Buffer) {
     this.sent.push({ number, ptt: true, bytes: ogg.length });
     return { key: { id: 'FAKE' } };
+  }
+
+  async sendText(number: string, text: string) {
+    this.texts.push({ number, text });
+    return { key: { id: 'FAKE_TEXT' } };
   }
 }
 
@@ -300,6 +306,35 @@ describe('fluxo completo do webhook', () => {
     // a pendência da conversa respondida é removida depois do envio
     const pending = await (await fetch(`${baseUrl}/pending`)).json();
     assert.equal(pending.find((p: any) => p.audioId === 'MSG_TEST_1'), undefined);
+  });
+
+  test('resposta rápida em texto vai para o remetente', async () => {
+    const res = await fetch(`${baseUrl}/reply/text`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        audioId: 'MSG_TEST_1',
+        to: '5511999999999',
+        text: 'Não posso atender o telefone no momento.',
+      }),
+    });
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.ok, true);
+    assert.equal(body.to, '5511999999999');
+
+    assert.equal(fake.texts.length, 1);
+    assert.equal(fake.texts[0].number, '5511999999999');
+    assert.match(fake.texts[0].text, /Não posso atender/);
+  });
+
+  test('resposta rápida sem texto é recusada', async () => {
+    const res = await fetch(`${baseUrl}/reply/text`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ audioId: 'MSG_TEST_1', to: '5511999999999' }),
+    });
+    assert.equal(res.status, 400);
   });
 
   test('sem destino nem pendência, o reply é recusado', async () => {
