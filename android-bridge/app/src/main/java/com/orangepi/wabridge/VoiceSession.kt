@@ -61,6 +61,30 @@ class VoiceSession(
     /** true quando a sessão já terminou (não dá mais para gravar). */
     val ended: Boolean get() = state.ended
 
+    /** Velocidade de reprodução atual (1.0 = normal). */
+    @Volatile
+    var speed: Float = 1.0f
+        private set
+
+    /**
+     * Muda a velocidade de reprodução (0.5 a 2.0).
+     *
+     * Vale para a nota de voz que está tocando: dá para ouvir mais rápido
+     * (ou mais devagar) sem perder a chamada.
+     */
+    fun setSpeed(value: Float): Float {
+        val v = value.coerceIn(0.5f, 2.0f)
+        val p = player ?: return speed
+        runCatching {
+            p.playbackParams = p.playbackParams?.setSpeed(v)
+            speed = v
+            Log.i(TAG, "velocidade: ${v}x")
+        }.onFailure {
+            Log.w(TAG, "não foi possível mudar a velocidade: ${it.message}")
+        }
+        return speed
+    }
+
     /** Momento em que a gravação começou (0 = não está gravando). */
     @Volatile
     private var recordingStartedAt: Long = 0L

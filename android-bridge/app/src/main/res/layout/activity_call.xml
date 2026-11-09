@@ -46,6 +46,14 @@
         android:visibility="gone" />
 
     <Button
+        android:id="@+id/speedButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="@string/speed"
+        android:visibility="gone" />
+
+    <Button
         android:id="@+id/answerButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

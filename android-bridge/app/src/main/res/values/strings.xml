@@ -22,4 +22,9 @@
     <string name="status_recorded">🎙 %1$d s gravados</string>
     <string name="status_wait">⏳ pode desligar em %1$d s</string>
     <string name="status_too_short">fale um pouco antes de desligar</string>
+    <string name="speed">Velocidade: 1x</string>
+    <string name="speed_value">Velocidade: %1$s</string>
+    <string name="quick_reply_busy">Não posso atender o telefone no momento.</string>
+    <string name="action_quick_reply">Não posso atender</string>
+    <string name="incoming_call_duration">chamada de voz · %1$s</string>
 </resources>

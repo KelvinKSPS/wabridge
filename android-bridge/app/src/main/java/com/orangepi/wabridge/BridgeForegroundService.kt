@@ -30,6 +30,9 @@ class BridgeForegroundService : Service() {
     /** Uma chamada por vez: as demais notas de voz esperam na fila. */
     private val callQueue = CallQueue()
 
+    /** Último texto mostrado na notificação de serviço. */
+    private var statusText: String = ""
+
     override fun onCreate() {
         super.onCreate()
         instance = this
@@ -175,6 +178,7 @@ class BridgeForegroundService : Service() {
         // foreground service. Sem isso o Android silencia o microfone
         // quando o app sair da tela e a resposta sai vazia.
         promoteToMicrophone()
+        CallPayload.setCurrent(payload)
 
         // A tela de chamada do app não depende do Telecom: aparece mesmo em
         // aparelho sem telephony.
@@ -227,12 +231,22 @@ class BridgeForegroundService : Service() {
 
     private fun broadcastStatus(text: String) {
         Log.i(TAG, text)
+        statusText = text
         sendBroadcast(Intent(ACTION_STATUS).setPackage(packageName).putExtra(EXTRA_TEXT, text))
         // atualiza a notificação de serviço
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
         manager.notify(
             CallNotifier.NOTIFICATION_ID,
             CallNotifier.serviceNotification(this, text),
+        )
+    }
+
+    /** Atualiza a notificação de serviço (usado pelas ações). */
+    fun refreshStatus() {
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
+        manager.notify(
+            CallNotifier.NOTIFICATION_ID,
+            CallNotifier.serviceNotification(this, statusText),
         )
     }
 

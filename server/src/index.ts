@@ -7,7 +7,7 @@ import multer from 'multer';
 import { config, isAllowed } from './config';
 import { Hub } from './hub';
 import { EvolutionClient } from './evolution';
-import { ensureMediaDir, mediaPath, scheduleCleanup, toOggOpus, toWav16k, generateToneWav } from './media';
+import { ensureMediaDir, mediaPath, scheduleCleanup, toOggOpus, toWav16k, generateToneWav, probeDuration } from './media';
 import { normalize, isPrivateChat } from './whatsapp';
 import type { CallPayload, PendingCall } from './types';
 
@@ -111,6 +111,7 @@ export function createBridge(deps: BridgeDeps = {}): Bridge {
 
     fs.writeFileSync(mediaPath(rawName), media.data);
     await toWav16k(mediaPath(rawName), mediaPath(wavName));
+    const durationSec = await probeDuration(mediaPath(wavName));
     scheduleCleanup(rawName);
     scheduleCleanup(wavName);
 
@@ -127,6 +128,7 @@ export function createBridge(deps: BridgeDeps = {}): Bridge {
       senderName: evt.pushName || evt.number,
       senderNumber: evt.number,
       audioUrl: `${publicBaseUrl()}/media/${wavName}`,
+      durationSec,
     };
 
     console.log(`[push] ${payload.senderName} -> relógio: ${payload.audioUrl}`);
@@ -236,6 +238,38 @@ export function createBridge(deps: BridgeDeps = {}): Bridge {
     } finally {
       fs.promises.unlink(file.path).catch(() => undefined);
       fs.promises.unlink(mediaPath(oggName)).catch(() => undefined);
+    }
+  });
+
+  /* ------------------------------------------------------------------ *
+   * Resposta rápida (texto) -> WhatsApp
+   * ------------------------------------------------------------------ */
+
+  app.post('/reply/text', async (req, res) => {
+    const audioId = String(req.body?.audioId ?? '');
+    const toRaw = String(req.body?.to ?? '');
+    const text = String(req.body?.text ?? '').trim();
+
+    const call = audioId ? pending.get(audioId) : undefined;
+    const target = (toRaw || call?.senderNumber || '').replace(/\D/g, '');
+
+    if (!text) {
+      res.status(400).json({ error: 'texto ausente (campo "text")' });
+      return;
+    }
+    if (!target) {
+      res.status(400).json({ error: 'destinatário ausente (campo "to" ou "audioId" válido)' });
+      return;
+    }
+
+    try {
+      const result = await evolution.sendText(target, text);
+      if (audioId) pending.delete(audioId);
+      console.log(`[reply] texto enviado para ${target}: "${text}"`);
+      res.json({ ok: true, to: target, sent: result?.data ?? result ?? null });
+    } catch (err: any) {
+      console.error('[reply] erro no texto:', err.message);
+      res.status(502).json({ error: err.message });
     }
   });
 

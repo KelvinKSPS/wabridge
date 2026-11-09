@@ -161,6 +161,23 @@ export class EvolutionClient {
     }
   }
 
+  /** Envia uma mensagem de texto (resposta rápida). */
+  async sendText(number: string, text: string): Promise<any> {
+    const payload = { number, text };
+    try {
+      return await this.http.post(`/message/sendText/${this.instance}`, payload, {
+        headers: this.headers,
+      });
+    } catch (err: any) {
+      const status = err?.response?.status;
+      if (status !== 404 && status !== 405) throw err;
+      // v1
+      return this.http.post(`/chat/sendText/${this.instance}`, payload, {
+        headers: this.headers,
+      });
+    }
+  }
+
   /** Envia nota de voz (PTT) para o número informado (só dígitos). */
   async sendVoiceNote(number: string, ogg: Buffer, fileName = 'reply.ogg'): Promise<any> {
     const b64 = ogg.toString('base64');

@@ -4,6 +4,8 @@ export interface CallPayload {
   senderName: string;
   senderNumber: string;
   audioUrl: string;
+  /** Duração da nota de voz em segundos (0 = desconhecido). */
+  durationSec: number;
 }
 
 export interface PendingCall {

@@ -14,7 +14,7 @@ import android.util.Log
  */
 class WatchCallConnection(
     private val ctx: Context,
-    private val payload: CallPayload,
+    val payload: CallPayload,
 ) : Connection() {
 
     private val state = CallStateMachine()
@@ -25,7 +25,7 @@ class WatchCallConnection(
         state.onIncoming()
         current = this
         setCallerDisplayName(
-            payload.senderName.ifBlank { payload.senderNumber },
+            payload.displayName.ifBlank { payload.senderNumber },
             TelecomManager.PRESENTATION_ALLOWED,
         )
         setAddress(

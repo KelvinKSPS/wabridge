@@ -6,6 +6,8 @@ import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
 import java.io.File
 import java.util.concurrent.TimeUnit
 
@@ -42,6 +44,36 @@ object Uploader {
             }
         } catch (e: Exception) {
             Log.e(TAG, "falha no upload: ${e.message}")
+            false
+        }
+    }
+
+    /**
+     * Envia uma resposta rápida em texto (POST /reply/text).
+     *
+     * É o "Não posso atender agora" do menu: um toque e o contato recebe
+     * a mensagem, sem precisar falar.
+     */
+    fun sendText(baseUrl: String, audioId: String, to: String, text: String): Boolean {
+        return try {
+            val json = JSONObject()
+                .put("audioId", audioId)
+                .put("to", to)
+                .put("text", text)
+                .toString()
+                .toRequestBody("application/json".toMediaType())
+
+            val request = Request.Builder()
+                .url(WsUrls.httpUrl(baseUrl, "/reply/text"))
+                .post(json)
+                .build()
+
+            client.newCall(request).execute().use { response ->
+                Log.i(TAG, "reply/text -> ${response.code}")
+                response.isSuccessful
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "falha no envio do texto: ${e.message}")
             false
         }
     }

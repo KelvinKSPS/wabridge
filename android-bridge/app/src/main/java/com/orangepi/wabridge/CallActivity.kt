@@ -26,6 +26,7 @@ class CallActivity : Activity() {
     private lateinit var statusLine: TextView
     private lateinit var answerButton: Button
     private lateinit var rejectButton: Button
+    private lateinit var speedButton: Button
     private var localSession: VoiceSession? = null
     private var answered = false
     private val handler = Handler(Looper.getMainLooper())
@@ -48,9 +49,15 @@ class CallActivity : Activity() {
         statusLine = findViewById(R.id.statusLine)
         answerButton = findViewById(R.id.answerButton)
         rejectButton = findViewById(R.id.rejectButton)
+        speedButton = findViewById(R.id.speedButton)
 
         callerName.text = payload?.senderName ?: getString(R.string.unknown_caller)
-        callerNumber.text = payload?.senderNumber ?: ""
+        // nome, número e duração da nota de voz
+        callerNumber.text = if (payload != null && payload.durationSec > 0) {
+            "${payload.senderNumber} · ${CallPayload.formatDuration(payload.durationSec)}"
+        } else {
+            payload?.senderNumber ?: ""
+        }
 
         answerButton.setOnClickListener {
             if (answered) {
@@ -72,6 +79,19 @@ class CallActivity : Activity() {
         rejectButton.setOnClickListener {
             rejectWhenReady()
             finish()
+        }
+
+        // botão de velocidade: só faz sentido enquanto o áudio toca
+        speedButton.setOnClickListener {
+            val session = VoiceSession.current ?: return@setOnClickListener
+            val next = when (session.speed) {
+                1.0f -> 1.25f
+                1.25f -> 1.5f
+                1.5f -> 2.0f
+                else -> 1.0f
+            }
+            session.setSpeed(next)
+            speedButton.text = getString(R.string.speed_value, "${next}x")
         }
 
         // A tela de chamada garante que o app está em primeiro plano: é o
@@ -115,8 +135,11 @@ class CallActivity : Activity() {
             CallPhase.PLAYING -> {
                 statusLine.visibility = android.view.View.VISIBLE
                 statusLine.setText(R.string.status_playing)
+                speedButton.visibility = android.view.View.VISIBLE
+                speedButton.text = getString(R.string.speed_value, "${session.speed}x")
             }
             CallPhase.RECORDING -> {
+                speedButton.visibility = android.view.View.GONE
                 val elapsed = session.recordElapsedMs
                 statusLine.visibility = android.view.View.VISIBLE
                 if (elapsed < CallStateMachine.MIN_RECORDING_MS) {

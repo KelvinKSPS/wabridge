@@ -22,6 +22,22 @@ export function toWav16k(input: string, output: string): Promise<string> {
 }
 
 /**
+ * Duração do áudio em segundos (arredondada). 0 se não der para medir.
+ */
+export function probeDuration(input: string): Promise<number> {
+  return new Promise((resolve) => {
+    ffmpeg.ffprobe(input, (err, data) => {
+      if (err) {
+        resolve(0);
+        return;
+      }
+      const seconds = Number(data?.format?.duration);
+      resolve(Number.isFinite(seconds) ? Math.round(seconds) : 0);
+    });
+  });
+}
+
+/**
  * Converte a gravação do relógio (m4a/wav) em Opus (.ogg) para envio como nota de voz.
  */
 export function toOggOpus(input: string, output: string): Promise<string> {
