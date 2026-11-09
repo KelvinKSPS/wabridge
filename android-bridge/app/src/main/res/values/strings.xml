@@ -1,19 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Wabridge</string>
+
+    <!-- Tela principal -->
     <string name="engine_label">como falar com o WhatsApp</string>
     <string name="mode_embedded">motor embutido: %s</string>
     <string name="mode_external">servidor externo</string>
     <string name="daemon_missing">motor embutido não está neste APK (use o APK completo)</string>
-    <string name="pairing_label">parear o WhatsApp</string>
-    <string name="phone_hint">DDD + número</string>
-    <string name="phone_required">digite o número com DDD</string>
-    <string name="pair">gerar código de 8 dígitos</string>
-    <string name="pairing">gerando código…</string>
-    <string name="pair_failed">não consegui gerar o código</string>
-    <string name="battery">não deixar o celular dormir o app</string>
-    <string name="allowed_label">quem pode ligar no relógio</string>
-    <string name="allowed_hint">números com DDD separados por vírgula (vazio = todos)</string>
     <string name="server_label">servidor</string>
     <string name="url_hint">http://192.168.15.100:8097</string>
     <string name="speed_label">velocidade padrão de reprodução</string>
@@ -24,15 +17,41 @@
     <string name="starting">iniciando…</string>
     <string name="stopped">parado</string>
     <string name="test_caller">chamando o relógio…</string>
-    <string name="speed_value">Velocidade: %s</string>
+
+    <!-- Pareamento -->
+    <string name="pairing_label">parear o WhatsApp</string>
+    <string name="phone_hint">DDD + número</string>
+    <string name="phone_required">digite o número com DDD</string>
+    <string name="pair">gerar código de 8 dígitos</string>
+    <string name="pairing">gerando código…</string>
+    <string name="pair_failed">não consegui gerar o código</string>
+    <string name="battery">não deixar o celular dormir o app</string>
+    <string name="allowed_label">quem pode ligar no relógio</string>
+    <string name="allowed_hint">números com DDD separados por vírgula (vazio = todos)</string>
+
+    <!-- Tela de chamada -->
     <string name="incoming_call">chamada de voz</string>
     <string name="incoming_from">de %s</string>
+    <string name="incoming_call_duration">de %s · %s</string>
+    <string name="unknown_caller">número desconhecido</string>
     <string name="recording">gravando…</string>
     <string name="sending">enviando…</string>
-    <string name="quick_reply">Não posso atender o telefone no momento.</string>
-    <string name="notification_channel">Wabridge</string>
-    <string name="notification_channel_desc">Mantém a ponte WhatsApp ativa</string>
     <string name="answer">atender</string>
     <string name="reject">desligar</string>
+    <string name="hangup">desligar</string>
     <string name="speed">Velocidade: 1x</string>
+    <string name="speed_value">Velocidade: %s</string>
+    <string name="status_playing">tocando…</string>
+    <string name="status_wait">aguardando…</string>
+    <string name="status_recorded">gravado</string>
+    <string name="status_too_short">áudio muito curto</string>
+    <string name="quick_reply">Não posso atender o telefone no momento.</string>
+    <string name="quick_reply_busy">Não posso atender o telefone no momento.</string>
+    <string name="action_quick_reply">responder por texto</string>
+
+    <!-- Notificações -->
+    <string name="notification_channel">Wabridge</string>
+    <string name="notification_channel_desc">Mantém a ponte WhatsApp ativa</string>
+    <string name="channel_name">Chamada de voz</string>
+    <string name="channel_call_name">Chamada de voz</string>
 </resources>
