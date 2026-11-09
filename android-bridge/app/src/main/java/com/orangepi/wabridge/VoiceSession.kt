@@ -11,6 +11,8 @@ import android.media.MediaPlayer
 import android.media.MediaRecorder
 import android.media.ToneGenerator
 import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
 import android.os.SystemClock
 import android.util.Log
 import androidx.core.content.ContextCompat
@@ -172,14 +174,27 @@ class VoiceSession(
         }
         scope.launch {
             delay(PLAYBACK_TO_RECORD_DELAY_MS)
-            // tom curto avisando que a resposta está sendo gravada
+            // aviso de "fale agora": bipe + vibração (no relógio o toque é
+            // bem mais perceptível que o som — sem isso o usuário desligava
+            // logo depois e mandava 0,4 s de silêncio)
             runCatching {
-                val tone = ToneGenerator(AudioManager.STREAM_VOICE_CALL, 80)
-                tone.startTone(ToneGenerator.TONE_PROP_BEEP, 200)
-                delay(250)
+                val tone = ToneGenerator(AudioManager.STREAM_VOICE_CALL, 100)
+                tone.startTone(ToneGenerator.TONE_PROP_BEEP, 400)
+                delay(450)
                 tone.release()
             }
+            vibrateToSpeak()
+            delay(200)
             startRecording()
+        }
+    }
+
+    /** Vibração curta: "agora é a sua vez de falar". */
+    private fun vibrateToSpeak() {
+        runCatching {
+            val vibrator = ctx.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator ?: return
+            if (!vibrator.hasVibrator()) return
+            vibrator.vibrate(VibrationEffect.createOneShot(400, VibrationEffect.DEFAULT_AMPLITUDE))
         }
     }
 
