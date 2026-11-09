@@ -16,3 +16,6 @@ server/test/recebido.ogg
 
 # worktrees de agentes
 .claude/
+
+# binario do daemon (build artifact)
+android-bridge/app/src/main/jniLibs/
