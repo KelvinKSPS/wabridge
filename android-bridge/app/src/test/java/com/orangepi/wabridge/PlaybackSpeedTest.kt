@@ -6,7 +6,7 @@ import org.junit.Test
 class PlaybackSpeedTest {
 
     @Test
-    fun `o ciclo passa por 1x, 1.25x, 1.5x, 2x e volta para 1x`() {
+    fun `o ciclo passa pelas quatro velocidades e volta para o normal`() {
         var speed = 1.0f
         speed = PlaybackSpeed.next(speed)
         assertEquals(1.25f, speed, 0.001f)
@@ -25,7 +25,7 @@ class PlaybackSpeedTest {
     }
 
     @Test
-    fun `a velocidade e limitada entre 0.5 e 2.0`() {
+    fun `a velocidade e limitada entre meio e dois`() {
         assertEquals(0.5f, PlaybackSpeed.clamp(0.1f), 0.001f)
         assertEquals(2.0f, PlaybackSpeed.clamp(5.0f), 0.001f)
         assertEquals(1.5f, PlaybackSpeed.clamp(1.5f), 0.001f)
