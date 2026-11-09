@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.media.AudioAttributes
 import android.media.AudioDeviceInfo
+import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.MediaPlayer
 import android.media.MediaRecorder
@@ -99,14 +100,26 @@ class VoiceSession(
         return true
     }
 
+    /**
+     * Roteia o microfone para o dispositivo SCO **em uso**.
+     *
+     * `availableCommunicationDevices` lista até os SCO disponíveis, mesmo
+     * desconectados — apontar o microfone para um fone que não está
+     * conectado produz silêncio na gravação. Por isso usamos o dispositivo
+     * de comunicação ativo (ou o estado do SCO).
+     */
     private fun routeToScoDevice() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
         runCatching {
-            val device = audio.availableCommunicationDevices
-                .firstOrNull { it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO }
-            if (device != null) {
-                audio.setCommunicationDevice(device)
-                Log.i(TAG, "dispositivo de comunicação: ${device.productName}")
+            val active = audio.activeCommunicationDevice
+            if (active != null && active.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO) {
+                audio.setCommunicationDevice(active)
+                Log.i(TAG, "dispositivo de comunicação: ${active.productName}")
+            } else {
+                Log.i(
+                    TAG,
+                    "sem SCO em uso (ativo=${active?.productName}); microfone fica no aparelho",
+                )
             }
         }
     }
@@ -198,13 +211,62 @@ class VoiceSession(
         }
     }
 
+    /**
+     * Pede foco de áudio para a gravação.
+     *
+     * Sem foco, o sistema pode cortar o microfone quando o app não está na
+     * tela — a resposta saía com 0,4 s de silêncio.
+     */
+    private fun requestAudioFocus() {
+        runCatching {
+            val attrs = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                .build()
+            val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+                .setAudioAttributes(attrs)
+                .setOnAudioFocusChangeListener { }
+                .build()
+            audio.requestAudioFocus(request)
+            Log.i(TAG, "foco de áudio pedido para a gravação")
+        }
+    }
+
     private fun startRecording() {
         val file = File(ctx.cacheDir, "reply_${payload.audioId}_${System.currentTimeMillis()}.m4a")
-        val sources = listOf(
-            MediaRecorder.AudioSource.VOICE_COMMUNICATION,
-            MediaRecorder.AudioSource.VOICE_CALL,
-            MediaRecorder.AudioSource.MIC,
-        )
+        // Se há um dispositivo SCO (fone/BT) em uso, a fonte de voz é a que
+        // pega o microfone dele. Sem SCO, o microfone é o do aparelho:
+        // VOICE_COMMUNICATION nesse caso fica muda quando o app está em
+        // background (o sistema corta a "fonte de voz").
+        val scoConnected = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            runCatching {
+                audio.activeCommunicationDevice?.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO
+            }.getOrDefault(false)
+        } else {
+            runCatching { audio.isBluetoothScoOn }.getOrDefault(false)
+        }
+        val sources = if (scoConnected) {
+            listOf(
+                MediaRecorder.AudioSource.VOICE_COMMUNICATION,
+                MediaRecorder.AudioSource.MIC,
+                MediaRecorder.AudioSource.VOICE_CALL,
+            )
+        } else {
+            listOf(
+                MediaRecorder.AudioSource.MIC,
+                MediaRecorder.AudioSource.VOICE_COMMUNICATION,
+                MediaRecorder.AudioSource.VOICE_CALL,
+            )
+        }
+        Log.i(TAG, "fontes de áudio: $sources (sco conectado=$scoConnected)")
+
+        // neste momento a tela de chamada está na frente: o app está em
+        // primeiro plano, então é seguro pedir o tipo "microphone" do
+        // foreground service (sem isso o Android silencia a gravação).
+        BridgeForegroundService.requestMicrophone(ctx)
+
+        // foco de áudio: sem ele o sistema pode silenciar a gravação
+        requestAudioFocus()
 
         for (source in sources) {
             try {
@@ -239,6 +301,23 @@ class VoiceSession(
             Log.w(TAG, "timeout de gravação; encerrando")
             hangup()
         }
+
+        // Vigia de silêncio: se o microfone não pegar nada (amplitude 0),
+        // o sistema está cortando a fonte. Avisa no log para diagnóstico.
+        scope.launch {
+            var maxAmp = 0
+            repeat(6) {
+                delay(500)
+                val rec = recorder ?: return@launch
+                val amp = runCatching { rec.maxAmplitude }.getOrDefault(0)
+                if (amp > maxAmp) maxAmp = amp
+            }
+            if (maxAmp == 0) {
+                Log.w(TAG, "microfone MUDO (amplitude 0 após 3s) — o sistema silenciou a fonte")
+            } else {
+                Log.i(TAG, "microfone ok (amplitude máx $maxAmp)")
+            }
+        }
     }
 
     /* ---------------------------------------------------------------- *
@@ -272,6 +351,19 @@ class VoiceSession(
         scoReceiver?.let { runCatching { ctx.unregisterReceiver(it) } }
         scoReceiver = null
         audio.mode = AudioManager.MODE_NORMAL
+        // devolve o foco de áudio
+        runCatching {
+            val attrs = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                .build()
+            audio.abandonAudioFocusRequest(
+                AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+                    .setAudioAttributes(attrs)
+                    .setOnAudioFocusChangeListener { }
+                    .build(),
+            )
+        }
 
         if (file != null && file.length() > 0) {
             upload(file)

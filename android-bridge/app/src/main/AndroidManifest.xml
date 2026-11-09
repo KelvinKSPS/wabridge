@@ -9,6 +9,9 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <!-- Sem o tipo "microphone" no foreground service o Android silencia o
+         microfone quando o app vai para background: a gravação sai vazia. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
@@ -70,11 +73,13 @@
             </intent-filter>
         </service>
 
-        <!-- Mantém o WebSocket vivo enquanto o app está em background. -->
+        <!-- Mantém o WebSocket vivo enquanto o app está em background.
+             O tipo "microphone" é obrigatório para a resposta gravada não
+             sair muda quando o app não está na tela. -->
         <service
             android:name=".BridgeForegroundService"
             android:exported="false"
-            android:foregroundServiceType="specialUse">
+            android:foregroundServiceType="specialUse|microphone">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Mantém a conexão WebSocket com o servidor da ponte WhatsApp ativa" />

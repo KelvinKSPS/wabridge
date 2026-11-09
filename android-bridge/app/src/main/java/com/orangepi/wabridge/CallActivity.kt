@@ -74,6 +74,13 @@ class CallActivity : Activity() {
             finish()
         }
 
+        // A tela de chamada garante que o app está em primeiro plano: é o
+        // momento seguro para pedir o tipo "microphone" do foreground service.
+        // Sem isso, quando a chamada é atendida pelo discador do sistema (o
+        // app fecha a própria tela e vai para background), o Android silencia
+        // o microfone e a resposta sai vazia.
+        BridgeForegroundService.requestMicrophone(this)
+
         // linha de estado: tocando / gravando / há quanto tempo
         handler.post(statusTicker)
     }

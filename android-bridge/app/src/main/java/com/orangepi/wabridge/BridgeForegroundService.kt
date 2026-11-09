@@ -4,11 +4,13 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import android.telecom.TelecomManager
 import android.util.Log
+import androidx.core.app.ServiceCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -36,10 +38,14 @@ class BridgeForegroundService : Service() {
         // No Android 12+ o startForeground é bloqueado se o serviço foi
         // iniciado em segundo plano (ForegroundServiceStartNotAllowedException).
         // Antes isso derrubava o serviço — e com ele o WebSocket.
+        // Aqui não pedimos o tipo "microphone": ele só pode ser adicionado
+        // com o app em primeiro plano (quando a chamada chega).
         try {
-            startForeground(
+            ServiceCompat.startForeground(
+                this,
                 CallNotifier.NOTIFICATION_ID,
                 CallNotifier.serviceNotification(this, getString(R.string.starting)),
+                baseForegroundType(),
             )
         } catch (e: Exception) {
             Log.e(TAG, "startForeground bloqueado (${e.message}); serviço parado")
@@ -60,9 +66,53 @@ class BridgeForegroundService : Service() {
                 if (payload != null) ringIncoming(payload)
             }
             ACTION_CALL_ENDED -> onCallEnded()
+            ACTION_NEED_MIC -> promoteToMicrophone()
         }
         startSocket()
         return START_STICKY
+    }
+
+    /**
+     * Tipo base do foreground service (sem microfone).
+     *
+     * `specialUse` só existe no Android 14+; antes disso o tipo não é
+     * declarado e o serviço sobe com o tipo do manifesto.
+     */
+    private fun baseForegroundType(): Int =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+        } else {
+            0
+        }
+
+    /**
+     * Promove o serviço para foreground com o tipo `microphone`.
+     *
+     * Sem isso o Android silencia o microfone sempre que o app não está na
+     * tela (a resposta saía vazia). O tipo só pode ser adicionado aqui —
+     * no `onCreate` o serviço pode ser criado pelo sistema em background, e
+     * o Android 14+ não aceita FGS de microfone nesse caso.
+     */
+    private fun promoteToMicrophone() {
+        val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE or
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+        } else {
+            0
+        }
+        runCatching {
+            ServiceCompat.startForeground(
+                this,
+                CallNotifier.NOTIFICATION_ID,
+                CallNotifier.serviceNotification(this, getString(R.string.starting)),
+                type,
+            )
+            Log.i(TAG, "serviço promovido para foreground com microfone")
+        }.onFailure {
+            Log.w(TAG, "não foi possível adicionar o tipo microphone: ${it.message}")
+        }
     }
 
     override fun onDestroy() {
@@ -120,6 +170,12 @@ class BridgeForegroundService : Service() {
     }
 
     private fun startRinging(payload: CallPayload) {
+        // A chamada chega com o app em primeiro plano (a tela de chamada vai
+        // abrir): é o momento seguro para pedir o tipo "microphone" do
+        // foreground service. Sem isso o Android silencia o microfone
+        // quando o app sair da tela e a resposta sai vazia.
+        promoteToMicrophone()
+
         // A tela de chamada do app não depende do Telecom: aparece mesmo em
         // aparelho sem telephony.
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
@@ -185,6 +241,7 @@ class BridgeForegroundService : Service() {
         const val ACTION_STATUS = "com.orangepi.wabridge.STATUS"
         const val ACTION_TEST_CALL = "com.orangepi.wabridge.TEST_CALL"
         const val ACTION_CALL_ENDED = "com.orangepi.wabridge.CALL_ENDED"
+        const val ACTION_NEED_MIC = "com.orangepi.wabridge.NEED_MIC"
         const val EXTRA_TEXT = "text"
 
         /** Serviço vivo (para avisar que uma chamada terminou). */
@@ -204,6 +261,26 @@ class BridgeForegroundService : Service() {
                 context.startService(
                     Intent(context, BridgeForegroundService::class.java)
                         .setAction(ACTION_CALL_ENDED),
+                )
+            }
+        }
+
+        /**
+         * Garante que o serviço pode usar o microfone.
+         *
+         * Sem o tipo `microphone` no foreground service, o Android silencia
+         * a gravação quando o app não está na tela — a resposta saía vazia.
+         */
+        fun requestMicrophone(context: Context) {
+            val svc = instance
+            if (svc != null) {
+                svc.promoteToMicrophone()
+                return
+            }
+            runCatching {
+                context.startService(
+                    Intent(context, BridgeForegroundService::class.java)
+                        .setAction(ACTION_NEED_MIC),
                 )
             }
         }
