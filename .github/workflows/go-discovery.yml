@@ -1,0 +1,51 @@
+name: go-discovery
+
+# Job temporário: despeja a API do whatsmeow para codar contra a assinatura
+# real (o whatsmeow muda de API com frequência).
+on:
+  push:
+    branches: [feature/standalone-apk]
+  workflow_dispatch:
+
+jobs:
+  discovery:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: embedded-core
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+          cache-dependency-path: embedded-core/go.sum
+      - name: resolve as dependencias
+        run: |
+          go get go.mau.fi/whatsmeow@latest
+          go get modernc.org/sqlite@latest
+          go get github.com/skip2/go-qrcode@latest
+          go get github.com/linxGnu/gopus@latest
+          go mod tidy || true
+      - name: dump da API
+        run: |
+          set +e
+          echo "===== whatsmeow ====="
+          go doc go.mau.fi/whatsmeow 2>&1 | head -60
+          echo "===== whatsmeow.Client ====="
+          go doc go.mau.fi/whatsmeow.Client 2>&1 | head -120
+          echo "===== store ====="
+          go doc go.mau.fi/whatsmeow/store 2>&1 | head -80
+          echo "===== store/sqlstore ====="
+          go doc go.mau.fi/whatsmeow/store/sqlstore 2>&1 | head -40
+          echo "===== events ====="
+          go doc go.mau.fi/whatsmeow/types/events 2>&1 | head -80
+          echo "===== events.Message ====="
+          go doc go.mau.fi/whatsmeow/types/events.Message 2>&1 | head -40
+          echo "===== events.QR ====="
+          go doc go.mau.fi/whatsmeow/types/events.QR 2>&1 | head -30
+          echo "===== events.PairSuccess ====="
+          go doc go.mau.fi/whatsmeow/types/events.PairSuccess 2>&1 | head -20
+          echo "===== types.JID ====="
+          go doc go.mau.fi/whatsmeow/types.JID 2>&1 | head -40
+          echo "===== go.mod ====="
+          cat go.mod
