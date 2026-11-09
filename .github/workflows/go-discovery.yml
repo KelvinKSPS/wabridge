@@ -24,7 +24,7 @@ jobs:
           go get go.mau.fi/whatsmeow@latest
           go get modernc.org/sqlite@latest
           go get github.com/skip2/go-qrcode@latest
-          go get github.com/linxGnu/gopus@latest
+          go get github.com/fgn/puropus@latest
           go mod tidy || true
       - name: dump da API
         run: |
@@ -47,5 +47,7 @@ jobs:
           go doc go.mau.fi/whatsmeow/types/events.PairSuccess 2>&1 | head -20
           echo "===== types.JID ====="
           go doc go.mau.fi/whatsmeow/types.JID 2>&1 | head -40
+          echo "===== puropus ====="
+          go doc github.com/fgn/puropus/opus.Decoder 2>&1 | head -30
           echo "===== go.mod ====="
           cat go.mod
