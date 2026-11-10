@@ -256,6 +256,12 @@ type GroupEntry struct {
 // O número vem sempre resolvido: o WhatsApp manda LID (@lid) para quem
 // não está na agenda, então o mapa LID→PN é consultado antes.
 func (w *whatsmeowClient) Contacts(ctx context.Context) ([]ContactEntry, []GroupEntry, error) {
+	// Sem sessão pareada o store ainda não existe: devolve vazio em vez de
+	// estourar um nil pointer no handler HTTP.
+	if w.client.Store == nil || w.client.Store.Contacts == nil {
+		return []ContactEntry{}, []GroupEntry{}, nil
+	}
+
 	cs, err := w.client.Store.Contacts.GetAllContacts(ctx)
 	if err != nil {
 		return nil, nil, err
@@ -284,9 +290,14 @@ func (w *whatsmeowClient) Contacts(ctx context.Context) ([]ContactEntry, []Group
 		return strings.ToLower(contatos[i].Nome) < strings.ToLower(contatos[j].Nome)
 	})
 
-	gs, err := w.client.GetJoinedGroups(ctx)
-	if err != nil {
-		return nil, nil, err
+	// fora da conexão o IQ de grupos falha; devolve vazio em vez de erro
+	var gs []*types.GroupInfo
+	if w.client.IsConnected() {
+		var err error
+		gs, err = w.client.GetJoinedGroups(ctx)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 	grupos := make([]GroupEntry, 0, len(gs))
 	for _, g := range gs {
