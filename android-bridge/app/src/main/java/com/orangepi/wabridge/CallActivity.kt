@@ -100,7 +100,8 @@ class CallActivity : Activity() {
         }
 
         // inicial do contato no avatar
-        val inicial = payload.senderName.trim().take(1).uppercase().ifBlank { "?" }
+        val nome = payload?.senderName.orEmpty()
+        val inicial = nome.trim().take(1).uppercase().ifBlank { "?" }
         findViewById<TextView>(R.id.callerInitial)?.text = inicial
 
         // A tela de chamada garante que o app está em primeiro plano: é o
