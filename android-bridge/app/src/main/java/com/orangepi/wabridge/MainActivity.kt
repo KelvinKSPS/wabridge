@@ -172,6 +172,100 @@ class MainActivity : Activity() {
             }.start()
         }
         allowedInput.setText(Prefs.allowedNumbers(this).joinToString(", "))
+        updateAllowedSummary()
+        setupAllowedPicker()
+    }
+
+    /** Atualiza o resumo ao lado do botão "escolher". */
+    private fun updateAllowedSummary() {
+        val total = Prefs.allowedNumbers(this).size
+        findViewById<TextView>(R.id.allowedSummary).text =
+            if (total == 0) getString(R.string.allowed_empty)
+            else getString(R.string.allowed_selected, total)
+    }
+
+    /**
+     * Lista interativa: abre um seletor com os contatos e grupos da conta.
+     * Só existe no modo embutido (o servidor Node não tem /contacts).
+     */
+    private fun setupAllowedPicker() {
+        val button = findViewById<Button>(R.id.allowedPickButton)
+        button.setOnClickListener {
+            if (Prefs.mode(this) != Prefs.Engine.EMBUTIDO) {
+                android.widget.Toast.makeText(
+                    this, R.string.allowed_only_embedded,
+                    android.widget.Toast.LENGTH_LONG,
+                ).show()
+                return@setOnClickListener
+            }
+            button.isEnabled = false
+            findViewById<TextView>(R.id.allowedSummary).text = getString(R.string.allowed_loading)
+            Thread {
+                val loaded = PairingClient.contacts(this)
+                runOnUiThread {
+                    button.isEnabled = true
+                    if (loaded == null) {
+                        updateAllowedSummary()
+                        android.widget.Toast.makeText(
+                            this, R.string.allowed_error,
+                            android.widget.Toast.LENGTH_LONG,
+                        ).show()
+                        return@runOnUiThread
+                    }
+                    showAllowedDialog(loaded.first, loaded.second)
+                }
+            }.start()
+        }
+    }
+
+    /** Diálogo com abas de contatos e grupos, cada item com checkbox. */
+    private fun showAllowedDialog(
+        contatos: List<ContactItem>,
+        grupos: List<ContactItem>,
+    ) {
+        if (contatos.isEmpty() && grupos.isEmpty()) {
+            updateAllowedSummary()
+            android.widget.Toast.makeText(
+                this, R.string.allowed_none, android.widget.Toast.LENGTH_LONG,
+            ).show()
+            return
+        }
+
+        val atual = Prefs.allowedNumbers(this).toMutableSet()
+        val itens = mutableListOf<ContactItem>()
+        if (contatos.isNotEmpty()) {
+            itens += ContactItem("— contatos —", "")
+            itens += contatos
+        }
+        if (grupos.isNotEmpty()) {
+            itens += ContactItem("— grupos —", "")
+            itens += grupos
+        }
+
+        val marcados = BooleanArray(itens.size)
+        itens.forEachIndexed { i, item -> marcados[i] = item.value.isNotEmpty() && item.value in atual }
+
+        android.app.AlertDialog.Builder(this)
+            .setTitle(R.string.allowed_title)
+            .setMultiChoiceItems(
+                itens.map { if (it.value.isEmpty()) it.name else "${it.name} (${it.value})" }
+                    .toTypedArray(),
+                marcados,
+            ) { _, which, checked ->
+                val valor = itens[which].value
+                if (valor.isNotEmpty()) {
+                    if (checked) atual += valor else atual -= valor
+                }
+            }
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                val lista = atual.filter { it.isNotBlank() }
+                Prefs.setAllowedNumbers(this, lista.joinToString(", "))
+                allowedInput.setText(lista.joinToString(", "))
+                updateAllowedSummary()
+            }
+            .setNeutralButton(android.R.string.cancel, null)
+            .show()
+        updateAllowedSummary()
     }
 
     /** Pede a isenção da otimização de bateria (o daemon precisa rodar o dia todo). */

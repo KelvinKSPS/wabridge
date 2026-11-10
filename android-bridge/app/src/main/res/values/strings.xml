@@ -28,6 +28,16 @@
     <string name="battery">não deixar o celular dormir o app</string>
     <string name="allowed_label">quem pode ligar no relógio</string>
     <string name="allowed_hint">números com DDD separados por vírgula (vazio = todos)</string>
+    <string name="allowed_empty">todos (lista vazia)</string>
+    <string name="allowed_pick">escolher</string>
+    <string name="allowed_title">quem pode ligar no relógio</string>
+    <string name="allowed_tab_contacts">contatos</string>
+    <string name="allowed_tab_groups">grupos</string>
+    <string name="allowed_loading">buscando contatos…</string>
+    <string name="allowed_none">nenhum contato na agenda</string>
+    <string name="allowed_error">não consegui buscar os contatos</string>
+    <string name="allowed_only_embedded">a lista de contatos só funciona no modo embutido</string>
+    <string name="allowed_selected">%1$d selecionado(s)</string>
 
     <!-- Tela de chamada -->
     <string name="incoming_call">chamada de voz</string>

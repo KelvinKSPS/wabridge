@@ -35,6 +35,38 @@ object PairingClient {
             null
         }
 
+    /**
+     * Busca contatos e grupos da conta (lista interativa).
+     * Devolve null se falhar (ex.: modo servidor, que não tem /contacts).
+     */
+    fun contacts(context: Context): Pair<List<ContactItem>, List<ContactItem>>? =
+        runCatching {
+            val url = URL(Prefs.engineUrl(context) + "/contacts")
+            val conn = url.openConnection() as HttpURLConnection
+            conn.requestMethod = "GET"
+            conn.connectTimeout = 15_000
+            conn.readTimeout = 30_000
+            val body = readAll(conn.inputStream)
+            conn.disconnect()
+            val json = org.json.JSONObject(body)
+            parseItems(json.optJSONArray("contatos"), "number") to
+                parseItems(json.optJSONArray("grupos"), "jid")
+        }.getOrElse {
+            android.util.Log.w("WabridgeContacts", "contacts: ${it.message}")
+            null
+        }
+
+    private fun parseItems(array: org.json.JSONArray?, key: String): List<ContactItem> {
+        if (array == null) return emptyList()
+        return (0 until array.length()).mapNotNull { i ->
+            val o = array.optJSONObject(i) ?: return@mapNotNull null
+            ContactItem(
+                name = o.optString("name").ifBlank { o.optString(key) },
+                value = o.optString(key),
+            )
+        }
+    }
+
     private fun readAll(input: java.io.InputStream): String =
         BufferedReader(InputStreamReader(input, Charsets.UTF_8)).use { it.readText() }
 }
