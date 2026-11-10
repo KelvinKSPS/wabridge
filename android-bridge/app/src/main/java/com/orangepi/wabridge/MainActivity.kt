@@ -21,8 +21,8 @@ class MainActivity : Activity() {
 
     private lateinit var urlInput: EditText
     private lateinit var statusText: TextView
-    private lateinit var speedSpinner: android.widget.Spinner
-    private lateinit var modeSpinner: android.widget.Spinner
+    private lateinit var speedSpinner: android.widget.AutoCompleteTextView
+    private lateinit var modeSpinner: android.widget.AutoCompleteTextView
     private lateinit var engineStatusText: TextView
     private lateinit var phoneInput: EditText
     private lateinit var pairButton: Button
@@ -70,13 +70,14 @@ class MainActivity : Activity() {
 
         // velocidade padrão de reprodução
         val current = Prefs.speed(this)
-        speedSpinner.setSelection(speedOptions.indexOfFirst { it == current }.coerceAtLeast(0))
-        speedSpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: android.view.View?, pos: Int, id: Long) {
-                Prefs.setSpeed(this@MainActivity, speedOptions.getOrElse(pos) { 1.0f })
-            }
-
-            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) = Unit
+        val speedLabels = speedOptions.map { PlaybackSpeed.label(it) }
+        speedSpinner.setAdapter(
+            android.widget.ArrayAdapter(this, android.R.layout.simple_list_item_1, speedLabels),
+        )
+        val posAtual = speedOptions.indexOfFirst { it == current }.coerceAtLeast(0)
+        speedSpinner.setText(speedLabels[posAtual], false)
+        speedSpinner.setOnItemClickListener { _, _, pos, _ ->
+            Prefs.setSpeed(this@MainActivity, speedOptions.getOrElse(pos) { 1.0f })
         }
 
         findViewById<Button>(R.id.connectButton).setOnClickListener {
@@ -106,6 +107,13 @@ class MainActivity : Activity() {
 
     override fun onStart() {
         super.onStart()
+        // ao voltar para o app, releitura: a permissão de bluetooth pode
+        // ter sido dada agora, e o serviço pode ter caído
+        if (this::allowedInput.isInitialized) {
+            updateAllowedSummary()
+            setupBluetooth()
+            ensureBridgeRunning()
+        }
         ContextCompat.registerReceiver(
             this,
             statusReceiver,
@@ -130,16 +138,17 @@ class MainActivity : Activity() {
     /** Seletor do motor: embutido (daemon no APK) ou servidor externo. */
     private fun setupModeSpinner() {
         val modes = listOf(Prefs.Engine.EMBUTIDO, Prefs.Engine.EXTERNO)
-        modeSpinner.setSelection(modes.indexOf(Prefs.mode(this)).coerceAtLeast(0))
-        modeSpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: android.view.View?, pos: Int, id: Long) {
-                Prefs.setMode(this@MainActivity, modes.getOrElse(pos) { Prefs.Engine.EMBUTIDO })
-                val embutido = Prefs.mode(this@MainActivity) == Prefs.Engine.EMBUTIDO
-                urlInput.isEnabled = !embutido
-                refreshEngineStatus()
-            }
-
-            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) = Unit
+        val labels = modes.map { if (it == Prefs.Engine.EMBUTIDO) getString(R.string.mode_embedded_short) else getString(R.string.mode_external) }
+        modeSpinner.setAdapter(
+            android.widget.ArrayAdapter(this, android.R.layout.simple_list_item_1, labels),
+        )
+        val pos = modes.indexOf(Prefs.mode(this)).coerceAtLeast(0)
+        modeSpinner.setText(labels[pos], false)
+        modeSpinner.setOnItemClickListener { _, _, item, _ ->
+            Prefs.setMode(this@MainActivity, modes.getOrElse(item) { Prefs.Engine.EMBUTIDO })
+            val embutido = Prefs.mode(this@MainActivity) == Prefs.Engine.EMBUTIDO
+            urlInput.isEnabled = !embutido
+            refreshEngineStatus()
         }
         urlInput.isEnabled = Prefs.mode(this) != Prefs.Engine.EMBUTIDO
     }
@@ -250,10 +259,18 @@ class MainActivity : Activity() {
     /** Seletor de relógio/fone: só toca se o aparelho escolhido estiver conectado. */
     private fun setupBluetooth() {
         val check = findViewById<android.widget.CheckBox>(R.id.btOnlyCheck)
-        val spinner = findViewById<android.widget.Spinner>(R.id.btDeviceSpinner)
+        val spinner = findViewById<android.widget.AutoCompleteTextView>(R.id.btDeviceSpinner)
         val state = findViewById<TextView>(R.id.btState)
 
         check.isChecked = Prefs.btOnlyConnected(this)
+
+        // sem a permissão (Android 12+) a lista vem vazia; pede na hora
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions(arrayOf(Manifest.permission.BLUETOOTH_CONNECT), 1002)
+        }
 
         val devices = BluetoothHelper.paired(this)
         val nomes = if (devices.isEmpty()) {
@@ -261,21 +278,19 @@ class MainActivity : Activity() {
         } else {
             listOf(getString(R.string.bt_pick)) + devices.map { it.name }
         }
-        spinner.adapter = android.widget.ArrayAdapter(
-            this, android.R.layout.simple_spinner_dropdown_item, nomes,
+        spinner.setAdapter(
+            android.widget.ArrayAdapter(this, android.R.layout.simple_list_item_1, nomes),
         )
 
         val salvo = Prefs.btDevice(this)
-        devices.indexOfFirst { it.address == salvo }.takeIf { it > 0 }?.let {
-            spinner.setSelection(it + 1)
+        val posSalvo = devices.indexOfFirst { it.address == salvo }
+        if (posSalvo >= 0) {
+            spinner.setText(nomes[posSalvo + 1], false)
         }
 
-        spinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(p: android.widget.AdapterView<*>?, v: android.view.View?, pos: Int, id: Long) {
-                Prefs.setBtDevice(this@MainActivity, devices.getOrNull(pos - 1)?.address ?: "")
-                updateBtState()
-            }
-            override fun onNothingSelected(p: android.widget.AdapterView<*>?) = Unit
+        spinner.setOnItemClickListener { _, _, pos, _ ->
+            Prefs.setBtDevice(this@MainActivity, devices.getOrNull(pos - 1)?.address ?: "")
+            updateBtState()
         }
         check.setOnCheckedChangeListener { _, v -> Prefs.setBtOnlyConnected(this, v) }
 
@@ -384,6 +399,18 @@ class MainActivity : Activity() {
             .setNeutralButton(android.R.string.cancel, null)
             .show()
         updateAllowedSummary()
+    }
+
+    /**
+     * Garante que o serviço está no ar.
+     *
+     * O Android derruba o serviço de vez em quando; ao abrir o app a gente
+     * confere e sobe de novo, em vez de deixar o usuário sem o relógio.
+     */
+    private fun ensureBridgeRunning() {
+        if (Prefs.mode(this) != Prefs.Engine.EMBUTIDO && urlInput.text.isNotBlank()) {
+            ContextCompat.startForegroundService(this, Intent(this, BridgeForegroundService::class.java))
+        }
     }
 
     /** Pede a isenção da otimização de bateria (o daemon precisa rodar o dia todo). */

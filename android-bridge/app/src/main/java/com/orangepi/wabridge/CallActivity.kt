@@ -4,9 +4,15 @@ import android.app.Activity
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
+import android.media.AudioAttributes
+import android.media.Ringtone
+import android.media.RingtoneManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.TextView
@@ -30,6 +36,9 @@ class CallActivity : Activity() {
     private var localSession: VoiceSession? = null
     private var answered = false
     private val handler = Handler(Looper.getMainLooper())
+    /** Toque da chamada entrante (para ao atender ou desligar). */
+    private var ringtone: Ringtone? = null
+    private var vibrator: Vibrator? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -70,6 +79,7 @@ class CallActivity : Activity() {
                 }
             } else {
                 answered = true
+                stopRing()
                 answerWhenReady()
                 // depois de atender, o botão vira "Desligar"
                 answerButton.setText(R.string.hangup)
@@ -77,6 +87,7 @@ class CallActivity : Activity() {
             }
         }
         rejectButton.setOnClickListener {
+            stopRing()
             rejectWhenReady()
             finish()
         }
@@ -88,6 +99,10 @@ class CallActivity : Activity() {
             speedButton.text = getString(R.string.speed_value, PlaybackSpeed.label(next))
         }
 
+        // inicial do contato no avatar
+        val inicial = payload.senderName.trim().take(1).uppercase().ifBlank { "?" }
+        findViewById<TextView>(R.id.callerInitial)?.text = inicial
+
         // A tela de chamada garante que o app está em primeiro plano: é o
         // momento seguro para pedir o tipo "microphone" do foreground service.
         // Sem isso, quando a chamada é atendida pelo discador do sistema (o
@@ -97,6 +112,48 @@ class CallActivity : Activity() {
 
         // linha de estado: tocando / gravando / há quanto tempo
         handler.post(statusTicker)
+    }
+
+    /** Toque + vibração da chamada entrante. */
+    private fun startRing() {
+        ringtone = runCatching {
+            RingtoneManager.getRingtone(
+                this,
+                RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE),
+            )
+        }.getOrNull()?.also { rt ->
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                rt.audioAttributes = AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build()
+            }
+            if (!rt.isPlaying) rt.play()
+        }
+
+        val vib = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            (getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager)?.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+        }
+        vibrator = vib
+        if (vib?.hasVibrator() == true) {
+            val padrao = longArrayOf(0, 400, 300)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                vib.vibrate(VibrationEffect.createWaveform(padrao, 0))
+            } else {
+                @Suppress("DEPRECATION")
+                vib.vibrate(padrao, 0)
+            }
+        }
+    }
+
+    private fun stopRing() {
+        ringtone?.let { if (it.isPlaying) it.stop() }
+        ringtone = null
+        vibrator?.cancel()
+        vibrator = null
     }
 
     private fun hangupNow(): Boolean {
@@ -213,6 +270,7 @@ class CallActivity : Activity() {
 
     override fun onDestroy() {
         handler.removeCallbacks(statusTicker)
+        stopRing()
         super.onDestroy()
         if (active === this) active = null
         // se a activity sair sem decisão, a chamada continua (o Telecom

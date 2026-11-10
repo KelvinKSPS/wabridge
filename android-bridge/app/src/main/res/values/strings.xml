@@ -1,10 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Wabridge</string>
+    <string name="subtitle">chamadas de voz no relógio</string>
+    <string name="section_connection">conexão</string>
+    <string name="section_pairing">parear o WhatsApp</string>
+    <string name="section_allowed">quem pode ligar</string>
+    <string name="section_bluetooth">relógio / fone</string>
 
     <!-- Tela principal -->
     <string name="engine_label">como falar com o WhatsApp</string>
     <string name="mode_embedded">motor embutido: %s</string>
+    <string name="mode_embedded_short">embutido (sem servidor)</string>
     <string name="mode_external">servidor externo</string>
     <string name="daemon_missing">motor embutido não está neste APK (use o APK completo)</string>
     <string name="server_label">servidor</string>

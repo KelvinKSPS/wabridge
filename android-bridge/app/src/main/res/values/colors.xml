@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#0B3D2E</color>
+
+    <!-- Identidade WhatsApp -->
     <color name="brand">#128C7E</color>
+    <color name="brand_dark">#075E54</color>
+    <color name="brand_container">#D3EFE7</color>
+    <color name="accent">#25D366</color>
+    <color name="accent_dark">#128C7E</color>
+
+    <!-- Superfícies (tema claro) -->
+    <color name="background">#F6F8F7</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="surface_variant">#EDF1EF</color>
+    <color name="on_surface">#1A1C1B</color>
+    <color name="on_surface_variant">#5C6B66</color>
+    <color name="white">#FFFFFF</color>
+    <color name="outline">#C9D4D0</color>
+
+    <!-- Tela de chamada -->
+    <color name="call_bg">#0E1B17</color>
+    <color name="call_surface">#182A24</color>
+    <color name="call_text">#F2F7F4</color>
 </resources>

@@ -1,17 +1,80 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="AppTheme" parent="@android:style/Theme.Material.Light.DarkActionBar">
-        <item name="android:colorPrimary">@color/brand</item>
-        <item name="android:colorAccent">@color/brand</item>
+    <!-- Tema principal: Material 3 claro, com a identidade do WhatsApp. -->
+    <style name="AppTheme" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/brand</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="colorPrimaryContainer">@color/brand_container</item>
+        <item name="colorOnPrimaryContainer">@color/brand_dark</item>
+        <item name="colorSecondary">@color/accent</item>
+        <item name="colorOnSecondary">@color/white</item>
+        <item name="colorSurface">@color/surface</item>
+        <item name="colorOnSurface">@color/on_surface</item>
+        <item name="colorSurfaceVariant">@color/surface_variant</item>
+        <item name="colorOnSurfaceVariant">@color/on_surface_variant</item>
+        <item name="android:colorBackground">@color/background</item>
+        <item name="android:statusBarColor">@color/brand</item>
+        <item name="android:navigationBarColor">@color/background</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:textColorPrimary">@color/on_surface</item>
+        <item name="android:textColorSecondary">@color/on_surface_variant</item>
+        <item name="android:textColorHint">@color/on_surface_variant</item>
+        <item name="materialButtonStyle">@style/Widget.Wabridge.Button</item>
+        <item name="textInputStyle">@style/Widget.Wabridge.TextInput</item>
+        <item name="spinnerStyle">@style/Widget.Wabridge.Spinner</item>
+        <item name="checkboxStyle">@style/Widget.Wabridge.CheckBox</item>
+        <item name="alertDialogTheme">@style/Theme.Wabridge.Dialog</item>
+    </style>
+
+    <style name="Widget.Wabridge.Button" parent="Widget.Material3.Button">
+        <item name="android:textAllCaps">true</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0.02</item>
+        <item name="cornerRadius">14dp</item>
+        <item name="android:paddingTop">14dp</item>
+        <item name="android:paddingBottom">14dp</item>
+    </style>
+
+    <style name="Widget.Wabridge.TextInput" parent="Widget.Material3.TextInputLayout.OutlinedBox">
+        <item name="boxCornerRadiusTopStart">12dp</item>
+        <item name="boxCornerRadiusTopEnd">12dp</item>
+        <item name="boxCornerRadiusBottomStart">12dp</item>
+        <item name="boxCornerRadiusBottomEnd">12dp</item>
+    </style>
+
+    <style name="Widget.Wabridge.Spinner" parent="Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu">
+        <item name="boxCornerRadiusTopStart">12dp</item>
+        <item name="boxCornerRadiusTopEnd">12dp</item>
+        <item name="boxCornerRadiusBottomStart">12dp</item>
+        <item name="boxCornerRadiusBottomEnd">12dp</item>
+    </style>
+
+    <style name="Widget.Wabridge.CheckBox" parent="Widget.Material3.CompoundButton.CheckBox">
+        <item name="buttonTint">@color/brand</item>
+    </style>
+
+    <style name="Theme.Wabridge.Dialog" parent="ThemeOverlay.Material3.Dialog.Alert">
+        <item name="colorPrimary">@color/brand</item>
     </style>
 
     <!-- Tema da tela de chamada: escuro, sem barra, tela cheia. -->
-    <style name="CallTheme" parent="@android:style/Theme.Material.NoActionBar">
-        <item name="android:windowBackground">#10221D</item>
+    <style name="CallTheme" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:windowBackground">@color/call_bg</item>
         <item name="android:windowFullscreen">true</item>
         <item name="android:windowShowWallpaper">false</item>
-        <item name="android:statusBarColor">#10221D</item>
-        <item name="android:navigationBarColor">#10221D</item>
-        <item name="android:colorAccent">#25D366</item>
+        <item name="android:statusBarColor">@color/call_bg</item>
+        <item name="android:navigationBarColor">@color/call_bg</item>
+        <item name="colorPrimary">@color/accent</item>
+        <item name="colorOnPrimary">@color/call_bg</item>
+        <item name="colorSecondary">@color/accent</item>
+        <item name="materialButtonStyle">@style/Widget.Wabridge.CallButton</item>
+    </style>
+
+    <style name="Widget.Wabridge.CallButton" parent="Widget.Material3.Button">
+        <item name="cornerRadius">18dp</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:paddingTop">18dp</item>
+        <item name="android:paddingBottom">18dp</item>
     </style>
 </resources>

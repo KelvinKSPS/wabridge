@@ -23,8 +23,8 @@ android {
         applicationId = "com.orangepi.wabridge"
         minSdk = 26
         targetSdk = 34
-        versionCode = 15
-        versionName = "1.0.15"
+        versionCode = 16
+        versionName = "1.0.16"
     }
 
     if (hasReleaseKeystore) {
@@ -77,6 +77,7 @@ android {
 
 dependencies {
     implementation("androidx.core:core-ktx:1.13.1")
+    implementation("com.google.android.material:material:1.12.0")
     implementation("com.squareup.okhttp3:okhttp:4.9.2")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 

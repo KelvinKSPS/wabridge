@@ -1,19 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#10221D"
-    android:gravity="center"
+    android:background="@color/call_bg"
+    android:gravity="center_horizontal"
     android:orientation="vertical"
-    android:padding="24dp">
+    android:padding="28dp">
+
+    <!-- Avatar com a inicial -->
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="96dp"
+        android:layout_height="96dp"
+        android:layout_marginTop="24dp"
+        app:cardBackgroundColor="@color/brand"
+        app:cardCornerRadius="48dp"
+        app:cardElevation="0dp"
+        app:strokeColor="#2E4A41"
+        app:strokeWidth="2dp">
+
+        <TextView
+            android:id="@+id/callerInitial"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:textColor="@color/white"
+            android:textSize="36sp"
+            android:textStyle="bold" />
+    </com.google.android.material.card.MaterialCardView>
 
     <TextView
         android:id="@+id/callerName"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginTop="18dp"
         android:gravity="center"
-        android:textColor="#FFFFFF"
-        android:textSize="22sp"
+        android:textColor="@color/call_text"
+        android:textSize="24sp"
         android:textStyle="bold" />
 
     <TextView
@@ -22,7 +45,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
         android:gravity="center"
-        android:textColor="#9FD3C4"
+        android:textColor="#8FB8AB"
         android:textSize="15sp" />
 
     <TextView
@@ -31,7 +54,7 @@
         android:layout_marginTop="10dp"
         android:gravity="center"
         android:text="@string/incoming_call"
-        android:textColor="#9FD3C4"
+        android:textColor="#8FB8AB"
         android:textSize="14sp" />
 
     <TextView
@@ -45,26 +68,36 @@
         android:textStyle="bold"
         android:visibility="gone" />
 
-    <Button
-        android:id="@+id/speedButton"
+    <View
         android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/speedButton"
+        style="@style/Widget.Material3.Button.TextButton"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
+        android:layout_marginBottom="8dp"
         android:text="@string/speed"
+        android:textColor="#8FB8AB"
         android:visibility="gone" />
 
-    <Button
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/answerButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="28dp"
-        android:text="@string/answer" />
+        android:layout_marginTop="8dp"
+        android:backgroundTint="@color/accent"
+        android:text="@string/answer"
+        android:textColor="@color/call_bg" />
 
-    <Button
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/rejectButton"
+        style="@style/Widget.Material3.Button.OutlinedButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="@string/reject" />
-
+        android:layout_marginTop="10dp"
+        android:text="@string/reject"
+        android:textColor="#F2A5A5" />
 </LinearLayout>

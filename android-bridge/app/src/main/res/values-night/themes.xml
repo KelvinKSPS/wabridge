@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Tema escuro: superfícies escuras, mesma identidade. -->
+    <style name="AppTheme" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/brand</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="colorPrimaryContainer">#1E4A41</item>
+        <item name="colorOnPrimaryContainer">@color/brand_container</item>
+        <item name="colorSecondary">@color/accent</item>
+        <item name="colorOnSecondary">@color/white</item>
+        <item name="colorSurface">#16211D</item>
+        <item name="colorOnSurface">#E7EEEB</item>
+        <item name="colorSurfaceVariant">#1F2C27</item>
+        <item name="colorOnSurfaceVariant">#A7B8B1</item>
+        <item name="android:colorBackground">#0E1512</item>
+        <item name="android:statusBarColor">#0E1512</item>
+        <item name="android:navigationBarColor">#0E1512</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:textColorPrimary">#E7EEEB</item>
+        <item name="android:textColorSecondary">#A7B8B1</item>
+        <item name="android:textColorHint">#A7B8B1</item>
+        <item name="materialButtonStyle">@style/Widget.Wabridge.Button</item>
+        <item name="textInputStyle">@style/Widget.Wabridge.TextInput</item>
+        <item name="spinnerStyle">@style/Widget.Wabridge.Spinner</item>
+        <item name="checkboxStyle">@style/Widget.Wabridge.CheckBox</item>
+        <item name="alertDialogTheme">@style/Theme.Wabridge.Dialog</item>
+    </style>
+</resources>
