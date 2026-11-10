@@ -70,11 +70,44 @@ func NewWhatsmeow(dir string, phone string) (*whatsmeowClient, error) {
 // Connect abre a sessão (e fica reconectando sozinho).
 func (w *whatsmeowClient) Connect(ctx context.Context) error {
 	w.client.EnableAutoReconnect = true
-	// O canal do QR precisa ser criado ANTES do connect (exigência da
-	// biblioteca atual).
+	w.connectOnce(ctx)
+	// O auto-reconnect do whatsmeow só age depois do login. Na janela do
+	// pareamento (aparelho ainda não logado) uma queda deixaria o daemon
+	// morto para sempre — então a gente reconecta na mão.
+	go w.watch(ctx)
+	return nil
+}
+
+// connectOnce cria o canal de QR e abre a conexão.
+//
+// O canal do QR precisa ser criado ANTES do connect (exigência da biblioteca).
+func (w *whatsmeowClient) connectOnce(ctx context.Context) {
 	ch, err := w.client.GetQRChannel(ctx)
 	if err != nil {
-		return fmt.Errorf("canal de QR: %w", err)
+		log.Printf("wabridge: canal de QR: %v", err)
+	} else {
+		// QR: o canal entrega o ref; a gente desenha o PNG.
+		go func() {
+			for item := range ch {
+				if item.Error != nil {
+					log.Printf("wabridge: QR: %v", item.Error)
+					continue
+				}
+				if item.Event != "code" || item.Code == "" {
+					continue
+				}
+				png, err := qrcode.Encode(item.Code, qrcode.Medium, 512)
+				if err != nil {
+					log.Printf("wabridge: QR png: %v", err)
+					continue
+				}
+				w.mu.Lock()
+				w.qr = "data:image/png;base64," + base64.StdEncoding.EncodeToString(png)
+				w.mu.Unlock()
+				w.markReady()
+				log.Println("wabridge: QR disponível")
+			}
+		}()
 	}
 
 	go func() {
@@ -82,30 +115,22 @@ func (w *whatsmeowClient) Connect(ctx context.Context) error {
 			log.Printf("wabridge: connect: %v", err)
 		}
 	}()
+}
 
-	// QR: o canal entrega o ref; a gente desenha o PNG.
-	go func() {
-		for item := range ch {
-			if item.Error != nil {
-				log.Printf("wabridge: QR: %v", item.Error)
-				continue
-			}
-			if item.Event != "code" || item.Code == "" {
-				continue
-			}
-			png, err := qrcode.Encode(item.Code, qrcode.Medium, 512)
-			if err != nil {
-				log.Printf("wabridge: QR png: %v", err)
-				continue
-			}
-			w.mu.Lock()
-			w.qr = "data:image/png;base64," + base64.StdEncoding.EncodeToString(png)
-			w.mu.Unlock()
-			w.markReady()
-			log.Println("wabridge: QR disponível")
+// watch reconecta quando a conexão cai antes do pareamento.
+func (w *whatsmeowClient) watch(ctx context.Context) {
+	t := time.NewTicker(20 * time.Second)
+	defer t.Stop()
+	for range t.C {
+		if ctx.Err() != nil || w.client.IsLoggedIn() {
+			return
 		}
-	}()
-	return nil
+		if w.client.IsConnected() {
+			continue
+		}
+		log.Println("wabridge: conexão perdida antes do pareamento; reconectando")
+		w.connectOnce(ctx)
+	}
 }
 
 // markReady libera o pedido de código de pareamento (o cliente já conectou).
