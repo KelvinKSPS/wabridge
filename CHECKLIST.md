@@ -73,3 +73,20 @@ Legenda: `[x]` pronto · `[ ]` em andamento / delegado / pendente
 - [ ] `ALLOWED_NUMBERS` definido no `server/.env` (hoje aceita qualquer remetente)
 - [x] CI no GitHub Actions (testes do servidor + testes e build do APK; release assinada por tag)
 - [x] Microfone mudo em background corrigido (tipo `microphone` no foreground service)
+
+## Release v1.0.13 (2026-11-10)
+
+- [x] **Daemon roda no Android** — sqlite puro em Go morria com `SIGSYS` (seccomp); trocado por `mattn/go-sqlite3` (CGO)
+- [x] **Build no CI** (ubuntu x86_64 + NDK) para `arm64-v8a` e `x86_64` (o Pi é arm64 e não roda o NDK)
+- [x] **Crash de thread corrigido** — `refreshEngineStatus` na UI thread
+- [x] **Daemon sobe ao abrir o app** — antes o botão de gerar código falhava sem ele
+- [x] **Reconexão antes do pareamento** — o auto-reconnect do whatsmeow só age depois do login; um watch de 20 s reconecta
+- [x] **Nome do cliente no pareamento** — `Chrome (Android)`; o WhatsApp devolve 400 se não estiver no formato `Browser (OS)`
+- [x] **Pareamento por código validado de ponta a ponta** (código `KFFQ-C7RF` → `loggedIn: true`)
+- [x] **Nota de voz com LID resolvida** — o remetente chega como `@lid`; o mapa LID→PN do whatsmeow resolve antes do filtro
+- [x] **Lista interativa de contatos e grupos** — botão "escolher" + diálogo com checkbox (endpoint `/contacts`)
+- [x] **Gate de Bluetooth** — "só ligar quando o relógio estiver conectado" com seletor de aparelho
+- [x] **Script de teste de ponta a ponta** (`scripts/test-android.sh`)
+- [x] Testes: daemon (Go), servidor (Node) e app (Kotlin) verdes no CI
+- [ ] Lista de contatos validada com sessão pareada (falta parear no emulador)
+- [ ] Fila de áudios acumulada com tela própria no app
