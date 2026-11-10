@@ -60,7 +60,7 @@
     <!-- Tela de chamada -->
     <string name="incoming_call">chamada de voz</string>
     <string name="incoming_from">de %s</string>
-    <string name="incoming_call_duration">de %s · %s</string>
+    <string name="incoming_call_duration">de %1$s · %2$s</string>
     <string name="unknown_caller">número desconhecido</string>
     <string name="recording">gravando…</string>
     <string name="sending">enviando…</string>

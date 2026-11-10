@@ -136,7 +136,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
-                    android:hint="@string/pair_hint">
+                    android:hint="@string/pairing_label">
 
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/phoneInput"
@@ -152,7 +152,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
-                    android:text="@string/pair_button"
+                    android:text="@string/pair"
                     android:textColor="@color/white" />
 
                 <TextView
