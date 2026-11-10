@@ -175,6 +175,73 @@ class MainActivity : Activity() {
         updateAllowedSummary()
         setupAllowedPicker()
         setupBluetooth()
+        setupPending()
+    }
+
+    /**
+     * Fila de áudios acumulados: o daemon guarda em /pending e o app
+     * mostra na tela para ouvir e responder depois.
+     */
+    private fun setupPending() {
+        findViewById<Button>(R.id.pendingButton).setOnClickListener {
+            Thread {
+                val lista = runCatching {
+                    val conn = URL(Prefs.engineUrl(this) + "/pending")
+                        .openConnection() as java.net.HttpURLConnection
+                    conn.connectTimeout = 15_000
+                    conn.readTimeout = 20_000
+                    val body = BufferedReader(InputStreamReader(conn.inputStream, Charsets.UTF_8))
+                        .use { it.readText() }
+                    conn.disconnect()
+                    val arr = org.json.JSONArray(body)
+                    (0 until arr.length()).mapNotNull { i ->
+                        val o = arr.optJSONObject(i) ?: return@mapNotNull null
+                        Triple(
+                            o.optString("audioId"),
+                            o.optString("senderNumber"),
+                            o.optString("senderName"),
+                        )
+                    }
+                }.getOrElse { null }
+
+                runOnUiThread {
+                    if (lista == null) {
+                        android.widget.Toast.makeText(
+                            this, R.string.pending_error,
+                            android.widget.Toast.LENGTH_LONG,
+                        ).show()
+                    } else if (lista.isEmpty()) {
+                        android.widget.Toast.makeText(
+                            this, R.string.pending_none,
+                            android.widget.Toast.LENGTH_LONG,
+                        ).show()
+                    } else {
+                        showPendingDialog(lista)
+                    }
+                }
+            }.start()
+        }
+    }
+
+    /** Lista as notas acumuladas; ao tocar, abre a tela de chamada. */
+    private fun showPendingDialog(lista: List<Triple<String, String, String>>) {
+        val titulos = lista.map { (_, numero, nome) ->
+            if (nome.isBlank()) numero else getString(R.string.pending_from, nome, numero)
+        }.toTypedArray()
+        android.app.AlertDialog.Builder(this)
+            .setTitle(R.string.pending_title)
+            .setItems(titulos) { _, which ->
+                val (id, numero, nome) = lista[which]
+                val payload = CallPayload(
+                    audioId = id,
+                    senderName = nome.ifBlank { numero },
+                    senderNumber = numero,
+                    audioUrl = Prefs.engineUrl(this) + "/media/$id.ogg",
+                )
+                startActivity(CallActivity.intent(this, payload))
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     /** Seletor de relógio/fone: só toca se o aparelho escolhido estiver conectado. */

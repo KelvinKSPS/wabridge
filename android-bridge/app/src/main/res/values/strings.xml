@@ -43,6 +43,11 @@
     <string name="bt_connected">conectado agora</string>
     <string name="bt_disconnected">desconectado</string>
     <string name="bt_permission">permissão de bluetooth negada</string>
+    <string name="pending_label">notas de voz recebidas</string>
+    <string name="pending_title">notas de voz na fila</string>
+    <string name="pending_none">nenhuma nota na fila</string>
+    <string name="pending_error">não consegui buscar as notas</string>
+    <string name="pending_from">%1$s · %2$s</string>
     <string name="allowed_only_embedded">a lista de contatos só funciona no modo embutido</string>
     <string name="allowed_selected">%1$d selecionado(s)</string>
 
