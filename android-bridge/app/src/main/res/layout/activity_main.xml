@@ -131,6 +131,31 @@
             android:importantForAutofill="no"
             android:maxLines="2" />
 
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/bt_label"
+            android:textStyle="bold" />
+
+        <CheckBox
+            android:id="@+id/btOnlyCheck"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/bt_only" />
+
+        <Spinner
+            android:id="@+id/btDeviceSpinner"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+        <TextView
+            android:id="@+id/btState"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="#666"
+            android:textSize="12sp" />
+
         <Button
             android:id="@+id/connectButton"
             android:layout_width="match_parent"

@@ -9,6 +9,8 @@ object Prefs {
     private const val KEY_MODE = "engine_mode"
     private const val KEY_PHONE = "phone_number"
     private const val KEY_ALLOWED = "allowed_numbers"
+    private const val KEY_BT_DEVICE = "bt_device"
+    private const val KEY_BT_ONLY = "bt_only_connected"
 
     /** Endereço do servidor Node (padrão = IP da rede local). */
     const val DEFAULT_URL = "http://192.168.15.100:8097"
@@ -59,6 +61,28 @@ object Prefs {
         ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
             .edit()
             .putString(KEY_ALLOWED, value.trim())
+            .apply()
+    }
+
+    /** Endereço do relógio/fone que libera o toque (vazio = qualquer um). */
+    fun btDevice(ctx: Context): String =
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString(KEY_BT_DEVICE, "") ?: ""
+
+    fun setBtDevice(ctx: Context, value: String) {
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_BT_DEVICE, value.trim())
+            .apply()
+    }
+
+    /** Só toca quando o aparelho escolhido está conectado. */
+    fun btOnlyConnected(ctx: Context): Boolean =
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean(KEY_BT_ONLY, false)
+
+    fun setBtOnlyConnected(ctx: Context, value: Boolean) {
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_BT_ONLY, value)
             .apply()
     }
 

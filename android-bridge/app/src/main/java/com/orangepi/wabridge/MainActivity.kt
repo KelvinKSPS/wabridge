@@ -174,6 +174,54 @@ class MainActivity : Activity() {
         allowedInput.setText(Prefs.allowedNumbers(this).joinToString(", "))
         updateAllowedSummary()
         setupAllowedPicker()
+        setupBluetooth()
+    }
+
+    /** Seletor de relógio/fone: só toca se o aparelho escolhido estiver conectado. */
+    private fun setupBluetooth() {
+        val check = findViewById<android.widget.CheckBox>(R.id.btOnlyCheck)
+        val spinner = findViewById<android.widget.Spinner>(R.id.btDeviceSpinner)
+        val state = findViewById<TextView>(R.id.btState)
+
+        check.isChecked = Prefs.btOnlyConnected(this)
+
+        val devices = BluetoothHelper.paired(this)
+        val nomes = if (devices.isEmpty()) {
+            listOf(getString(R.string.bt_none))
+        } else {
+            listOf(getString(R.string.bt_pick)) + devices.map { it.name }
+        }
+        spinner.adapter = android.widget.ArrayAdapter(
+            this, android.R.layout.simple_spinner_dropdown_item, nomes,
+        )
+
+        val salvo = Prefs.btDevice(this)
+        devices.indexOfFirst { it.address == salvo }.takeIf { it > 0 }?.let {
+            spinner.setSelection(it + 1)
+        }
+
+        spinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(p: android.widget.AdapterView<*>?, v: android.view.View?, pos: Int, id: Long) {
+                Prefs.setBtDevice(this@MainActivity, devices.getOrNull(pos - 1)?.address ?: "")
+                updateBtState()
+            }
+            override fun onNothingSelected(p: android.widget.AdapterView<*>?) = Unit
+        }
+        check.setOnCheckedChangeListener { _, v -> Prefs.setBtOnlyConnected(this, v) }
+
+        updateBtState()
+    }
+
+    /** Mostra se o aparelho escolhido está conectado agora. */
+    private fun updateBtState() {
+        val state = findViewById<TextView>(R.id.btState)
+        val addr = Prefs.btDevice(this)
+        if (addr.isBlank()) {
+            state.text = getString(R.string.bt_none)
+            return
+        }
+        val ok = BluetoothHelper.isConnected(this, addr)
+        state.text = getString(if (ok) R.string.bt_connected else R.string.bt_disconnected)
     }
 
     /** Atualiza o resumo ao lado do botão "escolher". */

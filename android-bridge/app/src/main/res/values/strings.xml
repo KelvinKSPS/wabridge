@@ -36,6 +36,13 @@
     <string name="allowed_loading">buscando contatos…</string>
     <string name="allowed_none">nenhum contato na agenda</string>
     <string name="allowed_error">não consegui buscar os contatos</string>
+    <string name="bt_label">relógio / fone no bluetooth</string>
+    <string name="bt_only">só ligar quando o relógio estiver conectado</string>
+    <string name="bt_pick">escolher aparelho</string>
+    <string name="bt_none">nenhum aparelho pareado</string>
+    <string name="bt_connected">conectado agora</string>
+    <string name="bt_disconnected">desconectado</string>
+    <string name="bt_permission">permissão de bluetooth negada</string>
     <string name="allowed_only_embedded">a lista de contatos só funciona no modo embutido</string>
     <string name="allowed_selected">%1$d selecionado(s)</string>
 

@@ -172,12 +172,27 @@ class BridgeForegroundService : Service() {
      * para a fila e toca depois — nada de chamada por cima da outra.
      */
     private fun ringIncoming(payload: CallPayload) {
+        // Se o relógio não estiver conectado, a nota espera na fila do daemon
+        // (/pending) — o app não toca nem acorda a tela.
+        if (!watchConnected()) {
+            Log.i(TAG, "relógio não conectado; nota de voz na fila")
+            broadcastStatus("relógio desconectado — nota na fila")
+            return
+        }
         if (!callQueue.offer(payload)) {
             Log.i(TAG, "nota de voz enfileirada (chamada em andamento)")
             broadcastStatus("nova nota de voz na fila")
             return
         }
         startRinging(payload)
+    }
+
+    /** true se o gate de bluetooth libera o toque. */
+    private fun watchConnected(): Boolean {
+        if (!Prefs.btOnlyConnected(this)) return true
+        val addr = Prefs.btDevice(this)
+        if (addr.isBlank()) return true
+        return BluetoothHelper.isConnected(this, addr)
     }
 
     private fun startRinging(payload: CallPayload) {
