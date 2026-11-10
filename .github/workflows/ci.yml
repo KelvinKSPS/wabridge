@@ -54,10 +54,26 @@ jobs:
             go build -ldflags="-s -w" \
             -o ../android-bridge/app/src/main/jniLibs/arm64-v8a/libwabridge_core.so .
           ls -lh "${{ github.workspace }}/android-bridge/app/src/main/jniLibs/arm64-v8a/libwabridge_core.so"
+      - name: build android/x86_64 (emulador; precisa de cgo+NDK)
+        run: |
+          set -euo pipefail
+          NDK=$(ls -d "$ANDROID_HOME"/ndk/* | tail -1)
+          echo "NDK=$NDK"
+          mkdir -p ../android-bridge/app/src/main/jniLibs/x86_64
+          CC="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android21-clang" \
+          CGO_ENABLED=1 GOOS=android GOARCH=amd64 \
+            go build -ldflags="-s -w" \
+            -o ../android-bridge/app/src/main/jniLibs/x86_64/libwabridge_core.so .
+          ls -lh "${{ github.workspace }}/android-bridge/app/src/main/jniLibs/x86_64/libwabridge_core.so"
       - uses: actions/upload-artifact@v4
         with:
           name: wabridge-daemon
           path: android-bridge/app/src/main/jniLibs/arm64-v8a/libwabridge_core.so
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wabridge-daemon-x86_64
+          path: android-bridge/app/src/main/jniLibs/x86_64/libwabridge_core.so
           retention-days: 14
 
   android:
@@ -76,11 +92,16 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           cache-cleanup: on-success
-      - name: pega o daemon compilado
+      - name: pega o daemon compilado (arm64)
         uses: actions/download-artifact@v4
         with:
           name: wabridge-daemon
           path: ${{ github.workspace }}/android-bridge/app/src/main/jniLibs/arm64-v8a
+      - name: pega o daemon compilado (x86_64, para o emulador)
+        uses: actions/download-artifact@v4
+        with:
+          name: wabridge-daemon-x86_64
+          path: ${{ github.workspace }}/android-bridge/app/src/main/jniLibs/x86_64
       - name: testes unitarios
         run: ./gradlew testDebugUnitTest --console=plain
       - name: build do APK de debug

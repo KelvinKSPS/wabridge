@@ -59,7 +59,9 @@ class MainActivity : Activity() {
         // coisa (gerar código, escanear QR, receber nota de voz).
         if (Prefs.mode(this) == Prefs.Engine.EMBUTIDO && !DaemonManager.running) {
             Thread {
-                if (DaemonManager.start(this)) refreshEngineStatus()
+                if (DaemonManager.start(this)) {
+                    runOnUiThread { refreshEngineStatus() }
+                }
             }.start()
         }
 
