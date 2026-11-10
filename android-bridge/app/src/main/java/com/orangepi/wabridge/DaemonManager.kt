@@ -59,13 +59,30 @@ object DaemonManager {
                 .directory(dataDir)
                 .redirectErrorStream(true)
                 .start()
-            // consome a saída para o logcat (e para o processo não travar)
-            process?.inputStream?.bufferedReader()?.forEachLine { Log.i(TAG, it) }
-            true
+            // consome a saída em background (se rodar na thread principal o
+            // app fica travado até o daemon fechar)
+            Thread { process?.inputStream?.bufferedReader()?.forEachLine { Log.i(TAG, it) } }.start()
+            // espera o daemon abrir a porta (até 15s)
+            repeat(30) {
+                if (portOpen("127.0.0.1", 8097)) {
+                    Log.i(TAG, "daemon no ar em 127.0.0.1:8097")
+                    return true
+                }
+                Thread.sleep(500)
+            }
+            Log.e(TAG, "o daemon não abriu a porta 8097 em 15s")
+            false
         } catch (e: Exception) {
             Log.e(TAG, "falha ao subir o daemon: ${e.message}")
             false
         }
+    }
+
+    /** true se a porta do daemon está aceitando conexão. */
+    private fun portOpen(host: String, port: Int): Boolean = try {
+        java.net.Socket(host, port).use { true }
+    } catch (_: Exception) {
+        false
     }
 
     /** Derruba o daemon. */

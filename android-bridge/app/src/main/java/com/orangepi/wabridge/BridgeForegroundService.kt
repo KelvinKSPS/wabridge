@@ -136,8 +136,6 @@ class BridgeForegroundService : Service() {
                 broadcastStatus("daemon não disponível neste APK")
                 return
             }
-            // o processo leva um instante para abrir a porta
-            Thread.sleep(1500)
         }
         ws = WsManager(
             urlProvider = { Prefs.engineUrl(this) },
