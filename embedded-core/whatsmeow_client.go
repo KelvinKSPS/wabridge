@@ -335,8 +335,6 @@ func (w *whatsmeowClient) onEvent(evt any) {
 	case *events.LoggedOut:
 		log.Println("wabridge: desconectado")
 	case *events.Message:
-		log.Printf("wabridge: mensagem de %s (chat %s, tipo %s)",
-			e.Info.Sender, e.Info.Chat, e.Info.Type)
 		msg := e.Message
 		if msg == nil {
 			return
