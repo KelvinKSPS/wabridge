@@ -44,21 +44,22 @@ jobs:
         with:
           go-version: 'stable'
           cache-dependency-path: embedded-core/go.sum
+      - name: descobre o NDK (o sqlite3 precisa de cgo)
+        run: echo "NDK=$(ls -d "$ANDROID_HOME"/ndk/* | tail -1)" >> "$GITHUB_ENV"
       - name: testes do daemon
         run: go test ./...
       - name: build android/arm64
         run: |
           set -euo pipefail
           mkdir -p ../android-bridge/app/src/main/jniLibs/arm64-v8a
-          GOOS=android GOARCH=arm64 CGO_ENABLED=0 \
+          CC="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android21-clang" \
+          CGO_ENABLED=1 GOOS=android GOARCH=arm64 \
             go build -ldflags="-s -w" \
             -o ../android-bridge/app/src/main/jniLibs/arm64-v8a/libwabridge_core.so .
           ls -lh "${{ github.workspace }}/android-bridge/app/src/main/jniLibs/arm64-v8a/libwabridge_core.so"
-      - name: build android/x86_64 (emulador; precisa de cgo+NDK)
+      - name: build android/x86_64 (emulador)
         run: |
           set -euo pipefail
-          NDK=$(ls -d "$ANDROID_HOME"/ndk/* | tail -1)
-          echo "NDK=$NDK"
           mkdir -p ../android-bridge/app/src/main/jniLibs/x86_64
           CC="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android21-clang" \
           CGO_ENABLED=1 GOOS=android GOARCH=amd64 \

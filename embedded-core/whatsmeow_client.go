@@ -17,8 +17,10 @@ import (
 	waE2E "go.mau.fi/whatsmeow/proto/waE2E"
 	waLog "go.mau.fi/whatsmeow/util/log"
 
-	// driver SQLite puro em Go (sem cgo): registra o driver "sqlite"
-	_ "modernc.org/sqlite"
+	// mattn/go-sqlite3 (CGO): o "modernc.org/sqlite" puro em Go usa
+	// syscalls que o seccomp do Android bloqueia (SIGSYS na hora do
+	// fstatat) — por isso o daemon crashava ao abrir a sessão.
+	_ "github.com/mattn/go-sqlite3"
 )
 
 // whatsmeowClient é o motor do WhatsApp (implementa a interface [WhatsApp]).
@@ -34,9 +36,9 @@ type whatsmeowClient struct {
 // NewWhatsmeow abre (ou cria) a sessão local e devolve o motor.
 func NewWhatsmeow(dir string, phone string) (*whatsmeowClient, error) {
 	ctx := context.Background()
-	dsn := "file:" + filepath.Join(dir, "session.db") + "?mode=rwc&_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)"
+	dsn := "file:" + filepath.Join(dir, "session.db") + "?_foreign_keys=on&_busy_timeout=5000"
 
-	container, err := sqlstore.New(ctx, "sqlite", dsn, newLogger())
+	container, err := sqlstore.New(ctx, "sqlite3", dsn, newLogger())
 	if err != nil {
 		return nil, fmt.Errorf("abrindo o store sqlite: %w", err)
 	}
