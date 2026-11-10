@@ -29,13 +29,14 @@ object BluetoothHelper {
         }.getOrElse { emptyList() }
     }
 
-    /** true se o aparelho está conectado (headset ou áudio). */
+    /** true se o aparelho está conectado (áudio, headset ou GATT). */
     @SuppressLint("MissingPermission")
     fun isConnected(context: Context, address: String): Boolean {
         val manager = manager(context) ?: return false
         return runCatching {
             connected(manager, BluetoothProfile.HEADSET, address) ||
-                connected(manager, BluetoothProfile.A2DP, address)
+                connected(manager, BluetoothProfile.A2DP, address) ||
+                connected(manager, BluetoothProfile.GATT, address)
         }.getOrDefault(false)
     }
 

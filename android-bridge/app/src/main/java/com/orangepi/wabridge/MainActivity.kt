@@ -159,6 +159,7 @@ class MainActivity : Activity() {
         pairButton.setOnClickListener {
             val phone = phoneInput.text.toString().trim()
             if (phone.isEmpty()) {
+                pairResultText.visibility = android.view.View.VISIBLE
                 pairResultText.text = getString(R.string.phone_required)
                 return@setOnClickListener
             }
@@ -172,6 +173,7 @@ class MainActivity : Activity() {
                 ) {
                     runOnUiThread {
                         pairButton.isEnabled = true
+                        pairResultText.visibility = android.view.View.VISIBLE
                         pairResultText.text = getString(R.string.daemon_missing)
                     }
                     return@Thread
@@ -179,6 +181,7 @@ class MainActivity : Activity() {
                 val code = PairingClient.requestCode(this, phone)
                 runOnUiThread {
                     pairButton.isEnabled = true
+                    pairResultText.visibility = android.view.View.VISIBLE
                     pairResultText.text = code ?: getString(R.string.pair_failed)
                 }
             }.start()
@@ -307,6 +310,17 @@ class MainActivity : Activity() {
         }
         val ok = BluetoothHelper.isConnected(this, addr)
         state.text = getString(if (ok) R.string.bt_connected else R.string.bt_disconnected)
+        // e mantem atualizado (o relogio entra e sai do bluetooth)
+        state.removeCallbacks(btTicker)
+        state.postDelayed(btTicker, 3000)
+    }
+
+    /** Rele o estado do bluetooth de tempos em tempos. */
+    private val btTicker = object : Runnable {
+        override fun run() {
+            val state = findViewById<TextView>(R.id.btState) ?: return
+            updateBtState()
+        }
     }
 
     /** Atualiza o resumo ao lado do botão "escolher". */
@@ -351,7 +365,7 @@ class MainActivity : Activity() {
         }
     }
 
-    /** Diálogo com abas de contatos e grupos, cada item com checkbox. */
+    /** Diálogo com busca e multi-escolha (contatos e grupos). */
     private fun showAllowedDialog(
         contatos: List<ContactItem>,
         grupos: List<ContactItem>,
@@ -367,38 +381,83 @@ class MainActivity : Activity() {
         val atual = Prefs.allowedNumbers(this).toMutableSet()
         val itens = mutableListOf<ContactItem>()
         if (contatos.isNotEmpty()) {
-            itens += ContactItem("— contatos —", "")
+            itens += ContactItem(getString(R.string.allowed_tab_contacts), "")
             itens += contatos
         }
         if (grupos.isNotEmpty()) {
-            itens += ContactItem("— grupos —", "")
+            itens += ContactItem(getString(R.string.allowed_tab_groups), "")
             itens += grupos
         }
-
         val marcados = BooleanArray(itens.size)
         itens.forEachIndexed { i, item -> marcados[i] = item.value.isNotEmpty() && item.value in atual }
 
-        android.app.AlertDialog.Builder(this)
+        val container = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(48, 24, 48, 8)
+        }
+        val busca = android.widget.EditText(this).apply {
+            hint = getString(R.string.allowed_search)
+            setSingleLine()
+        }
+        val lista = android.widget.ListView(this).apply {
+            choiceMode = android.widget.ListView.CHOICE_MODE_MULTIPLE
+        }
+        container.addView(busca)
+        container.addView(lista)
+
+        val dialog = android.app.AlertDialog.Builder(this)
             .setTitle(R.string.allowed_title)
-            .setMultiChoiceItems(
-                itens.map { if (it.value.isEmpty()) it.name else "${it.name} (${it.value})" }
-                    .toTypedArray(),
-                marcados,
-            ) { _, which, checked ->
-                val valor = itens[which].value
-                if (valor.isNotEmpty()) {
-                    if (checked) atual += valor else atual -= valor
-                }
-            }
+            .setView(container)
             .setPositiveButton(android.R.string.ok) { _, _ ->
-                val lista = atual.filter { it.isNotBlank() }
-                Prefs.setAllowedNumbers(this, lista.joinToString(", "))
-                allowedInput.setText(lista.joinToString(", "))
+                val escolhidos = itens.filterIndexed { i, _ -> lista.isItemChecked(i) && itens[i].value.isNotEmpty() }
+                val listaSalva = escolhidos.map { it.value }.filter { it.isNotBlank() }
+                Prefs.setAllowedNumbers(this, listaSalva.joinToString(", "))
+                allowedInput.setText(listaSalva.joinToString(", "))
                 updateAllowedSummary()
             }
             .setNeutralButton(android.R.string.cancel, null)
-            .show()
+            .create()
+
+        val adaptador = android.widget.ArrayAdapter(
+            this, android.R.layout.simple_list_item_multiple_choice,
+            itens.map { if (it.value.isEmpty()) it.name else "${it.name} (${it.value})" },
+        )
+        lista.adapter = adaptador
+        for (i in itens.indices) {
+            if (itens[i].value.isNotEmpty()) lista.setItemChecked(i, itens[i].value in atual)
+        }
+
+        // busca por nome ou número
+        busca.addTextChangedListener(object : android.text.TextWatcher {
+            override fun afterTextChanged(s: android.text.Editable?) {
+                val q = s?.toString()?.trim()?.lowercase().orEmpty()
+                val filtrado = itens.mapIndexedNotNull { i, item ->
+                    if (item.value.isEmpty()) {
+                        // cabeçalho: some quando a aba não tem nada com a busca
+                        val grupo = if (item.name == getString(R.string.allowed_tab_contacts)) contatos else grupos
+                        if (grupo.any { combina(it, q) }) i to item else null
+                    } else if (combina(item, q)) i to item else null
+                }
+                lista.adapter = android.widget.ArrayAdapter(
+                    this@MainActivity, android.R.layout.simple_list_item_multiple_choice,
+                    filtrado.map { if (it.second.value.isEmpty()) it.second.name else "${it.second.name} (${it.second.value})" },
+                )
+                // recheca os que já estavam marcados
+                filtrado.forEachIndexed { pos, (i, _) ->
+                    lista.setItemChecked(pos, itens[i].value.isNotEmpty() && itens[i].value in atual)
+                }
+            }
+            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) = Unit
+            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) = Unit
+        })
+
+        dialog.show()
         updateAllowedSummary()
+    }
+
+    private fun combina(item: ContactItem, q: String): Boolean {
+        if (q.isEmpty()) return true
+        return item.name.lowercase().contains(q) || item.value.contains(q)
     }
 
     /**

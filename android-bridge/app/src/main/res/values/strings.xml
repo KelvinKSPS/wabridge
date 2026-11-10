@@ -56,6 +56,7 @@
     <string name="pending_from">%1$s · %2$s</string>
     <string name="allowed_only_embedded">a lista de contatos só funciona no modo embutido</string>
     <string name="allowed_selected">%1$d selecionado(s)</string>
+    <string name="allowed_search">buscar nome ou número…</string>
 
     <!-- Tela de chamada -->
     <string name="incoming_call">chamada de voz</string>
