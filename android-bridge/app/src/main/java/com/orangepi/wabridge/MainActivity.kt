@@ -24,6 +24,7 @@ class MainActivity : Activity() {
     private lateinit var speedSpinner: android.widget.AutoCompleteTextView
     private lateinit var modeSpinner: android.widget.AutoCompleteTextView
     private lateinit var engineStatusText: TextView
+    private lateinit var countryCodeInput: EditText
     private lateinit var phoneInput: EditText
     private lateinit var pairButton: Button
     private lateinit var pairResultText: TextView
@@ -47,6 +48,7 @@ class MainActivity : Activity() {
         speedSpinner = findViewById(R.id.speedSpinner)
         modeSpinner = findViewById(R.id.modeSpinner)
         engineStatusText = findViewById(R.id.engineStatusText)
+        countryCodeInput = findViewById(R.id.countryCodeInput)
         phoneInput = findViewById(R.id.phoneInput)
         pairButton = findViewById(R.id.pairButton)
         pairResultText = findViewById(R.id.pairResultText)
@@ -153,31 +155,21 @@ class MainActivity : Activity() {
         urlInput.isEnabled = Prefs.mode(this) != Prefs.Engine.EMBUTIDO
     }
 
-    /**
-     * Aceita o número como a pessoa digitou: tira espaços e pontuação e
-     * coloca o +55 se faltar o DDI (o WhatsApp só aceita o número inteiro).
-     */
-    private fun normalizaTelefone(entrada: String): String {
-        val digitos = entrada.filter { it.isDigit() }
-        if (digitos.length < 8) return digitos
-        return when {
-            digitos.startsWith("55") && digitos.length >= 12 -> digitos
-            digitos.length == 12 || digitos.length == 13 -> digitos
-            else -> "55$digitos"
-        }
-    }
-
     /** Gera o código de 8 dígitos para parear sem QR. */
     private fun setupPairing() {
+        countryCodeInput.setText(Prefs.countryCode(this))
         phoneInput.setText(Prefs.phone(this))
         pairButton.setOnClickListener {
-            val phone = normalizaTelefone(phoneInput.text.toString())
-            if (phone.isEmpty()) {
+            val ddi = countryCodeInput.text.toString().filter { it.isDigit() }
+            val numero = phoneInput.text.toString().filter { it.isDigit() }
+            val phone = ddi + numero
+            if (numero.length < 8 || ddi.isEmpty()) {
                 pairResultText.visibility = android.view.View.VISIBLE
                 pairResultText.text = getString(R.string.phone_required)
                 return@setOnClickListener
             }
-            Prefs.setPhone(this, phone)
+            Prefs.setCountryCode(this, ddi)
+            Prefs.setPhone(this, numero)
             pairButton.isEnabled = false
             pairResultText.text = getString(R.string.pairing)
             Thread {
@@ -392,7 +384,9 @@ class MainActivity : Activity() {
             return
         }
 
-        val atual = Prefs.allowedNumbers(this).toMutableSet()
+        // fonte da verdade: valores selecionados (atualizado em cada click)
+        val selecionados = Prefs.allowedNumbers(this).toMutableSet()
+
         val itens = mutableListOf<ContactItem>()
         if (contatos.isNotEmpty()) {
             itens += ContactItem(getString(R.string.allowed_tab_contacts), "")
@@ -402,8 +396,6 @@ class MainActivity : Activity() {
             itens += ContactItem(getString(R.string.allowed_tab_groups), "")
             itens += grupos
         }
-        val marcados = BooleanArray(itens.size)
-        itens.forEachIndexed { i, item -> marcados[i] = item.value.isNotEmpty() && item.value in atual }
 
         val container = android.widget.LinearLayout(this).apply {
             orientation = android.widget.LinearLayout.VERTICAL
@@ -419,12 +411,44 @@ class MainActivity : Activity() {
         container.addView(busca)
         container.addView(lista)
 
+        // índices (em itens) dos itens visíveis no momento
+        var visiveis = itens.indices.toList()
+
+        fun rebuild(query: String) {
+            visiveis = itens.indices.filter { i ->
+                val item = itens[i]
+                if (item.value.isEmpty()) {
+                    val grupo = if (item.name == getString(R.string.allowed_tab_contacts)) contatos else grupos
+                    grupo.any { combina(it, query) }
+                } else {
+                    combina(item, query)
+                }
+            }
+            lista.adapter = android.widget.ArrayAdapter(
+                this, android.R.layout.simple_list_item_multiple_choice,
+                visiveis.map { i ->
+                    val item = itens[i]
+                    if (item.value.isEmpty()) item.name else "${item.name} (${item.value})"
+                },
+            )
+            visiveis.forEachIndexed { pos, i ->
+                lista.setItemChecked(pos, itens[i].value.isNotEmpty() && itens[i].value in selecionados)
+            }
+        }
+
+        // clique no item → togla em selecionados e sincroniza o check
+        lista.setOnItemClickListener { _, _, pos, _ ->
+            val item = itens.getOrNull(visiveis.getOrNull(pos) ?: return@setOnItemClickListener) ?: return@setOnItemClickListener
+            if (item.value.isEmpty()) return@setOnItemClickListener // cabeçalho
+            if (item.value in selecionados) selecionados.remove(item.value) else selecionados.add(item.value)
+            lista.setItemChecked(pos, item.value in selecionados)
+        }
+
         val dialog = android.app.AlertDialog.Builder(this)
             .setTitle(R.string.allowed_title)
             .setView(container)
             .setPositiveButton(android.R.string.ok) { _, _ ->
-                val escolhidos = itens.filterIndexed { i, _ -> lista.isItemChecked(i) && itens[i].value.isNotEmpty() }
-                val listaSalva = escolhidos.map { it.value }.filter { it.isNotBlank() }
+                val listaSalva = selecionados.filter { it.isNotBlank() }.sorted()
                 Prefs.setAllowedNumbers(this, listaSalva.joinToString(", "))
                 allowedInput.setText(listaSalva.joinToString(", "))
                 updateAllowedSummary()
@@ -432,41 +456,16 @@ class MainActivity : Activity() {
             .setNeutralButton(android.R.string.cancel, null)
             .create()
 
-        val adaptador = android.widget.ArrayAdapter(
-            this, android.R.layout.simple_list_item_multiple_choice,
-            itens.map { if (it.value.isEmpty()) it.name else "${it.name} (${it.value})" },
-        )
-        lista.adapter = adaptador
-        for (i in itens.indices) {
-            if (itens[i].value.isNotEmpty()) lista.setItemChecked(i, itens[i].value in atual)
-        }
-
-        // busca por nome ou número
         busca.addTextChangedListener(object : android.text.TextWatcher {
             override fun afterTextChanged(s: android.text.Editable?) {
-                val q = s?.toString()?.trim()?.lowercase().orEmpty()
-                val filtrado = itens.mapIndexedNotNull { i, item ->
-                    if (item.value.isEmpty()) {
-                        // cabeçalho: some quando a aba não tem nada com a busca
-                        val grupo = if (item.name == getString(R.string.allowed_tab_contacts)) contatos else grupos
-                        if (grupo.any { combina(it, q) }) i to item else null
-                    } else if (combina(item, q)) i to item else null
-                }
-                lista.adapter = android.widget.ArrayAdapter(
-                    this@MainActivity, android.R.layout.simple_list_item_multiple_choice,
-                    filtrado.map { if (it.second.value.isEmpty()) it.second.name else "${it.second.name} (${it.second.value})" },
-                )
-                // recheca os que já estavam marcados
-                filtrado.forEachIndexed { pos, (i, _) ->
-                    lista.setItemChecked(pos, itens[i].value.isNotEmpty() && itens[i].value in atual)
-                }
+                rebuild(s?.toString()?.trim()?.lowercase().orEmpty())
             }
             override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) = Unit
             override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) = Unit
         })
 
+        rebuild("")
         dialog.show()
-        updateAllowedSummary()
     }
 
     private fun combina(item: ContactItem, q: String): Boolean {

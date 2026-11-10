@@ -29,15 +29,24 @@ object BluetoothHelper {
         }.getOrElse { emptyList() }
     }
 
-    /** true se o aparelho está conectado (áudio, headset ou GATT). */
+    /** true se o aparelho está conectado (tenta API oculta primeiro, depois perfis conhecidos). */
     @SuppressLint("MissingPermission")
     fun isConnected(context: Context, address: String): Boolean {
         val manager = manager(context) ?: return false
+        val adapter = adapter(context) ?: return false
+        val device = runCatching { adapter.getRemoteDevice(address) }.getOrNull() ?: return false
         return runCatching {
-            connected(manager, BluetoothProfile.HEADSET, address) ||
-                connected(manager, BluetoothProfile.A2DP, address) ||
-                connected(manager, BluetoothProfile.GATT, address)
-        }.getOrDefault(false)
+            // API oculta disponível desde API 11 — funciona com perfis proprietários (relógios)
+            val m = device.javaClass.getMethod("isConnected")
+            m.invoke(device) as? Boolean == true
+        }.getOrElse {
+            // fallback: perfis padrão
+            runCatching {
+                connected(manager, BluetoothProfile.HEADSET, address) ||
+                    connected(manager, BluetoothProfile.A2DP, address) ||
+                    connected(manager, BluetoothProfile.GATT, address)
+            }.getOrDefault(false)
+        }
     }
 
     @SuppressLint("MissingPermission")

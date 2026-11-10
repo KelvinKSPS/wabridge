@@ -11,6 +11,7 @@ object Prefs {
     private const val KEY_ALLOWED = "allowed_numbers"
     private const val KEY_BT_DEVICE = "bt_device"
     private const val KEY_BT_ONLY = "bt_only_connected"
+    private const val KEY_COUNTRY_CODE = "country_code"
 
     /** Endereço do servidor Node (padrão = IP da rede local). */
     const val DEFAULT_URL = "http://192.168.15.100:8097"
@@ -38,6 +39,17 @@ object Prefs {
     /** URL efetiva do motor (o embutido é sempre 127.0.0.1:8097). */
     fun engineUrl(ctx: Context): String =
         if (mode(ctx) == Engine.EMBUTIDO) DaemonManager.EMBEDDED_URL else url(ctx)
+
+    /** DDI para o pareamento (padrão = 55). */
+    fun countryCode(ctx: Context): String =
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString(KEY_COUNTRY_CODE, "55") ?: "55"
+
+    fun setCountryCode(ctx: Context, value: String) {
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_COUNTRY_CODE, value.filter { it.isDigit() }.take(4))
+            .apply()
+    }
 
     /** Telefone usado no pareamento por código (para não digitar de novo). */
     fun phone(ctx: Context): String =

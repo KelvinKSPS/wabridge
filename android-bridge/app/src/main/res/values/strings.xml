@@ -26,6 +26,7 @@
 
     <!-- Pareamento -->
     <string name="pairing_label">parear o WhatsApp</string>
+    <string name="country_code_hint">DDI</string>
     <string name="phone_hint">DDD + número</string>
     <string name="phone_required">digite o número com DDD</string>
     <string name="pair">gerar código de 8 dígitos</string>
