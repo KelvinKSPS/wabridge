@@ -55,6 +55,14 @@ class MainActivity : Activity() {
         setupBattery()
         refreshEngineStatus()
 
+        // No modo embutido o daemon precisa estar no ar antes de qualquer
+        // coisa (gerar código, escanear QR, receber nota de voz).
+        if (Prefs.mode(this) == Prefs.Engine.EMBUTIDO && !DaemonManager.running) {
+            Thread {
+                if (DaemonManager.start(this)) refreshEngineStatus()
+            }.start()
+        }
+
         // velocidade padrão de reprodução
         val current = Prefs.speed(this)
         speedSpinner.setSelection(speedOptions.indexOfFirst { it == current }.coerceAtLeast(0))
@@ -144,6 +152,16 @@ class MainActivity : Activity() {
             pairButton.isEnabled = false
             pairResultText.text = getString(R.string.pairing)
             Thread {
+                // o daemon tem que estar no ar antes do pedido
+                if (Prefs.mode(this@MainActivity) == Prefs.Engine.EMBUTIDO &&
+                    !DaemonManager.running && !DaemonManager.start(this@MainActivity)
+                ) {
+                    runOnUiThread {
+                        pairButton.isEnabled = true
+                        pairResultText.text = getString(R.string.daemon_missing)
+                    }
+                    return@Thread
+                }
                 val code = PairingClient.requestCode(this, phone)
                 runOnUiThread {
                     pairButton.isEnabled = true
