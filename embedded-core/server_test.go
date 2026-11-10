@@ -64,6 +64,15 @@ func (f *fakeWhatsApp) SendText(_ context.Context, number string, text string) e
 	return nil
 }
 
+func (f *fakeWhatsApp) Contacts(context.Context) ([]ContactEntry, []GroupEntry, error) {
+	return []ContactEntry{
+			{Nome: "Ana Souza", Numero: "5511999990001"},
+			{Nome: "Bruno Lima", Numero: "5511999990002"},
+		}, []GroupEntry{
+			{JID: "120363000000000000@g.us", Nome: "Família"},
+		}, nil
+}
+
 func newTestServer(t *testing.T) (*Server, *fakeWhatsApp, *httptest.Server) {
 	t.Helper()
 	fake := newFake()
@@ -195,6 +204,35 @@ func TestReplyTextSemTextoERecusado(t *testing.T) {
 	defer res.Body.Close()
 	if res.StatusCode != 400 {
 		t.Fatalf("esperava 400, veio %d", res.StatusCode)
+	}
+}
+
+
+func TestContacts(t *testing.T) {
+	_, _, ts := newTestServer(t)
+	defer ts.Close()
+
+	res, err := http.Get(ts.URL + "/contacts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	if res.StatusCode != 200 {
+		t.Fatalf("esperava 200, veio %d", res.StatusCode)
+	}
+
+	var body struct {
+		Contatos []ContactEntry `json:"contatos"`
+		Grupos   []GroupEntry   `json:"grupos"`
+	}
+	if err := json.NewDecoder(res.Body).Decode(&body); err != nil {
+		t.Fatal(err)
+	}
+	if len(body.Contatos) != 2 || body.Contatos[0].Nome != "Ana Souza" {
+		t.Fatalf("contatos errados: %+v", body.Contatos)
+	}
+	if len(body.Grupos) != 1 || body.Grupos[0].Nome != "Família" {
+		t.Fatalf("grupos errados: %+v", body.Grupos)
 	}
 }
 

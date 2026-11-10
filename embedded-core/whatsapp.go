@@ -52,4 +52,6 @@ type WhatsApp interface {
 	SendAudio(ctx context.Context, number string, data []byte, mimetype string) error
 	// SendText envia uma mensagem de texto.
 	SendText(ctx context.Context, number string, text string) error
+	// Contacts lista contatos e grupos (para a lista interativa do app).
+	Contacts(ctx context.Context) ([]ContactEntry, []GroupEntry, error)
 }

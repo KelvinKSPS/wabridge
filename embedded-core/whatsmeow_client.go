@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -25,6 +27,8 @@ import (
 
 // whatsmeowClient é o motor do WhatsApp (implementa a interface [WhatsApp]).
 type whatsmeowClient struct {
+	// ctx de fundo para chamadas feitas dos handlers de evento
+	ctx       context.Context
 	mu        sync.Mutex
 	container *sqlstore.Container
 	client    *whatsmeow.Client
@@ -58,6 +62,7 @@ func NewWhatsmeow(dir string, phone string) (*whatsmeowClient, error) {
 	cli := whatsmeow.NewClient(device, newLogger())
 
 	w := &whatsmeowClient{
+		ctx:       context.Background(),
 		container: container,
 		client:    cli,
 		events:    make(chan Event, 32),
@@ -233,6 +238,69 @@ func (w *whatsmeowClient) SendAudio(ctx context.Context, number string, data []b
 	return err
 }
 
+
+// ContactEntry é um contato da agenda (lista interativa do app).
+type ContactEntry struct {
+	Nome   string `json:"name"`
+	Numero string `json:"number"`
+}
+
+// GroupEntry é um grupo do WhatsApp (lista interativa do app).
+type GroupEntry struct {
+	JID  string `json:"jid"`
+	Nome string `json:"name"`
+}
+
+// Contacts lista os contatos e os grupos da conta.
+//
+// O número vem sempre resolvido: o WhatsApp manda LID (@lid) para quem
+// não está na agenda, então o mapa LID→PN é consultado antes.
+func (w *whatsmeowClient) Contacts(ctx context.Context) ([]ContactEntry, []GroupEntry, error) {
+	cs, err := w.client.GetAllContacts(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	contatos := make([]ContactEntry, 0, len(cs))
+	for jid, info := range cs {
+		if jid.Server == types.GroupServer || jid.Server == types.BotServer {
+			continue
+		}
+		numero := jid.User
+		if jid.Server == types.HiddenUserServer {
+			if pn, err := w.client.Store.LIDStore.GetPNForLID(ctx, jid); err == nil {
+				numero = pn.User
+			}
+		}
+		nome := info.FullName
+		if nome == "" {
+			nome = info.PushName
+		}
+		if nome == "" {
+			nome = info.FirstName
+		}
+		contatos = append(contatos, ContactEntry{Nome: nome, Numero: numero})
+	}
+	sort.Slice(contatos, func(i, j int) bool {
+		return strings.ToLower(contatos[i].Nome) < strings.ToLower(contatos[j].Nome)
+	})
+
+	gs, err := w.client.GetJoinedGroups(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	grupos := make([]GroupEntry, 0, len(gs))
+	for _, g := range gs {
+		if g == nil {
+			continue
+		}
+		grupos = append(grupos, GroupEntry{JID: g.JID.String(), Nome: g.Name})
+	}
+	sort.Slice(grupos, func(i, j int) bool {
+		return strings.ToLower(grupos[i].Nome) < strings.ToLower(grupos[j].Nome)
+	})
+	return contatos, grupos, nil
+}
+
 // SendText envia uma mensagem de texto.
 func (w *whatsmeowClient) SendText(ctx context.Context, number string, text string) error {
 	jid := types.JID{User: number, Server: types.DefaultUserServer}
@@ -278,6 +346,18 @@ func (w *whatsmeowClient) onEvent(evt any) {
 			return
 		}
 		jid := e.Info.Chat
+
+		// WhatsApp manda o interlocutor como LID (@lid) quando o contato
+		// não está na agenda; o número real só existe no mapa LID→PN.
+		// Sem resolver, a nota de voz caiia no filtro de servidor.
+		if jid.Server == types.HiddenUserServer {
+			ctx, cancel := context.WithTimeout(w.ctx, 5*time.Second)
+			if pn, err := w.client.Store.LIDStore.GetPNForLID(ctx, jid); err == nil {
+				jid = pn
+			}
+			cancel()
+		}
+
 		// só conversa privada (grupos e newsletters ficam de fora)
 		if jid.Server != types.DefaultUserServer {
 			return

@@ -91,6 +91,7 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("/qrcode.png", s.handleQRCodePNG)
 	mux.HandleFunc("/qrcode.json", s.handleQRCodeJSON)
 	mux.HandleFunc("/config/allowed-numbers", s.handleAllowedNumbers)
+	mux.HandleFunc("/contacts", s.handleContacts)
 	mux.HandleFunc("/ws", s.handleWS)
 	return mux
 }
@@ -371,6 +372,27 @@ func (s *Server) handleAllowedNumbers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, map[string]any{"ok": true, "allowedNumbers": s.cfg.Allowed()})
+}
+
+
+// handleContacts devolve contatos e grupos para a lista interativa do app.
+func (s *Server) handleContacts(w http.ResponseWriter, r *http.Request) {
+	if s.wa == nil {
+		writeJSON(w, 503, map[string]string{"error": "daemon não pronto"})
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+
+	contatos, grupos, err := s.wa.Contacts(ctx)
+	if err != nil {
+		writeJSON(w, 500, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, 200, map[string]any{
+		"contatos": contatos,
+		"grupos":   grupos,
+	})
 }
 
 func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
