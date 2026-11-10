@@ -88,5 +88,12 @@ Legenda: `[x]` pronto · `[ ]` em andamento / delegado / pendente
 - [x] **Gate de Bluetooth** — "só ligar quando o relógio estiver conectado" com seletor de aparelho
 - [x] **Script de teste de ponta a ponta** (`scripts/test-android.sh`)
 - [x] Testes: daemon (Go), servidor (Node) e app (Kotlin) verdes no CI
+- [x] Lista de contatos (endpoint `/contacts`) sem sessão devolve vazio sem crashar
+- [x] Fila de áudios acumulada com tela própria no app ("notas de voz recebidas")
 - [ ] Lista de contatos validada com sessão pareada (falta parear no emulador)
-- [ ] Fila de áudios acumulada com tela própria no app
+- [ ] Nota de voz recebida abre a tela de chamada no emulador (falta sessão)
+
+## Release v1.0.15 (2026-11-10)
+
+- [x] `/contacts` sem sessão pareada não derruba mais o daemon (nil store)
+- [x] Grupos só são pedidos quando conectado
