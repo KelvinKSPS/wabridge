@@ -153,11 +153,25 @@ class MainActivity : Activity() {
         urlInput.isEnabled = Prefs.mode(this) != Prefs.Engine.EMBUTIDO
     }
 
+    /**
+     * Aceita o número como a pessoa digitou: tira espaços e pontuação e
+     * coloca o +55 se faltar o DDI (o WhatsApp só aceita o número inteiro).
+     */
+    private fun normalizaTelefone(entrada: String): String {
+        val digitos = entrada.filter { it.isDigit() }
+        if (digitos.length < 8) return digitos
+        return when {
+            digitos.startsWith("55") && digitos.length >= 12 -> digitos
+            digitos.length == 12 || digitos.length == 13 -> digitos
+            else -> "55$digitos"
+        }
+    }
+
     /** Gera o código de 8 dígitos para parear sem QR. */
     private fun setupPairing() {
         phoneInput.setText(Prefs.phone(this))
         pairButton.setOnClickListener {
-            val phone = phoneInput.text.toString().trim()
+            val phone = normalizaTelefone(phoneInput.text.toString())
             if (phone.isEmpty()) {
                 pairResultText.visibility = android.view.View.VISIBLE
                 pairResultText.text = getString(R.string.phone_required)
