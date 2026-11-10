@@ -168,7 +168,9 @@ func (w *whatsmeowClient) PairCode(ctx context.Context, phone string) (string, e
 		return "", fmt.Errorf("o cliente ainda não conectou ao WhatsApp")
 	}
 
-	code, err := w.client.PairPhone(ctx, phone, true, whatsmeow.PairClientChrome, "Wabridge")
+	// o nome do cliente precisa estar no formato "Browser (OS)": o
+	// WhatsApp valida e devolve 400 se não for um browser/SO conhecido
+	code, err := w.client.PairPhone(ctx, phone, true, whatsmeow.PairClientChrome, "Chrome (Android)")
 	if err != nil {
 		return "", err
 	}
