@@ -256,7 +256,7 @@ type GroupEntry struct {
 // O número vem sempre resolvido: o WhatsApp manda LID (@lid) para quem
 // não está na agenda, então o mapa LID→PN é consultado antes.
 func (w *whatsmeowClient) Contacts(ctx context.Context) ([]ContactEntry, []GroupEntry, error) {
-	cs, err := w.client.GetAllContacts(ctx)
+	cs, err := w.client.Store.Contacts.GetAllContacts(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -267,7 +267,7 @@ func (w *whatsmeowClient) Contacts(ctx context.Context) ([]ContactEntry, []Group
 		}
 		numero := jid.User
 		if jid.Server == types.HiddenUserServer {
-			if pn, err := w.client.Store.LIDStore.GetPNForLID(ctx, jid); err == nil {
+			if pn, err := w.client.Store.LIDs.GetPNForLID(ctx, jid); err == nil {
 				numero = pn.User
 			}
 		}
@@ -352,7 +352,7 @@ func (w *whatsmeowClient) onEvent(evt any) {
 		// Sem resolver, a nota de voz caiia no filtro de servidor.
 		if jid.Server == types.HiddenUserServer {
 			ctx, cancel := context.WithTimeout(w.ctx, 5*time.Second)
-			if pn, err := w.client.Store.LIDStore.GetPNForLID(ctx, jid); err == nil {
+			if pn, err := w.client.Store.LIDs.GetPNForLID(ctx, jid); err == nil {
 				jid = pn
 			}
 			cancel()
