@@ -269,7 +269,6 @@ class MainActivity : Activity() {
     private fun setupBluetooth() {
         val check = findViewById<android.widget.CheckBox>(R.id.btOnlyCheck)
         val spinner = findViewById<android.widget.AutoCompleteTextView>(R.id.btDeviceSpinner)
-        val state = findViewById<TextView>(R.id.btState)
 
         check.isChecked = Prefs.btOnlyConnected(this)
 
@@ -308,26 +307,20 @@ class MainActivity : Activity() {
 
     /** Mostra se o aparelho escolhido está conectado agora. */
     private fun updateBtState() {
-        val state = findViewById<TextView>(R.id.btState)
+        val view = findViewById<TextView>(R.id.btState) ?: return
         val addr = Prefs.btDevice(this)
         if (addr.isBlank()) {
-            state.text = getString(R.string.bt_none)
+            view.text = getString(R.string.bt_none)
             return
         }
         val ok = BluetoothHelper.isConnected(this, addr)
-        state.text = getString(if (ok) R.string.bt_connected else R.string.bt_disconnected)
-        // e mantem atualizado (o relogio entra e sai do bluetooth)
-        state.removeCallbacks(btTicker)
-        state.postDelayed(btTicker, 3000)
+        view.text = getString(if (ok) R.string.bt_connected else R.string.bt_disconnected)
+        view.removeCallbacks(btTicker)
+        view.postDelayed(btTicker, 3000)
     }
 
     /** Rele o estado do bluetooth de tempos em tempos. */
-    private val btTicker = object : Runnable {
-        override fun run() {
-            val state = findViewById<TextView>(R.id.btState) ?: return
-            updateBtState()
-        }
-    }
+    private val btTicker = Runnable { updateBtState() }
 
     /** Atualiza o resumo ao lado do botão "escolher". */
     private fun updateAllowedSummary() {
