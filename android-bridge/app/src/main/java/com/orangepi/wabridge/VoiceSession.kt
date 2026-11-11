@@ -374,6 +374,7 @@ class VoiceSession(
         player?.release()
         player = null
 
+        val durationSec = (elapsed / 1000).coerceAtLeast(1).toInt()
         val file = recorderFile
         runCatching { recorder?.stop() }
         recorder?.release()
@@ -401,7 +402,7 @@ class VoiceSession(
         }
 
         if (file != null && file.length() > 0) {
-            upload(file)
+            upload(file, durationSec)
         } else {
             Log.i(TAG, "sem gravação para enviar")
         }
@@ -410,10 +411,10 @@ class VoiceSession(
         onEnded?.invoke()
     }
 
-    private fun upload(file: File) {
+    private fun upload(file: File, durationSec: Int = 0) {
         // escopo próprio: o da sessão pode estar sendo cancelado
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
-            val ok = Uploader.sendReply(baseUrl, payload.audioId, payload.senderNumber, file)
+            val ok = Uploader.sendReply(baseUrl, payload.audioId, payload.senderNumber, file, durationSec)
             Log.i(TAG, if (ok) "resposta enviada" else "falha ao enviar resposta")
             file.delete()
         }

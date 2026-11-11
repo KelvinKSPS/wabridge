@@ -48,7 +48,7 @@ func (f *fakeWhatsApp) Events() <-chan Event          { return f.events }
 func (f *fakeWhatsApp) DownloadAudio(_ context.Context, _ AudioMessage) ([]byte, error) {
 	return []byte("opus-falso"), nil
 }
-func (f *fakeWhatsApp) SendAudio(_ context.Context, number string, data []byte, mime string) error {
+func (f *fakeWhatsApp) SendAudio(_ context.Context, number string, data []byte, mime string, _ uint32) error {
 	f.sentAudio = append(f.sentAudio, struct {
 		number string
 		mime   string

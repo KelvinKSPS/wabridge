@@ -53,7 +53,7 @@ type WhatsApp interface {
 	// DownloadAudio baixa o áudio (bytes crus, ex.: ogg/opus).
 	DownloadAudio(ctx context.Context, audio AudioMessage) ([]byte, error)
 	// SendAudio envia uma nota de voz.
-	SendAudio(ctx context.Context, number string, data []byte, mimetype string) error
+	SendAudio(ctx context.Context, number string, data []byte, mimetype string, seconds uint32) error
 	// SendText envia uma mensagem de texto.
 	SendText(ctx context.Context, number string, text string) error
 	// Contacts lista contatos e grupos (para a lista interativa do app).

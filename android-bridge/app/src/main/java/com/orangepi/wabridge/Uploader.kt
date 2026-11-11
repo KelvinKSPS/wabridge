@@ -20,7 +20,7 @@ object Uploader {
         .writeTimeout(90, TimeUnit.SECONDS)
         .build()
 
-    fun sendReply(baseUrl: String, audioId: String, to: String, file: File): Boolean {
+    fun sendReply(baseUrl: String, audioId: String, to: String, file: File, durationSec: Int = 0): Boolean {
         return try {
             val mime = if (file.name.endsWith(".ogg")) "audio/ogg; codecs=opus" else "audio/mp4"
             val body = MultipartBody.Builder()
@@ -28,6 +28,7 @@ object Uploader {
                 .addFormDataPart("audioId", audioId)
                 .addFormDataPart("to", to)
                 .addFormDataPart("mimeType", mime)
+                .addFormDataPart("durationSec", durationSec.toString())
                 .addFormDataPart(
                     "file",
                     file.name,

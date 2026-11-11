@@ -284,7 +284,7 @@ func (w *whatsmeowClient) DownloadAudio(ctx context.Context, audio AudioMessage)
 }
 
 // SendAudio envia uma nota de voz (PTT).
-func (w *whatsmeowClient) SendAudio(ctx context.Context, number string, data []byte, mimetype string) error {
+func (w *whatsmeowClient) SendAudio(ctx context.Context, number string, data []byte, mimetype string, seconds uint32) error {
 	resp, err := w.client.Upload(ctx, data, whatsmeow.MediaAudio)
 	if err != nil {
 		return err
@@ -304,6 +304,7 @@ func (w *whatsmeowClient) SendAudio(ctx context.Context, number string, data []b
 			FileEncSHA256: resp.FileEncSHA256,
 			FileSHA256:    resp.FileSHA256,
 			FileLength:    &fileLen,
+			Seconds:       &seconds,
 		},
 	})
 	return err

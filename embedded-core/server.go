@@ -241,7 +241,16 @@ func (s *Server) handleReplyAudio(w http.ResponseWriter, r *http.Request) {
 	if mime == "" {
 		mime = "audio/mp4"
 	}
-	if err := s.wa.SendAudio(contextTODO(), to, buf, mime); err != nil {
+	dur, _ := strconv.ParseUint(r.FormValue("durationSec"), 10, 32)
+	seconds := uint32(dur)
+	if seconds == 0 {
+		// fallback: estima da taxa de bits (OGG/Opus e M4A/AAC a ~32kbps)
+		seconds = uint32(len(buf) * 8 / 32000)
+		if seconds == 0 {
+			seconds = 1
+		}
+	}
+	if err := s.wa.SendAudio(contextTODO(), to, buf, mime, seconds); err != nil {
 		log.Printf("wabridge: erro ao enviar áudio: %v", err)
 		writeJSON(w, 502, map[string]string{"error": err.Error()})
 		return
