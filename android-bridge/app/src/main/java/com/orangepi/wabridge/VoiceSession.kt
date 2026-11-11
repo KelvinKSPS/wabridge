@@ -311,6 +311,7 @@ class VoiceSession(
                 }
                 rec.setAudioSamplingRate(16000)
                 rec.setAudioEncodingBitRate(32000)
+                rec.setAudioChannels(1)
                 rec.setOutputFile(file.absolutePath)
                 rec.prepare()
                 rec.start()

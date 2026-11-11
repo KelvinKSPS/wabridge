@@ -285,6 +285,11 @@ func (w *whatsmeowClient) DownloadAudio(ctx context.Context, audio AudioMessage)
 
 // SendAudio envia uma nota de voz (PTT).
 func (w *whatsmeowClient) SendAudio(ctx context.Context, number string, data []byte, mimetype string, seconds uint32) error {
+	// valida OGG: os 4 primeiros bytes devem ser "OggS"
+	if len(data) >= 4 && string(data[:4]) != "OggS" {
+		log.Printf("wabridge: AVISO: áudio não começa com OggS (magic=%q) — pode ser incompatível", data[:4])
+	}
+
 	resp, err := w.client.Upload(ctx, data, whatsmeow.MediaAudio)
 	if err != nil {
 		return err
@@ -293,20 +298,25 @@ func (w *whatsmeowClient) SendAudio(ctx context.Context, number string, data []b
 	directPath := resp.DirectPath
 	ptt := true
 	fileLen := resp.FileLength
+	now := time.Now().Unix()
 	jid := types.JID{User: number, Server: types.DefaultUserServer}
-	_, err = w.client.SendMessage(ctx, jid, &waE2E.Message{
+	sendResp, err := w.client.SendMessage(ctx, jid, &waE2E.Message{
 		AudioMessage: &waE2E.AudioMessage{
-			URL:           &url,
-			DirectPath:    &directPath,
-			MediaKey:      resp.MediaKey,
-			Mimetype:      &mimetype,
-			PTT:           &ptt,
-			FileEncSHA256: resp.FileEncSHA256,
-			FileSHA256:    resp.FileSHA256,
-			FileLength:    &fileLen,
-			Seconds:       &seconds,
+			URL:               &url,
+			DirectPath:        &directPath,
+			MediaKey:          resp.MediaKey,
+			Mimetype:          &mimetype,
+			PTT:               &ptt,
+			FileEncSHA256:     resp.FileEncSHA256,
+			FileSHA256:        resp.FileSHA256,
+			FileLength:        &fileLen,
+			Seconds:           &seconds,
+			MediaKeyTimestamp: &now,
 		},
 	})
+	if err == nil {
+		log.Printf("wabridge: PTT enviado para %s, msgID=%s, ts=%d", number, sendResp.ID, sendResp.Timestamp.Unix())
+	}
 	return err
 }
 
