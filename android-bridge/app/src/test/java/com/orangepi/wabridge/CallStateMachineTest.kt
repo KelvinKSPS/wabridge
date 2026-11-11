@@ -92,8 +92,8 @@ class CallStateMachineTest {
         m.onPlaybackFinished()
         m.onRecordStarted()
 
-        // 0,5 s de gravação: desligar agora mandaria silêncio
-        assertFalse(m.onHangup(500))
+        // 300 ms de gravação: ainda abaixo do mínimo, desligar é recusado
+        assertFalse(m.onHangup(300))
         assertEquals(CallPhase.RECORDING, m.phase)
 
         // depois do mínimo, desliga
