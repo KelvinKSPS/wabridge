@@ -437,6 +437,10 @@ func (w *whatsmeowClient) onEvent(evt any) {
 			cancel()
 		}
 
+		// ignora mensagens enviadas pelo próprio usuário
+		if e.Info.IsFromMe {
+			return
+		}
 		// só conversa privada (grupos e newsletters ficam de fora)
 		if jid.Server != types.DefaultUserServer {
 			return
