@@ -23,8 +23,8 @@ android {
         applicationId = "com.orangepi.wabridge"
         minSdk = 26
         targetSdk = 34
-        versionCode = 33
-        versionName = "1.0.33"
+        versionCode = 35
+        versionName = "1.0.35"
     }
 
     signingConfigs {
@@ -43,7 +43,9 @@ android {
     if (hasReleaseKeystore) {
         signingConfigs {
             create("release") {
-                storeFile = file(keystoreProps.getProperty("storeFile"))
+                // Caminho resolvido a partir da raiz do projeto (não do módulo
+                // app/) — assim funciona igual no CI e em qualquer máquina.
+                storeFile = rootProject.file(keystoreProps.getProperty("storeFile"))
                 storePassword = keystoreProps.getProperty("storePassword")
                 keyAlias = keystoreProps.getProperty("keyAlias")
                 keyPassword = keystoreProps.getProperty("keyPassword")
