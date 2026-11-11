@@ -261,7 +261,9 @@ class VoiceSession(
     }
 
     private fun startRecording() {
-        val file = File(ctx.cacheDir, "reply_${payload.audioId}_${System.currentTimeMillis()}.m4a")
+        val useOpus = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+        val ext = if (useOpus) "ogg" else "m4a"
+        val file = File(ctx.cacheDir, "reply_${payload.audioId}_${System.currentTimeMillis()}.$ext")
         // Se há um dispositivo SCO (fone/BT) em uso, a fonte de voz é a que
         // pega o microfone dele. Sem SCO, o microfone é o do aparelho:
         // VOICE_COMMUNICATION nesse caso fica muda quando o app está em
@@ -300,8 +302,13 @@ class VoiceSession(
             try {
                 val rec = MediaRecorder()
                 rec.setAudioSource(source)
-                rec.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-                rec.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+                if (useOpus) {
+                    rec.setOutputFormat(MediaRecorder.OutputFormat.OGG)
+                    rec.setAudioEncoder(MediaRecorder.AudioEncoder.OPUS)
+                } else {
+                    rec.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+                    rec.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+                }
                 rec.setAudioSamplingRate(16000)
                 rec.setAudioEncodingBitRate(32000)
                 rec.setOutputFile(file.absolutePath)

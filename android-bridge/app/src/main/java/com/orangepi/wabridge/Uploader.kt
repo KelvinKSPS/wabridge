@@ -22,14 +22,16 @@ object Uploader {
 
     fun sendReply(baseUrl: String, audioId: String, to: String, file: File): Boolean {
         return try {
+            val mime = if (file.name.endsWith(".ogg")) "audio/ogg; codecs=opus" else "audio/mp4"
             val body = MultipartBody.Builder()
                 .setType(MultipartBody.FORM)
                 .addFormDataPart("audioId", audioId)
                 .addFormDataPart("to", to)
+                .addFormDataPart("mimeType", mime)
                 .addFormDataPart(
                     "file",
                     file.name,
-                    file.asRequestBody("audio/mp4".toMediaType()),
+                    file.asRequestBody(mime.toMediaType()),
                 )
                 .build()
 

@@ -237,9 +237,9 @@ func (s *Server) handleReplyAudio(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	mime := "audio/mp4"
-	if strings.HasSuffix(strings.ToLower(r.FormValue("fileName")), ".wav") {
-		mime = "audio/wav"
+	mime := r.FormValue("mimeType")
+	if mime == "" {
+		mime = "audio/mp4"
 	}
 	if err := s.wa.SendAudio(contextTODO(), to, buf, mime); err != nil {
 		log.Printf("wabridge: erro ao enviar áudio: %v", err)
