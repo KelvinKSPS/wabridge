@@ -25,11 +25,16 @@ class WatchCallConnection(
         state.onIncoming()
         current = this
         setCallerDisplayName(
-            payload.displayName.ifBlank { payload.senderNumber },
+            payload.senderName.ifBlank { payload.senderNumber },
             TelecomManager.PRESENTATION_ALLOWED,
         )
+        val subtitle = if (payload.durationSec > 0) {
+            CallPayload.formatDuration(payload.durationSec)
+        } else {
+            payload.senderNumber
+        }
         setAddress(
-            Uri.fromParts("tel", payload.senderNumber, null),
+            Uri.fromParts("tel", subtitle, null),
             TelecomManager.PRESENTATION_ALLOWED,
         )
         setConnectionCapabilities(Connection.CAPABILITY_MUTE)

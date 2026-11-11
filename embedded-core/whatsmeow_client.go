@@ -291,14 +291,18 @@ func (w *whatsmeowClient) SendAudio(ctx context.Context, number string, data []b
 	url := resp.URL
 	directPath := resp.DirectPath
 	ptt := true
+	fileLen := resp.FileLength
 	jid := types.JID{User: number, Server: types.DefaultUserServer}
 	_, err = w.client.SendMessage(ctx, jid, &waE2E.Message{
 		AudioMessage: &waE2E.AudioMessage{
-			URL:        &url,
-			DirectPath: &directPath,
-			MediaKey:   resp.MediaKey,
-			Mimetype:   &mimetype,
-			PTT:        &ptt,
+			URL:           &url,
+			DirectPath:    &directPath,
+			MediaKey:      resp.MediaKey,
+			Mimetype:      &mimetype,
+			PTT:           &ptt,
+			FileEncSHA256: resp.FileEncSHA256,
+			FileSHA256:    resp.FileSHA256,
+			FileLength:    &fileLen,
 		},
 	})
 	return err
