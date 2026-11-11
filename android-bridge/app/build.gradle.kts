@@ -23,8 +23,21 @@ android {
         applicationId = "com.orangepi.wabridge"
         minSdk = 26
         targetSdk = 34
-        versionCode = 32
-        versionName = "1.0.32"
+        versionCode = 33
+        versionName = "1.0.33"
+    }
+
+    signingConfigs {
+        // Keystore fixa commitada no repositório — garante que TODOS os builds
+        // (CI, local, release sem keyserver) gerem APKs com a MESMA assinatura.
+        // Sem isso o Gradle gera um debug keystore novo a cada run do CI e o
+        // Android recusa instalar por cima ("assinatura diferente").
+        create("fixed") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
     }
 
     if (hasReleaseKeystore) {
@@ -45,11 +58,11 @@ android {
             signingConfig = if (hasReleaseKeystore) {
                 signingConfigs.getByName("release")
             } else {
-                signingConfigs.getByName("debug")
+                signingConfigs.getByName("fixed")
             }
         }
         debug {
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("fixed")
         }
     }
 

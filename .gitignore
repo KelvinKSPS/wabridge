@@ -10,6 +10,7 @@ local.properties
 keystore.properties
 *.jks
 *.keystore
+!android-bridge/app/debug.keystore
 
 # artefato do teste e2e
 server/test/recebido.ogg
