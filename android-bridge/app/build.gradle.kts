@@ -62,7 +62,14 @@ android {
             }
         }
         debug {
-            signingConfig = signingConfigs.getByName("fixed")
+            // Mesmo esquema da release quando há keystore de produção disponível
+            // (local via keystore.properties ou CI via secrets). Assim o debug
+            // instala por cima do app de release sem erro de assinatura.
+            signingConfig = if (hasReleaseKeystore) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("fixed")
+            }
         }
     }
 

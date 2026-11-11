@@ -11,6 +11,7 @@ keystore.properties
 *.jks
 *.keystore
 !android-bridge/app/debug.keystore
+!android-bridge/wabridge.jks
 
 # artefato do teste e2e
 server/test/recebido.ogg
