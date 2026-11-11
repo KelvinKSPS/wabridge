@@ -4,16 +4,20 @@ import "context"
 
 // AudioMessage é uma nota de voz que chegou do WhatsApp.
 type AudioMessage struct {
-	ID         string
-	From       string   // jid do remetente (ex.: 5511999999999@s.whatsapp.net)
-	FromNumber string   // só dígitos
-	FromName   string   // nome de exibição
-	Seconds    int      // duração da nota
-	Mimetype   string   // audio/ogg; codecs=opus
-	MediaURL   string   // link do CDN (mmg.whatsapp.net)
-	DirectPath string   // caminho direto no CDN
-	MediaKey   []byte   // chave para decriptar
-	IsPTT      bool
+	ID            string
+	From          string // jid do remetente (ex.: 5511999999999@s.whatsapp.net)
+	FromNumber    string // só dígitos
+	FromName      string // nome de exibição
+	Seconds       int    // duração da nota
+	Mimetype      string // audio/ogg; codecs=opus
+	MediaURL      string // link do CDN (mmg.whatsapp.net)
+	DirectPath    string // caminho direto no CDN
+	MediaKey      []byte // chave para decriptar
+	FileSHA256    []byte // hash do conteúdo decriptado (para retry)
+	FileEncSHA256 []byte // hash do conteúdo encriptado (para retry)
+	FileLength    uint64 // tamanho em bytes (para retry)
+	ChatJID       string // JID da conversa (para SendMediaRetryReceipt)
+	IsPTT         bool
 }
 
 // Evento que o motor do WhatsApp entrega para a ponte.

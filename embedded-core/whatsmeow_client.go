@@ -35,6 +35,10 @@ type whatsmeowClient struct {
 	events    chan Event
 	qr        string
 	connected chan struct{}
+
+	// retry de mídia: quando o CDN retorna hash errado, pedimos ao remetente
+	// que reenvie — o whatsmeow entrega um events.MediaRetry com novo DirectPath
+	pendingRetry map[string]chan *events.MediaRetry // keyed by message ID
 }
 
 // NewWhatsmeow abre (ou cria) a sessão local e devolve o motor.
@@ -62,11 +66,12 @@ func NewWhatsmeow(dir string, phone string) (*whatsmeowClient, error) {
 	cli := whatsmeow.NewClient(device, newLogger())
 
 	w := &whatsmeowClient{
-		ctx:       context.Background(),
-		container: container,
-		client:    cli,
-		events:    make(chan Event, 32),
-		connected: make(chan struct{}),
+		ctx:          context.Background(),
+		container:    container,
+		client:       cli,
+		events:       make(chan Event, 32),
+		connected:    make(chan struct{}),
+		pendingRetry: make(map[string]chan *events.MediaRetry),
 	}
 	cli.AddEventHandler(w.onEvent)
 	return w, nil
@@ -199,21 +204,82 @@ func (w *whatsmeowClient) Logout(ctx context.Context) error {
 func (w *whatsmeowClient) Events() <-chan Event { return w.events }
 
 // DownloadAudio baixa o áudio da nota de voz.
+// Se o CDN devolver hash errado, envia SendMediaRetryReceipt e aguarda
+// o WhatsApp reenviar a mídia com novo DirectPath (até 30 s).
 func (w *whatsmeowClient) DownloadAudio(ctx context.Context, audio AudioMessage) ([]byte, error) {
 	mime := audio.Mimetype
 	seconds := uint32(audio.Seconds)
 	ptt := audio.IsPTT
+	fileLen := audio.FileLength
 	msg := &waE2E.Message{
 		AudioMessage: &waE2E.AudioMessage{
-			URL:        &audio.MediaURL,
-			DirectPath: &audio.DirectPath,
-			MediaKey:   audio.MediaKey,
-			Mimetype:   &mime,
-			Seconds:    &seconds,
-			PTT:        &ptt,
+			URL:           &audio.MediaURL,
+			DirectPath:    &audio.DirectPath,
+			MediaKey:      audio.MediaKey,
+			Mimetype:      &mime,
+			Seconds:       &seconds,
+			PTT:           &ptt,
+			FileSHA256:    audio.FileSHA256,
+			FileEncSHA256: audio.FileEncSHA256,
+			FileLength:    &fileLen,
 		},
 	}
-	return w.client.DownloadAny(ctx, msg)
+
+	data, err := w.client.DownloadAny(ctx, msg)
+	if err == nil {
+		return data, nil
+	}
+
+	// tentativa de retry: pede ao remetente que reenvie a mídia
+	log.Printf("wabridge: download falhou (%v) — tentando media retry…", err)
+	chatJID, parseErr := types.ParseJID(audio.ChatJID)
+	if parseErr != nil || audio.ChatJID == "" {
+		return nil, err // sem info suficiente para retry
+	}
+
+	info := &types.MessageInfo{
+		MessageSource: types.MessageSource{
+			Chat:     chatJID,
+			IsFromMe: false,
+			IsGroup:  chatJID.Server == types.GroupServer,
+		},
+		ID: audio.ID,
+	}
+
+	retryCh := make(chan *events.MediaRetry, 1)
+	w.mu.Lock()
+	w.pendingRetry[audio.ID] = retryCh
+	w.mu.Unlock()
+	defer func() {
+		w.mu.Lock()
+		delete(w.pendingRetry, audio.ID)
+		w.mu.Unlock()
+	}()
+
+	if sendErr := w.client.SendMediaRetryReceipt(ctx, info, audio.MediaKey); sendErr != nil {
+		log.Printf("wabridge: SendMediaRetryReceipt: %v", sendErr)
+		return nil, err
+	}
+
+	select {
+	case retry := <-retryCh:
+		notif, decErr := whatsmeow.DecryptMediaRetryNotification(retry, audio.MediaKey)
+		if decErr != nil {
+			return nil, fmt.Errorf("retry decrypt: %w (original: %v)", decErr, err)
+		}
+		newPath := notif.GetDirectPath()
+		if newPath == "" {
+			return nil, fmt.Errorf("retry sem DirectPath (original: %v)", err)
+		}
+		log.Printf("wabridge: retry ok, novo path=%s", newPath)
+		return w.client.DownloadMediaWithPath(ctx, newPath,
+			audio.FileEncSHA256, audio.FileSHA256, audio.MediaKey,
+			whatsmeow.MediaAudio, "", true)
+	case <-time.After(30 * time.Second):
+		return nil, fmt.Errorf("timeout aguardando media retry (original: %v)", err)
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 }
 
 // SendAudio envia uma nota de voz (PTT).
@@ -375,17 +441,28 @@ func (w *whatsmeowClient) onEvent(evt any) {
 		w.events <- Event{
 			Kind: "audio",
 			Audio: &AudioMessage{
-				ID:         e.Info.ID,
-				From:       jid.String(),
-				FromNumber: jid.User,
-				FromName:   e.Info.PushName,
-				Seconds:    int(audio.GetSeconds()),
-				Mimetype:   mime,
-				MediaURL:   audio.GetURL(),
-				DirectPath: audio.GetDirectPath(),
-				MediaKey:   audio.GetMediaKey(),
-				IsPTT:      audio.GetPTT(),
+				ID:            e.Info.ID,
+				From:          jid.String(),
+				FromNumber:    jid.User,
+				FromName:      e.Info.PushName,
+				Seconds:       int(audio.GetSeconds()),
+				Mimetype:      mime,
+				MediaURL:      audio.GetURL(),
+				DirectPath:    audio.GetDirectPath(),
+				MediaKey:      audio.GetMediaKey(),
+				FileSHA256:    audio.GetFileSHA256(),
+				FileEncSHA256: audio.GetFileEncSHA256(),
+				FileLength:    audio.GetFileLength(),
+				ChatJID:       jid.String(),
+				IsPTT:         audio.GetPTT(),
 			},
+		}
+	case *events.MediaRetry:
+		w.mu.Lock()
+		ch, ok := w.pendingRetry[string(e.MessageID)]
+		w.mu.Unlock()
+		if ok {
+			ch <- e
 		}
 	}
 }
