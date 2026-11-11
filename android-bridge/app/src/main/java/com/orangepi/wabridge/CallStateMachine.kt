@@ -87,6 +87,6 @@ class CallStateMachine(val recordTimeoutMs: Long = DEFAULT_RECORD_TIMEOUT_MS) {
         const val DEFAULT_RECORD_TIMEOUT_MS = 90_000L
 
         /** Gravação mínima antes de permitir desligar (evita resposta muda). */
-        const val MIN_RECORDING_MS = 1_500L
+        const val MIN_RECORDING_MS = 500L
     }
 }

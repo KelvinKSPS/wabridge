@@ -206,10 +206,12 @@ class MainActivity : Activity() {
         check.isChecked = Prefs.acceptOwn(this)
         check.setOnCheckedChangeListener { _, v ->
             Prefs.setAcceptOwn(this, v)
-            // reinicia o daemon para ler a nova env var
+            // reinicia o daemon em background (start() bloqueia até 15s)
             if (Prefs.mode(this) == Prefs.Engine.EMBUTIDO) {
-                DaemonManager.stop()
-                DaemonManager.start(this)
+                Thread {
+                    DaemonManager.stop()
+                    DaemonManager.start(this)
+                }.start()
             }
         }
     }
