@@ -247,7 +247,11 @@ func (s *Server) handleReplyAudio(w http.ResponseWriter, r *http.Request) {
 		if info, err := parseOGGOpusInfo(buf); err != nil {
 			log.Printf("wabridge: AVISO OGG inválido (%d bytes): %v", len(buf), err)
 		} else {
-			log.Printf("wabridge: OGG ok — canais=%d sampleRate=%d", info.Channels, info.SampleRate)
+			log.Printf("wabridge: OGG ok — canais=%d sampleRate=%d opusTags=%v",
+				info.Channels, info.SampleRate, info.HasOpusTags)
+			if !info.HasOpusTags {
+				log.Printf("wabridge: AVISO OpusTags ausente — OGG não segue RFC 7845")
+			}
 		}
 	}
 
@@ -452,12 +456,14 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 
 // oggOpusInfo contém as informações básicas extraídas do cabeçalho OGG/Opus.
 type oggOpusInfo struct {
-	Channels   int
-	SampleRate uint32
+	Channels    int
+	SampleRate  uint32
+	HasOpusTags bool
 }
 
 // parseOGGOpusInfo valida e extrai metadados de um stream OGG/Opus.
 // Retorna erro se o arquivo não for OGG/Opus válido (magic, OpusHead ausente, etc.).
+// hasOpusTags indica se a segunda página (obrigatória por RFC 7845) está presente.
 func parseOGGOpusInfo(data []byte) (*oggOpusInfo, error) {
 	if len(data) < 4 || string(data[:4]) != "OggS" {
 		return nil, fmt.Errorf("não é OGG: magic %q", safeSlice(data, 0, 4))
@@ -480,7 +486,24 @@ func parseOGGOpusInfo(data []byte) (*oggOpusInfo, error) {
 	channels := int(data[dataOff+9])
 	sr := uint32(data[dataOff+12]) | uint32(data[dataOff+13])<<8 |
 		uint32(data[dataOff+14])<<16 | uint32(data[dataOff+15])<<24
-	return &oggOpusInfo{Channels: channels, SampleRate: sr}, nil
+
+	// Calcula onde a primeira página termina para encontrar a segunda (OpusTags).
+	// RFC 7845 exige duas páginas de identificação antes dos dados de áudio.
+	var segSum int
+	for i := 0; i < nSeg; i++ {
+		segSum += int(data[27+i])
+	}
+	page0End := 27 + nSeg + segSum
+	hasOpusTags := false
+	if page0End+35 <= len(data) && string(data[page0End:page0End+4]) == "OggS" {
+		p1nSeg := int(data[page0End+26])
+		p1DataOff := page0End + 27 + p1nSeg
+		if p1DataOff+8 <= len(data) {
+			hasOpusTags = string(data[p1DataOff:p1DataOff+8]) == "OpusTags"
+		}
+	}
+
+	return &oggOpusInfo{Channels: channels, SampleRate: sr, HasOpusTags: hasOpusTags}, nil
 }
 
 func safeSlice(b []byte, from, to int) []byte {

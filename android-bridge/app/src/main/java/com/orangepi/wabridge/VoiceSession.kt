@@ -309,7 +309,10 @@ class VoiceSession(
                     rec.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
                     rec.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
                 }
-                rec.setAudioSamplingRate(16000)
+                // Opus fullband exige 48kHz — a 16kHz o encoder usava modo
+                // wideband, que o WhatsApp não consegue tocar. SCO captura
+                // em 8/16kHz e o Android faz o upsample internamente.
+                rec.setAudioSamplingRate(48000)
                 rec.setAudioEncodingBitRate(32000)
                 rec.setAudioChannels(1)
                 rec.setOutputFile(file.absolutePath)
