@@ -64,7 +64,7 @@ object DaemonManager {
             process = pb.start()
             // consome a saída em background (se rodar na thread principal o
             // app fica travado até o daemon fechar)
-            Thread { process?.inputStream?.bufferedReader()?.forEachLine { Log.i(TAG, it) } }.start()
+            Thread { runCatching { process?.inputStream?.bufferedReader()?.forEachLine { Log.i(TAG, it) } } }.start()
             // espera o daemon abrir a porta (até 15s)
             repeat(30) {
                 if (portOpen("127.0.0.1", 8097)) {
