@@ -55,10 +55,13 @@ object DaemonManager {
         return try {
             val cmd = listOf(bin, "--dir", dataDir.absolutePath, "--port", "8097")
             Log.i(TAG, "subindo o daemon: $cmd")
-            process = ProcessBuilder(cmd)
+            val pb = ProcessBuilder(cmd)
                 .directory(dataDir)
                 .redirectErrorStream(true)
-                .start()
+            if (Prefs.acceptOwn(context)) {
+                pb.environment()["WABRIDGE_ACCEPT_OWN"] = "1"
+            }
+            process = pb.start()
             // consome a saída em background (se rodar na thread principal o
             // app fica travado até o daemon fechar)
             Thread { process?.inputStream?.bufferedReader()?.forEachLine { Log.i(TAG, it) } }.start()

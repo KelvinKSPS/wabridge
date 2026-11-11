@@ -84,4 +84,5 @@
     <string name="notification_channel_desc">Mantém a ponte WhatsApp ativa</string>
     <string name="channel_name">Chamada de voz</string>
     <string name="channel_call_name">Chamada de voz</string>
+    <string name="accept_own_label">Tocar meus próprios áudios (modo teste)</string>
 </resources>

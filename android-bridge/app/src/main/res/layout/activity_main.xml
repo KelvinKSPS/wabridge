@@ -318,6 +318,14 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- ===== Teste: aceitar próprios áudios ===== -->
+        <CheckBox
+            android:id="@+id/acceptOwnCheck"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/accept_own_label" />
+
         <!-- ===== Ações ===== -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/pendingButton"

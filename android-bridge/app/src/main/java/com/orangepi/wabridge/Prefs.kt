@@ -12,6 +12,7 @@ object Prefs {
     private const val KEY_BT_DEVICE = "bt_device"
     private const val KEY_BT_ONLY = "bt_only_connected"
     private const val KEY_COUNTRY_CODE = "country_code"
+    private const val KEY_ACCEPT_OWN = "accept_own"
 
     /** Endereço do servidor Node (padrão = IP da rede local). */
     const val DEFAULT_URL = "http://192.168.15.100:8097"
@@ -95,6 +96,17 @@ object Prefs {
         ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(KEY_BT_ONLY, value)
+            .apply()
+    }
+
+    /** Processa áudios enviados pelo próprio usuário (para testes). */
+    fun acceptOwn(ctx: Context): Boolean =
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean(KEY_ACCEPT_OWN, false)
+
+    fun setAcceptOwn(ctx: Context, value: Boolean) {
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_ACCEPT_OWN, value)
             .apply()
     }
 

@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -438,7 +439,8 @@ func (w *whatsmeowClient) onEvent(evt any) {
 		}
 
 		// ignora mensagens enviadas pelo próprio usuário
-		if e.Info.IsFromMe {
+		// (WABRIDGE_ACCEPT_OWN=1 desativa o filtro para testes)
+		if e.Info.IsFromMe && os.Getenv("WABRIDGE_ACCEPT_OWN") == "" {
 			return
 		}
 		// só conversa privada (grupos e newsletters ficam de fora)

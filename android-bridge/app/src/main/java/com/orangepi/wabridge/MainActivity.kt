@@ -196,7 +196,22 @@ class MainActivity : Activity() {
         updateAllowedSummary()
         setupAllowedPicker()
         setupBluetooth()
+        setupAcceptOwn()
         setupPending()
+    }
+
+    /** Checkbox para tocar os próprios áudios (modo de teste). */
+    private fun setupAcceptOwn() {
+        val check = findViewById<android.widget.CheckBox>(R.id.acceptOwnCheck)
+        check.isChecked = Prefs.acceptOwn(this)
+        check.setOnCheckedChangeListener { _, v ->
+            Prefs.setAcceptOwn(this, v)
+            // reinicia o daemon para ler a nova env var
+            if (Prefs.mode(this) == Prefs.Engine.EMBUTIDO) {
+                DaemonManager.stop()
+                DaemonManager.start(this)
+            }
+        }
     }
 
     /**
