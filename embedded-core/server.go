@@ -241,6 +241,16 @@ func (s *Server) handleReplyAudio(w http.ResponseWriter, r *http.Request) {
 	if mime == "" {
 		mime = "audio/mp4"
 	}
+
+	// log diagnóstico: valida o OGG/Opus quando o MIME indica OGG
+	if strings.Contains(mime, "ogg") || strings.Contains(mime, "opus") {
+		if info, err := parseOGGOpusInfo(buf); err != nil {
+			log.Printf("wabridge: AVISO OGG inválido (%d bytes): %v", len(buf), err)
+		} else {
+			log.Printf("wabridge: OGG ok — canais=%d sampleRate=%d", info.Channels, info.SampleRate)
+		}
+	}
+
 	dur, _ := strconv.ParseUint(r.FormValue("durationSec"), 10, 32)
 	seconds := uint32(dur)
 	if seconds == 0 {
@@ -439,6 +449,46 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 /* ------------------------------------------------------------------ *
  * Utilidades
  * ------------------------------------------------------------------ */
+
+// oggOpusInfo contém as informações básicas extraídas do cabeçalho OGG/Opus.
+type oggOpusInfo struct {
+	Channels   int
+	SampleRate uint32
+}
+
+// parseOGGOpusInfo valida e extrai metadados de um stream OGG/Opus.
+// Retorna erro se o arquivo não for OGG/Opus válido (magic, OpusHead ausente, etc.).
+func parseOGGOpusInfo(data []byte) (*oggOpusInfo, error) {
+	if len(data) < 4 || string(data[:4]) != "OggS" {
+		return nil, fmt.Errorf("não é OGG: magic %q", safeSlice(data, 0, 4))
+	}
+	if len(data) < 27 {
+		return nil, fmt.Errorf("OGG muito curto (%d bytes)", len(data))
+	}
+	nSeg := int(data[26])
+	dataOff := 27 + nSeg
+	if len(data) < dataOff+8 {
+		return nil, fmt.Errorf("OGG: sem dados após cabeçalho de página")
+	}
+	if string(data[dataOff:dataOff+8]) != "OpusHead" {
+		return nil, fmt.Errorf("primeira página OGG não é OpusHead: %q", safeSlice(data, dataOff, dataOff+8))
+	}
+	// OpusHead: magic(8) + version(1) + channels(1) + pre_skip(2) + sample_rate(4)
+	if len(data) < dataOff+16 {
+		return nil, fmt.Errorf("OpusHead truncado")
+	}
+	channels := int(data[dataOff+9])
+	sr := uint32(data[dataOff+12]) | uint32(data[dataOff+13])<<8 |
+		uint32(data[dataOff+14])<<16 | uint32(data[dataOff+15])<<24
+	return &oggOpusInfo{Channels: channels, SampleRate: sr}, nil
+}
+
+func safeSlice(b []byte, from, to int) []byte {
+	if to > len(b) {
+		to = len(b)
+	}
+	return b[from:to]
+}
 
 func writeJSON(w http.ResponseWriter, status int, body any) {
 	w.Header().Set("Content-Type", "application/json")

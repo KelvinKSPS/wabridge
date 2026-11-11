@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -16,9 +17,10 @@ import (
 type fakeWhatsApp struct {
 	events    chan Event
 	sentAudio []struct {
-		number string
-		mime   string
-		size   int
+		number  string
+		mime    string
+		size    int
+		seconds uint32
 	}
 	sentText []struct {
 		number string
@@ -48,12 +50,13 @@ func (f *fakeWhatsApp) Events() <-chan Event          { return f.events }
 func (f *fakeWhatsApp) DownloadAudio(_ context.Context, _ AudioMessage) ([]byte, error) {
 	return []byte("opus-falso"), nil
 }
-func (f *fakeWhatsApp) SendAudio(_ context.Context, number string, data []byte, mime string, _ uint32) error {
+func (f *fakeWhatsApp) SendAudio(_ context.Context, number string, data []byte, mime string, seconds uint32) error {
 	f.sentAudio = append(f.sentAudio, struct {
-		number string
-		mime   string
-		size   int
-	}{number, mime, len(data)})
+		number  string
+		mime    string
+		size    int
+		seconds uint32
+	}{number, mime, len(data), seconds})
 	return nil
 }
 func (f *fakeWhatsApp) SendText(_ context.Context, number string, text string) error {
@@ -266,6 +269,247 @@ func TestPairCodeTelefoneInvalido(t *testing.T) {
 	defer res.Body.Close()
 	if res.StatusCode != 400 {
 		t.Fatalf("esperava 400, veio %d", res.StatusCode)
+	}
+}
+
+// miniOGG é um arquivo OGG/Opus mínimo e válido (cabeçalho OpusHead + OpusTags + 1 página de dados).
+// Gerado offline; usado para testar o fluxo de áudio sem gravar áudio real.
+var miniOGG = func() []byte {
+	// OggS + campos mínimos para identificação — suficiente para passar o magic check.
+	// Não é reproduzível, mas valida que os bytes chegam ao SendAudio intactos.
+	var b []byte
+	// página 0: OpusHead
+	b = append(b, []byte("OggS")...) // capture_pattern
+	b = append(b, 0)                 // version
+	b = append(b, 2)                 // header_type (BOS)
+	b = append(b, 0, 0, 0, 0, 0, 0, 0, 0) // granule_position
+	b = append(b, 1, 0, 0, 0)       // serial
+	b = append(b, 0, 0, 0, 0)       // sequence
+	b = append(b, 0, 0, 0, 0)       // checksum (zero — fake, não será verificado)
+	b = append(b, 1)                 // page_segments
+	b = append(b, 19)                // segment_table (tamanho do OpusHead)
+	b = append(b, []byte("OpusHead")...)
+	b = append(b, 1, 2, 0x80, 0x3E, 0x00, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00) // version, channels, pre-skip, sample_rate, gain, mapping
+	return b
+}()
+
+func multipartOGG(t *testing.T, audioID, to string, mime string, durationSec int, data []byte) (*bytes.Buffer, string) {
+	t.Helper()
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+	w.WriteField("audioId", audioID)
+	w.WriteField("to", to)
+	if mime != "" {
+		w.WriteField("mimeType", mime)
+	}
+	if durationSec > 0 {
+		w.WriteField("durationSec", fmt.Sprintf("%d", durationSec))
+	}
+	fw, _ := w.CreateFormFile("file", "reply.ogg")
+	fw.Write(data)
+	w.Close()
+	return &buf, w.FormDataContentType()
+}
+
+func TestParseOGGOpusInfoValido(t *testing.T) {
+	// miniOGG tem OpusHead válido (canais=2, sampleRate=0x3E80=16000)
+	info, err := parseOGGOpusInfo(miniOGG)
+	if err != nil {
+		t.Fatalf("esperava OGG válido, veio erro: %v", err)
+	}
+	if info.Channels != 2 {
+		t.Errorf("canais: %d (esperava 2)", info.Channels)
+	}
+}
+
+func TestParseOGGOpusInfoMagicErrado(t *testing.T) {
+	_, err := parseOGGOpusInfo([]byte("RIFF\x00\x00\x00\x00WAVEfmt "))
+	if err == nil {
+		t.Error("esperava erro para arquivo não-OGG")
+	}
+}
+
+func TestParseOGGOpusInfoSemOpusHead(t *testing.T) {
+	// OGG válido mas com Vorbis em vez de Opus
+	var b []byte
+	b = append(b, []byte("OggS")...) // magic
+	b = append(b, 0, 2)              // version, BOS
+	b = append(b, 0, 0, 0, 0, 0, 0, 0, 0)
+	b = append(b, 1, 0, 0, 0)
+	b = append(b, 0, 0, 0, 0)
+	b = append(b, 0, 0, 0, 0)
+	b = append(b, 1, 7) // 1 segment de 7 bytes
+	b = append(b, []byte("\x01vorbis")...)
+	_, err := parseOGGOpusInfo(b)
+	if err == nil {
+		t.Error("esperava erro para OGG sem OpusHead")
+	}
+}
+
+func TestParseOGGOpusInfoMono(t *testing.T) {
+	// Monta um OpusHead com canais=1 (mono — correto para WhatsApp PTT)
+	var b []byte
+	b = append(b, []byte("OggS")...)
+	b = append(b, 0, 2)
+	b = append(b, 0, 0, 0, 0, 0, 0, 0, 0)
+	b = append(b, 1, 0, 0, 0)
+	b = append(b, 0, 0, 0, 0)
+	b = append(b, 0, 0, 0, 0)
+	head := []byte("OpusHead\x01\x01\x38\x01\x80\x3e\x00\x00\x00\x00\x00") // version=1, ch=1, preskip=312, sr=16000
+	b = append(b, 1, byte(len(head)))
+	b = append(b, head...)
+	info, err := parseOGGOpusInfo(b)
+	if err != nil {
+		t.Fatalf("OGG mono válido deu erro: %v", err)
+	}
+	if info.Channels != 1 {
+		t.Errorf("esperava mono (1 canal), veio %d", info.Channels)
+	}
+	if info.SampleRate != 16000 {
+		t.Errorf("esperava sampleRate=16000, veio %d", info.SampleRate)
+	}
+}
+
+func TestReplyAudioPassaMimeTypeOGG(t *testing.T) {
+	_, fake, ts := newTestServer(t)
+	defer ts.Close()
+
+	fake.events <- Event{Kind: "audio", Audio: &AudioMessage{ID: "MSG10", FromNumber: "5511888888888", Seconds: 5}}
+	time.Sleep(200 * time.Millisecond)
+
+	buf, ct := multipartOGG(t, "MSG10", "5511888888888", "audio/ogg; codecs=opus", 5, miniOGG)
+	res, err := http.Post(ts.URL+"/reply/audio", ct, buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+
+	if len(fake.sentAudio) != 1 {
+		t.Fatalf("esperava 1 áudio enviado, veio %d", len(fake.sentAudio))
+	}
+	got := fake.sentAudio[0]
+	if got.mime != "audio/ogg; codecs=opus" {
+		t.Errorf("mime errado: %q (esperava \"audio/ogg; codecs=opus\")", got.mime)
+	}
+}
+
+func TestReplyAudioPassaDuracao(t *testing.T) {
+	_, fake, ts := newTestServer(t)
+	defer ts.Close()
+
+	fake.events <- Event{Kind: "audio", Audio: &AudioMessage{ID: "MSG11", FromNumber: "5511777777777", Seconds: 7}}
+	time.Sleep(200 * time.Millisecond)
+
+	buf, ct := multipartOGG(t, "MSG11", "5511777777777", "audio/ogg; codecs=opus", 7, miniOGG)
+	res, err := http.Post(ts.URL+"/reply/audio", ct, buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+
+	if len(fake.sentAudio) != 1 {
+		t.Fatalf("esperava 1 áudio enviado, veio %d", len(fake.sentAudio))
+	}
+	if fake.sentAudio[0].seconds != 7 {
+		t.Errorf("seconds errado: %d (esperava 7)", fake.sentAudio[0].seconds)
+	}
+}
+
+func TestReplyAudioFallbackDuracao(t *testing.T) {
+	// Sem durationSec, o servidor estima pelo tamanho (len*8/32000).
+	// miniOGG tem ~40 bytes → estimativa = 0 → coerced a 1.
+	_, fake, ts := newTestServer(t)
+	defer ts.Close()
+
+	fake.events <- Event{Kind: "audio", Audio: &AudioMessage{ID: "MSG12", FromNumber: "5511666666666", Seconds: 3}}
+	time.Sleep(200 * time.Millisecond)
+
+	buf, ct := multipartOGG(t, "MSG12", "5511666666666", "audio/ogg; codecs=opus", 0, miniOGG)
+	res, err := http.Post(ts.URL+"/reply/audio", ct, buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+
+	if len(fake.sentAudio) != 1 {
+		t.Fatalf("esperava 1 áudio, veio %d", len(fake.sentAudio))
+	}
+	if fake.sentAudio[0].seconds == 0 {
+		t.Errorf("fallback de duração não pode ser 0")
+	}
+}
+
+func TestReplyAudioBytesIntactos(t *testing.T) {
+	// Os bytes do OGG devem chegar ao SendAudio sem modificação.
+	_, fake, ts := newTestServer(t)
+	defer ts.Close()
+
+	fake.events <- Event{Kind: "audio", Audio: &AudioMessage{ID: "MSG13", FromNumber: "5511555555555", Seconds: 2}}
+	time.Sleep(200 * time.Millisecond)
+
+	payload := append(miniOGG, []byte("extra-payload")...)
+	buf, ct := multipartOGG(t, "MSG13", "5511555555555", "audio/ogg; codecs=opus", 2, payload)
+	res, err := http.Post(ts.URL+"/reply/audio", ct, buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+
+	if len(fake.sentAudio) != 1 {
+		t.Fatalf("esperava 1 áudio, veio %d", len(fake.sentAudio))
+	}
+	if fake.sentAudio[0].size != len(payload) {
+		t.Errorf("tamanho errado: %d (esperava %d)", fake.sentAudio[0].size, len(payload))
+	}
+}
+
+func TestReplyAudioDefaultMimeSemCampo(t *testing.T) {
+	// Sem mimeType no form → server usa "audio/mp4" como fallback (legado).
+	_, fake, ts := newTestServer(t)
+	defer ts.Close()
+
+	fake.events <- Event{Kind: "audio", Audio: &AudioMessage{ID: "MSG14", FromNumber: "5511444444444", Seconds: 1}}
+	time.Sleep(200 * time.Millisecond)
+
+	buf, ct := multipartOGG(t, "MSG14", "5511444444444", "", 1, miniOGG)
+	res, err := http.Post(ts.URL+"/reply/audio", ct, buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+
+	if len(fake.sentAudio) != 1 {
+		t.Fatalf("esperava 1 áudio, veio %d", len(fake.sentAudio))
+	}
+	if fake.sentAudio[0].mime != "audio/mp4" {
+		t.Errorf("mime padrão errado: %q", fake.sentAudio[0].mime)
+	}
+}
+
+func TestReplyAudioPendenciaRemovidaAposResposta(t *testing.T) {
+	_, _, ts := newTestServer(t)
+	defer ts.Close()
+
+	// injeta e aguarda ser listado
+	res1, _ := http.Get(ts.URL + "/pending")
+	res1.Body.Close()
+
+	// envia reply → pending deve ser removido
+	buf, ct := multipartOGG(t, "MSG15", "5511333333333", "audio/ogg; codecs=opus", 2, miniOGG)
+	res2, err := http.Post(ts.URL+"/reply/audio", ct, buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res2.Body.Close()
+
+	res3, _ := http.Get(ts.URL + "/pending")
+	var list []PendingCall
+	json.NewDecoder(res3.Body).Decode(&list)
+	res3.Body.Close()
+	for _, p := range list {
+		if p.AudioID == "MSG15" {
+			t.Error("pendência MSG15 ainda na fila depois do reply")
+		}
 	}
 }
 

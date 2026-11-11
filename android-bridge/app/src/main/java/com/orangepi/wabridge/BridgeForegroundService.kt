@@ -129,7 +129,10 @@ class BridgeForegroundService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     private fun startSocket() {
-        if (ws != null) return
+        if (ws != null) {
+            broadcastStatus(statusText)
+            return
+        }
         // No modo embutido o daemon mora no APK: sobe ele antes de conectar.
         if (Prefs.mode(this) == Prefs.Engine.EMBUTIDO) {
             if (!DaemonManager.start(this)) {
