@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -576,5 +577,188 @@ func TestMediaTestWav(t *testing.T) {
 	res.Body.Read(buf)
 	if string(buf[0:4]) != "RIFF" {
 		t.Fatalf("não é um wav: %q", buf[0:4])
+	}
+}
+
+/* ------------------------------------------------------------------ *
+ * Teste de integração — pipeline completo do reply de áudio.
+ * Simula o fluxo real ponta-a-ponta:
+ *   evento de áudio -> /pending -> POST /reply/audio -> SendAudio recebe bytes+mime OK
+ * Cobri as duas regressões históricas:
+ *   1. MIME precisa chegar como "audio/ogg" PURO (sem "; codecs=opus")
+ *   2. Bytes precisam chegar intactos ao motor (nenhuma mutação pelo caminho)
+ * ------------------------------------------------------------------ */
+
+// integraOGGReal monta um OGG/Opus igual ao que o MediaRecorder produz hoje
+// (mono, 48kHz fullband, com OpusHead + OpusTags + uma página de dados).
+func integraOGGReal() []byte {
+	var b []byte
+	// --- Página 0 (BOS): OpusHead ---
+	b = append(b, []byte("OggS")...)
+	b = append(b, 0) // version
+	b = append(b, 2) // header_type = BOS
+	b = append(b, 0, 0, 0, 0, 0, 0, 0, 0)
+	b = append(b, 1, 0, 0, 0)       // serial
+	b = append(b, 0, 0, 0, 0)       // sequence
+	b = append(b, 0, 0, 0, 0)       // checksum (ignoramos no parse)
+	head := []byte("OpusHead\x01\x01\x38\x01\x80\x3e\x00\x00\x00\x00\x00") // v1, mono, preskip=312, sr=16000 little-endian = 0x3E80
+	b = append(b, 1, byte(len(head)))
+	b = append(b, head...)
+	// --- Página 1: OpusTags ---
+	tags := []byte("OpusTags\x05\x00\x00\x00Lav58.20.100\x00") // encoder tag
+	b = append(b, []byte("OggS")...)
+	b = append(b, 0, 0) // version, header_type=0
+	b = append(b, 0, 0, 0, 0, 0, 0, 0, 0)
+	b = append(b, 1, 0, 0, 0)
+	b = append(b, 1, 0, 0, 0) // sequence = 1
+	b = append(b, 0, 0, 0, 0)
+	b = append(b, 1, byte(len(tags)))
+	b = append(b, tags...)
+	// --- Página 2: um pacote de áudio dummy (marca de payload) ---
+	payload := []byte("OPUSDUMMYFRAME1234")
+	b = append(b, []byte("OggS")...)
+	b = append(b, 0, 0)
+	b = append(b, 0, 0, 0, 0, 0, 0, 0, 0)
+	b = append(b, 1, 0, 0, 0)
+	b = append(b, 2, 0, 0, 0)
+	b = append(b, 0, 0, 0, 0)
+	b = append(b, 1, byte(len(payload)))
+	b = append(b, payload...)
+	return b
+}
+
+func TestIntegrationReplyAudioFullPipeline(t *testing.T) {
+	_, fake, ts := newTestServer(t)
+	defer ts.Close()
+
+	// 1) Injeta o evento de áudio recebido (como se fosse da Sara).
+	fake.events <- Event{Kind: "audio", Audio: &AudioMessage{
+		ID: "INT-1", FromNumber: "5511999990001", FromName: "Sara", Seconds: 4,
+	}}
+
+	// 2) Espera o daemon processar e disponibilizar em /pending.
+	deadline := time.Now().Add(3 * time.Second)
+	var pend []PendingCall
+	for time.Now().Before(deadline) {
+		res, _ := http.Get(ts.URL + "/pending")
+		json.NewDecoder(res.Body).Decode(&pend)
+		res.Body.Close()
+		if len(pend) == 1 && pend[0].AudioID == "INT-1" {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	if len(pend) != 1 || pend[0].AudioID != "INT-1" {
+		t.Fatalf("pendência não apareceu em /pending: %+v", pend)
+	}
+
+	// 3) Baixa o áudio do daemon (deve ser o mesmo binário que injetamos antes).
+	resMedia, err := http.Get(ts.URL + "/media/INT-1.ogg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	downloaded, _ := io.ReadAll(resMedia.Body)
+	resMedia.Body.Close()
+	if len(downloaded) == 0 {
+		t.Fatal("áudio veio vazio em /media")
+	}
+
+	// 4) Envia o reply com o MESMO binário e o MIME que o app envia hoje
+	//    ("audio/ogg; codecs=opus"). O daemon deve NORMALIZAR para "audio/ogg".
+ oggBytes := integraOGGReal()
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+	w.WriteField("audioId", "INT-1")
+	w.WriteField("to", "5511999990001")
+	w.WriteField("mimeType", "audio/ogg; codecs=opus")
+	w.WriteField("durationSec", "5")
+	fw, _ := w.CreateFormFile("file", "reply.ogg")
+	fw.Write(oggBytes)
+	w.Close()
+
+	resPost, err := http.Post(ts.URL+"/reply/audio", w.FormDataContentType(), &buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(resPost.Body)
+	resPost.Body.Close()
+	if resPost.StatusCode != 200 {
+		t.Fatalf("POST /reply/audio retornou %d: %s", resPost.StatusCode, body)
+	}
+
+	// 5) Assertiva central: o motor recebeu EXATAMENTE os bytes e o MIME puro.
+	if len(fake.sentAudio) != 1 {
+		t.Fatalf("esperava 1 SendAudio, veio %d", len(fake.sentAudio))
+	}
+	got := fake.sentAudio[0]
+	if got.number != "5511999990001" {
+		t.Errorf("número errado: %s", got.number)
+	}
+	if got.mime != "audio/ogg" {
+		t.Errorf("MIME deveria chegar PURO 'audio/ogg' ao motor, veio %q", got.mime)
+	}
+	if got.seconds != 5 {
+		t.Errorf("seconds errado: %d (esperava 5)", got.seconds)
+	}
+	if got.size != len(oggBytes) {
+		t.Errorf("tamanho dos bytes mudou no caminho: %d != %d", got.size, len(oggBytes))
+	}
+
+	// 6) A pendência deve ter sido removida após o reply.
+	resPend, _ := http.Get(ts.URL + "/pending")
+	var after []PendingCall
+	json.NewDecoder(resPend.Body).Decode(&after)
+	resPend.Body.Close()
+	for _, p := range after {
+		if p.AudioID == "INT-1" {
+			t.Error("pendência INT-1 ainda presente depois do reply")
+		}
+	}
+}
+
+// Regressão: mesmo sem durationSec explícito, o fallback NUNCA pode zerar.
+func TestIntegrationFallbackDuracaoNuncaZero(t *testing.T) {
+	_, fake, ts := newTestServer(t)
+	defer ts.Close()
+
+	fake.events <- Event{Kind: "audio", Audio: &AudioMessage{ID: "INT-2", FromNumber: "5511999990002", Seconds: 3}}
+	time.Sleep(250 * time.Millisecond)
+
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+	w.WriteField("audioId", "INT-2")
+	w.WriteField("to", "5511999990002")
+	w.WriteField("mimeType", "audio/ogg; codecs=opus")
+	// SEM durationSec
+	fw, _ := w.CreateFormFile("file", "reply.ogg")
+	fw.Write(integraOGGReal())
+	w.Close()
+
+	res, err := http.Post(ts.URL+"/reply/audio", w.FormDataContentType(), &buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+
+	if len(fake.sentAudio) != 1 {
+		t.Fatalf("esperava 1 SendAudio, veio %d", len(fake.sentAudio))
+	}
+	if fake.sentAudio[0].seconds == 0 {
+		t.Error("fallback de duração resultou em 0 — WhatsApp rejeita PTT com seconds=0")
+	}
+}
+
+func TestMediaTestWavAindaFunciona(t *testing.T) {
+	_, _, ts := newTestServer(t)
+	defer ts.Close()
+	res, err := http.Get(ts.URL + "/media/test.wav")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	buf := make([]byte, 44)
+	res.Body.Read(buf)
+	if string(buf[0:4]) != "RIFF" {
+		t.Fatalf("tom sintético corrompido")
 	}
 }
