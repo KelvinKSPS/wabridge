@@ -241,6 +241,13 @@ func (s *Server) handleReplyAudio(w http.ResponseWriter, r *http.Request) {
 	if mime == "" {
 		mime = "audio/mp4"
 	}
+	// Normaliza o MIME tipo de áudio para o valor que o WhatsApp espera.
+	// O app manda "audio/ogg; codecs=opus" mas a API (e o próprio WhatsApp)
+	// só reconhece o valor base "audio/ogg" — parâmetros adicionais fazem
+	// o destinatário não reproduzir a nota de voz.
+	if strings.HasPrefix(mime, "audio/ogg") {
+		mime = "audio/ogg"
+	}
 
 	// log diagnóstico: valida o OGG/Opus quando o MIME indica OGG
 	if strings.Contains(mime, "ogg") || strings.Contains(mime, "opus") {

@@ -103,7 +103,11 @@ object CallNotifier {
         )
 
         val subtitle = if (payload.durationSec > 0) {
-            context.getString(R.string.incoming_call_duration, CallPayload.formatDuration(payload.durationSec))
+            context.getString(
+                R.string.incoming_call_duration,
+                payload.displayName.ifBlank { payload.senderNumber },
+                CallPayload.formatDuration(payload.durationSec),
+            )
         } else {
             context.getString(R.string.incoming_call)
         }

@@ -388,8 +388,8 @@ func TestReplyAudioPassaMimeTypeOGG(t *testing.T) {
 		t.Fatalf("esperava 1 áudio enviado, veio %d", len(fake.sentAudio))
 	}
 	got := fake.sentAudio[0]
-	if got.mime != "audio/ogg; codecs=opus" {
-		t.Errorf("mime errado: %q (esperava \"audio/ogg; codecs=opus\")", got.mime)
+	if got.mime != "audio/ogg" {
+		t.Errorf("mime errado: %q (esperava \"audio/ogg\" — parâmetros como \"; codecs=opus\" devem ser removidos)", got.mime)
 	}
 }
 
