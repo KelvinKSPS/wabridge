@@ -78,6 +78,15 @@
             </intent-filter>
         </receiver>
 
+        <!-- A/B de formato: troca a taxa de amostragem sem rebuildar. -->
+        <receiver
+            android:name=".AudioConfigReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.orangepi.wabridge.SET_SAMPLE_RATE" />
+            </intent-filter>
+        </receiver>
+
         <!-- Serviço de chamada autogerenciado (Telecom). -->
         <service
             android:name=".BridgeConnectionService"

@@ -13,12 +13,28 @@ object Prefs {
     private const val KEY_BT_ONLY = "bt_only_connected"
     private const val KEY_COUNTRY_CODE = "country_code"
     private const val KEY_ACCEPT_OWN = "accept_own"
+    private const val KEY_SAMPLE_RATE = "audio_sample_rate"
 
     /** Endereço do servidor Node (padrão = IP da rede local). */
     const val DEFAULT_URL = "http://192.168.15.100:8097"
 
     /** Velocidade padrão de reprodução das notas de voz. */
     val DEFAULT_SPEED = 1.0f
+
+    /** Taxa de amostragem da gravação. O servidor externo re-encoda com ffmpeg
+     *  a 16000 Hz (libopus); o app grava 48000 Hz. A/B testável por broadcast. */
+    val DEFAULT_SAMPLE_RATE = 48000
+
+    fun audioSampleRate(ctx: Context): Int =
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .getInt(KEY_SAMPLE_RATE, DEFAULT_SAMPLE_RATE)
+
+    fun setAudioSampleRate(ctx: Context, rate: Int) {
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .edit()
+            .putInt(KEY_SAMPLE_RATE, rate)
+            .apply()
+    }
 
     /** Como o app fala com o WhatsApp. */
     enum class Engine { EMBUTIDO, EXTERNO }

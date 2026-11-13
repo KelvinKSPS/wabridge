@@ -14,10 +14,10 @@ import (
 
 	"github.com/skip2/go-qrcode"
 	"go.mau.fi/whatsmeow"
+	waE2E "go.mau.fi/whatsmeow/proto/waE2E"
 	"go.mau.fi/whatsmeow/store/sqlstore"
 	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
-	waE2E "go.mau.fi/whatsmeow/proto/waE2E"
 	waLog "go.mau.fi/whatsmeow/util/log"
 
 	// mattn/go-sqlite3 (CGO): o "modernc.org/sqlite" puro em Go usa
@@ -283,43 +283,126 @@ func (w *whatsmeowClient) DownloadAudio(ctx context.Context, audio AudioMessage)
 	}
 }
 
-// SendAudio envia uma nota de voz (PTT).
+// SendAudio envia uma nota de voz (PTT), com retry e backoff.
 func (w *whatsmeowClient) SendAudio(ctx context.Context, number string, data []byte, mimetype string, seconds uint32) error {
 	// valida OGG: os 4 primeiros bytes devem ser "OggS"
 	if len(data) >= 4 && string(data[:4]) != "OggS" {
 		log.Printf("wabridge: AVISO: áudio não começa com OggS (magic=%q) — pode ser incompatível", data[:4])
 	}
 
+	var lastErr error
+	for attempt := 1; attempt <= sendAudioMaxAttempts; attempt++ {
+		err := w.sendAudioOnce(ctx, number, data, mimetype, seconds, attempt)
+		if err == nil {
+			return nil
+		}
+		lastErr = err
+		if attempt < sendAudioMaxAttempts {
+			d := sendAudioBackoff(attempt)
+			log.Printf("wabridge: PTT tentativa=%d/%d falhou (%v); retry em %v", attempt, sendAudioMaxAttempts, err, d)
+			select {
+			case <-time.After(d):
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+	}
+	return fmt.Errorf("PTT: %d tentativas esgotadas: %w", sendAudioMaxAttempts, lastErr)
+}
+
+// sendAudioOnce faz upload + envio de uma nota de voz.
+func (w *whatsmeowClient) sendAudioOnce(ctx context.Context, number string, data []byte, mimetype string, seconds uint32, attempt int) error {
 	resp, err := w.client.Upload(ctx, data, whatsmeow.MediaAudio)
 	if err != nil {
-		return err
+		return fmt.Errorf("upload: %w", err)
 	}
+	msg := buildAudioMessage(resp, mimetype, seconds)
+	log.Printf("wabridge: PTT tentativa=%d/%d jid=%s@%s mime=%s bytes=%d seconds=%d sidecar=%d waveform=%d",
+		attempt, sendAudioMaxAttempts, number, types.DefaultUserServer, mimetype, resp.FileLength, seconds,
+		len(resp.StreamingSidecar), len(msg.Waveform))
+
+	jid := types.JID{User: number, Server: types.DefaultUserServer}
+	sendResp, err := w.client.SendMessage(ctx, jid, &waE2E.Message{AudioMessage: msg})
+	if err != nil {
+		return fmt.Errorf("send: %w", err)
+	}
+	log.Printf("wabridge: PTT enviado para %s, msgID=%s, ts=%d", number, sendResp.ID, sendResp.Timestamp.Unix())
+	return nil
+}
+
+// buildAudioMessage monta o AudioMessage (PTT) a partir do response do upload.
+// O StreamingSidecar vem do CDN e é obrigatório: sem ele a mensagem é aceita
+// (msgID retornado) mas não reproduz no aparelho — mesmo sintoma do wamux #18.
+func buildAudioMessage(resp whatsmeow.UploadResponse, mimetype string, seconds uint32) *waE2E.AudioMessage {
 	url := resp.URL
 	directPath := resp.DirectPath
 	ptt := true
 	fileLen := resp.FileLength
 	now := time.Now().Unix()
-	jid := types.JID{User: number, Server: types.DefaultUserServer}
-	sendResp, err := w.client.SendMessage(ctx, jid, &waE2E.Message{
-		AudioMessage: &waE2E.AudioMessage{
-			URL:               &url,
-			DirectPath:        &directPath,
-			MediaKey:          resp.MediaKey,
-			Mimetype:          &mimetype,
-			PTT:               &ptt,
-			FileEncSHA256:     resp.FileEncSHA256,
-			FileSHA256:        resp.FileSHA256,
-			FileLength:        &fileLen,
-			Seconds:           &seconds,
-			MediaKeyTimestamp: &now,
-		},
-	})
-	if err == nil {
-		log.Printf("wabridge: PTT enviado para %s, msgID=%s, ts=%d", number, sendResp.ID, sendResp.Timestamp.Unix())
+	return &waE2E.AudioMessage{
+		URL:               &url,
+		DirectPath:        &directPath,
+		MediaKey:          resp.MediaKey,
+		Mimetype:          &mimetype,
+		PTT:               &ptt,
+		FileEncSHA256:     resp.FileEncSHA256,
+		FileSHA256:        resp.FileSHA256,
+		FileLength:        &fileLen,
+		Seconds:           &seconds,
+		MediaKeyTimestamp: &now,
+		StreamingSidecar:  resp.StreamingSidecar,
+		Waveform:          makeWaveform(resp.StreamingSidecar, 64),
 	}
-	return err
 }
 
+// makeWaveform gera 64 valores de amplitude (0-100) para o diagrama da nota.
+// O app oficial exige o campo para tratar a mensagem como PTT (iOS principalmente).
+func makeWaveform(data []byte, n int) []byte {
+	if n <= 0 {
+		return nil
+	}
+	out := make([]byte, n)
+	if len(data) == 0 {
+		for i := range out {
+			out[i] = 50
+		}
+		return out
+	}
+	step := len(data) / n
+	if step < 1 {
+		step = 1
+	}
+	for i := 0; i < n; i++ {
+		start := i * step
+		end := start + step
+		if end > len(data) {
+			end = len(data)
+		}
+		if start >= end {
+			out[i] = 0
+			continue
+		}
+		var sum int
+		for _, b := range data[start:end] {
+			sum += int(b)
+		}
+		v := (sum / (end - start)) % 101
+		if v < 1 {
+			v = 1
+		}
+		out[i] = byte(v)
+	}
+	return out
+}
+
+const sendAudioMaxAttempts = 3
+
+// sendAudioBackoff: 250ms, 500ms, 1s (com jitter de ±25%).
+func sendAudioBackoff(attempt int) time.Duration {
+	base := time.Duration(250*(1<<(attempt-1))) * time.Millisecond
+	jitter := time.Duration(float64(base) * (0.75 + 0.5*float64(time.Now().UnixNano()%1000)/1000.0))
+	return jitter
+}
 
 // ContactEntry é um contato da agenda (lista interativa do app).
 type ContactEntry struct {
