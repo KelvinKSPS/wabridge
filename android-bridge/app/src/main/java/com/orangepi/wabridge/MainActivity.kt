@@ -29,6 +29,7 @@ class MainActivity : Activity() {
     private lateinit var pairButton: Button
     private lateinit var pairResultText: TextView
     private lateinit var allowedInput: EditText
+    private var diagnosticFolder: java.io.File? = null
 
     /** Velocidades oferecidas no menu (mesma ordem do array de recursos). */
     private val speedOptions = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f)
@@ -41,6 +42,10 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        savedInstanceState?.getString("diagnosticFolder")?.let { name ->
+            diagnosticFolder = ReplyArchive.entries(java.io.File(filesDir, "reply-diagnostics"))
+                .firstOrNull { it.name == name }
+        }
         setContentView(R.layout.activity_main)
 
         urlInput = findViewById(R.id.urlInput)
@@ -58,6 +63,7 @@ class MainActivity : Activity() {
         setupModeSpinner()
         setupPairing()
         setupBattery()
+        findViewById<Button>(R.id.audioDiagnosticsButton).setOnClickListener { showAudioDiagnostics() }
         refreshEngineStatus()
 
         // No modo embutido o daemon precisa estar no ar antes de qualquer
@@ -105,6 +111,101 @@ class MainActivity : Activity() {
             )
             statusText.text = getString(R.string.test_caller)
         }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        diagnosticFolder?.let { outState.putString("diagnosticFolder", it.name) }
+        super.onSaveInstanceState(outState)
+    }
+
+    private fun showAudioDiagnostics() {
+        val entries = ReplyArchive.entries(java.io.File(filesDir, "reply-diagnostics"))
+        if (entries.isEmpty()) {
+            android.widget.Toast.makeText(this, R.string.audio_diagnostics_empty, android.widget.Toast.LENGTH_LONG).show()
+            return
+        }
+        android.app.AlertDialog.Builder(this)
+            .setTitle(R.string.audio_diagnostics)
+            .setItems(entries.map { it.name }.toTypedArray()) { _, index ->
+                diagnosticFolder = entries[index]
+                android.app.AlertDialog.Builder(this)
+                    .setMessage(R.string.audio_diagnostics_actions)
+                    .setPositiveButton(R.string.audio_export) { _, _ ->
+                        startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                            addCategory(Intent.CATEGORY_OPENABLE)
+                            type = "application/zip"
+                            putExtra(Intent.EXTRA_TITLE, "${entries[index].name}.zip")
+                        }, 2001)
+                    }
+                    .setNeutralButton(R.string.audio_import) { _, _ ->
+                        startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                            addCategory(Intent.CATEGORY_OPENABLE)
+                            type = "*/*"
+                        }, 2002)
+                    }
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode !in listOf(2001, 2002) || resultCode != RESULT_OK) return
+        val uri = data?.data ?: return
+        val folder = diagnosticFolder ?: return
+        Thread {
+            runCatching {
+                if (requestCode == 2001) {
+                    val output = contentResolver.openOutputStream(uri) ?: error("arquivo indisponível")
+                    ReplyArchive.export(folder, output)
+                    runOnUiThread { statusText.text = "Original exportado; ZIP contém voz e destinatário." }
+                } else {
+                    val file = java.io.File.createTempFile("converted_", ".ogg", cacheDir)
+                    try {
+                        val input = contentResolver.openInputStream(uri) ?: error("arquivo indisponível")
+                        input.use { source -> file.outputStream().use { target ->
+                            val buffer = ByteArray(8192)
+                            var total = 0L
+                            while (true) {
+                                val size = source.read(buffer)
+                                if (size < 0) break
+                                total += size
+                                require(total <= 25L * 1024 * 1024) { "arquivo acima de 25 MB" }
+                                target.write(buffer, 0, size)
+                            }
+                        } }
+                        val header = ByteArray(4)
+                        file.inputStream().use { require(it.read(header) == 4 && header.contentEquals("OggS".toByteArray())) { "selecione um arquivo OGG" } }
+                        val metadata = org.json.JSONObject(java.io.File(folder, "metadata.json").readText())
+                        runOnUiThread {
+                            android.app.AlertDialog.Builder(this)
+                                .setMessage(getString(R.string.audio_confirm, metadata.getString("to"), folder.name))
+                                .setPositiveButton("enviar cópia") { _, _ ->
+                                    Thread {
+                                        try {
+                                            check(Prefs.mode(this) == Prefs.Engine.EMBUTIDO) { "selecione o motor embutido antes do teste" }
+                                            check(DaemonManager.start(this)) { "motor indisponível" }
+                                            android.util.Log.i("AudioDiagnostics", "convertido sha256=${ReplyArchive.sha256(file)} bytes=${file.length()}")
+                                            val ok = Uploader.sendReply(DaemonManager.EMBEDDED_URL, "", metadata.getString("to"), file, metadata.getInt("durationSec"))
+                                            runOnUiThread { statusText.text = if (ok) "Cópia aceita pelo servidor; aguarde recibo no log." else "Envio falhou; original preservado." }
+                                        } catch (e: Exception) {
+                                            runOnUiThread { statusText.text = "Diagnóstico: ${e.message}" }
+                                        } finally { file.delete() }
+                                    }.start()
+                                }
+                                .setNegativeButton(android.R.string.cancel) { _, _ -> file.delete() }
+                                .setOnCancelListener { file.delete() }
+                                .show()
+                        }
+                    } catch (e: Exception) {
+                        file.delete()
+                        throw e
+                    }
+                }
+            }.onFailure { e -> runOnUiThread { statusText.text = "Diagnóstico: ${e.message}" } }
+        }.start()
     }
 
     override fun onStart() {

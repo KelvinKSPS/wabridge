@@ -20,6 +20,12 @@
     <string name="connect">iniciar</string>
     <string name="stop">parar</string>
     <string name="test_call">testar chamada</string>
+    <string name="audio_diagnostics">diagnóstico do áudio</string>
+    <string name="audio_diagnostics_empty">Responda um áudio primeiro. As últimas 3 gravações ficam guardadas neste aparelho.</string>
+    <string name="audio_diagnostics_actions">Exportar salva ZIP com voz original, destinatário e SHA-256. Importar envia uma cópia convertida ao mesmo número pelo motor embutido, somente após confirmação.</string>
+    <string name="audio_export">exportar original (ZIP)</string>
+    <string name="audio_import">importar OGG convertido e enviar</string>
+    <string name="audio_confirm">Enviar este OGG convertido para %1$s pelo motor embutido? Será uma nova mensagem. Original: %2$s</string>
     <string name="starting">iniciando…</string>
     <string name="stopped">parado</string>
     <string name="test_caller">chamando o relógio…</string>

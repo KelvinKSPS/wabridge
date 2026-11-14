@@ -13,7 +13,7 @@ val keystoreProps = Properties().apply {
     if (keystorePropsFile.exists()) keystorePropsFile.inputStream().use { load(it) }
 }
 val hasReleaseKeystore = keystoreProps.getProperty("storeFile")
-    ?.let { file(it).exists() } == true
+    ?.let { rootProject.file(it).exists() } == true
 
 android {
     namespace = "com.orangepi.wabridge"
@@ -23,8 +23,8 @@ android {
         applicationId = "com.orangepi.wabridge"
         minSdk = 26
         targetSdk = 34
-        versionCode = 37
-        versionName = "1.0.37"
+        versionCode = 38
+        versionName = "1.0.38"
     }
 
     signingConfigs {

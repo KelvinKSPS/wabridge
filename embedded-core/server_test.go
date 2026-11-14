@@ -9,6 +9,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -22,6 +23,7 @@ type fakeWhatsApp struct {
 		mime    string
 		size    int
 		seconds uint32
+		data    []byte
 	}
 	sentText []struct {
 		number string
@@ -47,7 +49,7 @@ func (f *fakeWhatsApp) PairCode(_ context.Context, _ string) (string, error) {
 	return f.code, nil
 }
 func (f *fakeWhatsApp) Logout(context.Context) error { f.logged = false; return nil }
-func (f *fakeWhatsApp) Events() <-chan Event          { return f.events }
+func (f *fakeWhatsApp) Events() <-chan Event         { return f.events }
 func (f *fakeWhatsApp) DownloadAudio(_ context.Context, _ AudioMessage) ([]byte, error) {
 	return []byte("opus-falso"), nil
 }
@@ -57,7 +59,8 @@ func (f *fakeWhatsApp) SendAudio(_ context.Context, number string, data []byte, 
 		mime    string
 		size    int
 		seconds uint32
-	}{number, mime, len(data), seconds})
+		data    []byte
+	}{number, mime, len(data), seconds, append([]byte(nil), data...)})
 	return nil
 }
 func (f *fakeWhatsApp) SendText(_ context.Context, number string, text string) error {
@@ -211,7 +214,6 @@ func TestReplyTextSemTextoERecusado(t *testing.T) {
 	}
 }
 
-
 func TestContacts(t *testing.T) {
 	_, _, ts := newTestServer(t)
 	defer ts.Close()
@@ -280,15 +282,15 @@ var miniOGG = func() []byte {
 	// Não é reproduzível, mas valida que os bytes chegam ao SendAudio intactos.
 	var b []byte
 	// página 0: OpusHead
-	b = append(b, []byte("OggS")...) // capture_pattern
-	b = append(b, 0)                 // version
-	b = append(b, 2)                 // header_type (BOS)
+	b = append(b, []byte("OggS")...)      // capture_pattern
+	b = append(b, 0)                      // version
+	b = append(b, 2)                      // header_type (BOS)
 	b = append(b, 0, 0, 0, 0, 0, 0, 0, 0) // granule_position
-	b = append(b, 1, 0, 0, 0)       // serial
-	b = append(b, 0, 0, 0, 0)       // sequence
-	b = append(b, 0, 0, 0, 0)       // checksum (zero — fake, não será verificado)
-	b = append(b, 1)                 // page_segments
-	b = append(b, 19)                // segment_table (tamanho do OpusHead)
+	b = append(b, 1, 0, 0, 0)             // serial
+	b = append(b, 0, 0, 0, 0)             // sequence
+	b = append(b, 0, 0, 0, 0)             // checksum (zero — fake, não será verificado)
+	b = append(b, 1)                      // page_segments
+	b = append(b, 19)                     // segment_table (tamanho do OpusHead)
 	b = append(b, []byte("OpusHead")...)
 	b = append(b, 1, 2, 0x80, 0x3E, 0x00, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00) // version, channels, pre-skip, sample_rate, gain, mapping
 	return b
@@ -580,17 +582,9 @@ func TestMediaTestWav(t *testing.T) {
 	}
 }
 
-/* ------------------------------------------------------------------ *
- * Teste de integração — pipeline completo do reply de áudio.
- * Simula o fluxo real ponta-a-ponta:
- *   evento de áudio -> /pending -> POST /reply/audio -> SendAudio recebe bytes+mime OK
- * Cobri as duas regressões históricas:
- *   1. MIME precisa chegar como "audio/ogg" PURO (sem "; codecs=opus")
- *   2. Bytes precisam chegar intactos ao motor (nenhuma mutação pelo caminho)
- * ------------------------------------------------------------------ */
+// Integração HTTP com motor falso; não valida codec, upload ou entrega WhatsApp.
 
-// integraOGGReal monta um OGG/Opus igual ao que o MediaRecorder produz hoje
-// (mono, 48kHz fullband, com OpusHead + OpusTags + uma página de dados).
+// Fixture sintética de cabeçalhos; não contém pacotes Opus decodificáveis.
 func integraOGGReal() []byte {
 	var b []byte
 	// --- Página 0 (BOS): OpusHead ---
@@ -598,9 +592,9 @@ func integraOGGReal() []byte {
 	b = append(b, 0) // version
 	b = append(b, 2) // header_type = BOS
 	b = append(b, 0, 0, 0, 0, 0, 0, 0, 0)
-	b = append(b, 1, 0, 0, 0)       // serial
-	b = append(b, 0, 0, 0, 0)       // sequence
-	b = append(b, 0, 0, 0, 0)       // checksum (ignoramos no parse)
+	b = append(b, 1, 0, 0, 0)                                              // serial
+	b = append(b, 0, 0, 0, 0)                                              // sequence
+	b = append(b, 0, 0, 0, 0)                                              // checksum (ignoramos no parse)
 	head := []byte("OpusHead\x01\x01\x38\x01\x80\x3e\x00\x00\x00\x00\x00") // v1, mono, preskip=312, sr=16000 little-endian = 0x3E80
 	b = append(b, 1, byte(len(head)))
 	b = append(b, head...)
@@ -665,7 +659,7 @@ func TestIntegrationReplyAudioFullPipeline(t *testing.T) {
 
 	// 4) Envia o reply com o MESMO binário e o MIME que o app envia hoje
 	//    ("audio/ogg; codecs=opus"). O daemon deve NORMALIZAR para "audio/ogg".
- oggBytes := integraOGGReal()
+	oggBytes := integraOGGReal()
 	var buf bytes.Buffer
 	w := multipart.NewWriter(&buf)
 	w.WriteField("audioId", "INT-1")
@@ -699,6 +693,9 @@ func TestIntegrationReplyAudioFullPipeline(t *testing.T) {
 	}
 	if got.seconds != 5 {
 		t.Errorf("seconds errado: %d (esperava 5)", got.seconds)
+	}
+	if !bytes.Equal(got.data, oggBytes) {
+		t.Fatal("bytes do áudio mudaram entre multipart e motor falso")
 	}
 	if got.size != len(oggBytes) {
 		t.Errorf("tamanho dos bytes mudou no caminho: %d != %d", got.size, len(oggBytes))
@@ -745,6 +742,45 @@ func TestIntegrationFallbackDuracaoNuncaZero(t *testing.T) {
 	}
 	if fake.sentAudio[0].seconds == 0 {
 		t.Error("fallback de duração resultou em 0 — WhatsApp rejeita PTT com seconds=0")
+	}
+}
+
+func TestReplyAudioPreservaFixtureOpusRealNoHTTP(t *testing.T) {
+	data, err := os.ReadFile("../server/test/sample.ogg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, fake, ts := newTestServer(t)
+	defer ts.Close()
+	body, contentType := multipartOGG(t, "", "5511999990001", "audio/ogg; codecs=opus", 3, data)
+	response, err := http.Post(ts.URL+"/reply/audio", contentType, body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK || len(fake.sentAudio) != 1 {
+		t.Fatalf("status=%d envios=%d", response.StatusCode, len(fake.sentAudio))
+	}
+	if !bytes.Equal(data, fake.sentAudio[0].data) {
+		t.Fatal("arquivo Opus mudou ao atravessar endpoint multipart")
+	}
+}
+
+func TestReplyAudioRejeitaArquivoVazioSemChamarMotor(t *testing.T) {
+	_, fake, ts := newTestServer(t)
+	defer ts.Close()
+	var body bytes.Buffer
+	form := multipart.NewWriter(&body)
+	form.WriteField("to", "5511999990001")
+	form.CreateFormFile("file", "empty.ogg")
+	form.Close()
+	response, err := http.Post(ts.URL+"/reply/audio", form.FormDataContentType(), &body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusBadRequest || len(fake.sentAudio) != 0 {
+		t.Fatalf("arquivo vazio: status=%d envios=%d", response.StatusCode, len(fake.sentAudio))
 	}
 }
 

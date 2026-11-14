@@ -309,11 +309,6 @@ class VoiceSession(
                     rec.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
                     rec.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
                 }
-                // Opus fullband exige 48kHz — a 16kHz o encoder usava modo
-                // wideband, que o WhatsApp não consegue tocar. SCO captura
-                // em 8/16kHz e o Android faz o upsample internamente.
-                // Ajustável por broadcast (A/B testa 16000, como o ffmpeg do
-                // servidor externo) sem rebuildar.
                 rec.setAudioSamplingRate(Prefs.audioSampleRate(ctx))
                 rec.setAudioEncodingBitRate(32000)
                 rec.setAudioChannels(1)
@@ -382,7 +377,8 @@ class VoiceSession(
 
         val durationSec = (elapsed / 1000).coerceAtLeast(1).toInt()
         val file = recorderFile
-        runCatching { recorder?.stop() }
+        val stopError = runCatching { recorder?.stop() }.exceptionOrNull()
+        if (stopError != null) Log.e(TAG, "falha ao finalizar gravação", stopError)
         recorder?.release()
         recorder = null
 
@@ -408,7 +404,7 @@ class VoiceSession(
         }
 
         if (file != null && file.length() > 0) {
-            upload(file, durationSec)
+            upload(file, durationSec, stopError?.toString())
         } else {
             Log.i(TAG, "sem gravação para enviar")
         }
@@ -417,12 +413,27 @@ class VoiceSession(
         onEnded?.invoke()
     }
 
-    private fun upload(file: File, durationSec: Int = 0) {
-        // escopo próprio: o da sessão pode estar sendo cancelado
+    private fun upload(file: File, durationSec: Int, stopError: String?) {
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            val metadata = org.json.JSONObject()
+                .put("audioId", payload.audioId)
+                .put("to", payload.senderNumber)
+                .put("durationSec", durationSec)
+                .put("engine", Prefs.mode(ctx).name)
+                .put("sampleRateRequested", Prefs.audioSampleRate(ctx))
+                .put("stopError", stopError ?: org.json.JSONObject.NULL)
+            val archived = runCatching {
+                ReplyArchive.preserve(File(ctx.filesDir, "reply-diagnostics"), file, metadata).also {
+                    Log.i(TAG, "original preservado arquivo=${file.name} sha256=${metadata.getString("sha256")} bytes=${file.length()}")
+                }
+            }.onFailure { Log.e(TAG, "não foi possível preservar gravação; original mantido no cache", it) }
+            if (stopError != null) {
+                Log.e(TAG, "gravação não enviada: falha na finalização; original preservado")
+                return@launch
+            }
             val ok = Uploader.sendReply(baseUrl, payload.audioId, payload.senderNumber, file, durationSec)
-            Log.i(TAG, if (ok) "resposta enviada" else "falha ao enviar resposta")
-            file.delete()
+            Log.i(TAG, if (ok) "servidor aceitou resposta; entrega não confirmada" else "falha ao enviar resposta; original preservado")
+            if (archived.isSuccess) file.delete()
         }
     }
 

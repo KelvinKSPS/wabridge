@@ -40,6 +40,7 @@ type whatsmeowClient struct {
 	// retry de mídia: quando o CDN retorna hash errado, pedimos ao remetente
 	// que reenvie — o whatsmeow entrega um events.MediaRetry com novo DirectPath
 	pendingRetry map[string]chan *events.MediaRetry // keyed by message ID
+	sentAudio    map[types.MessageID]time.Time
 }
 
 // NewWhatsmeow abre (ou cria) a sessão local e devolve o motor.
@@ -283,56 +284,50 @@ func (w *whatsmeowClient) DownloadAudio(ctx context.Context, audio AudioMessage)
 	}
 }
 
-// SendAudio envia uma nota de voz (PTT), com retry e backoff.
 func (w *whatsmeowClient) SendAudio(ctx context.Context, number string, data []byte, mimetype string, seconds uint32) error {
-	// valida OGG: os 4 primeiros bytes devem ser "OggS"
-	if len(data) >= 4 && string(data[:4]) != "OggS" {
-		log.Printf("wabridge: AVISO: áudio não começa com OggS (magic=%q) — pode ser incompatível", data[:4])
-	}
-
-	var lastErr error
-	for attempt := 1; attempt <= sendAudioMaxAttempts; attempt++ {
-		err := w.sendAudioOnce(ctx, number, data, mimetype, seconds, attempt)
-		if err == nil {
-			return nil
-		}
-		lastErr = err
-		if attempt < sendAudioMaxAttempts {
-			d := sendAudioBackoff(attempt)
-			log.Printf("wabridge: PTT tentativa=%d/%d falhou (%v); retry em %v", attempt, sendAudioMaxAttempts, err, d)
-			select {
-			case <-time.After(d):
-			case <-ctx.Done():
-				return ctx.Err()
-			}
-		}
-	}
-	return fmt.Errorf("PTT: %d tentativas esgotadas: %w", sendAudioMaxAttempts, lastErr)
-}
-
-// sendAudioOnce faz upload + envio de uma nota de voz.
-func (w *whatsmeowClient) sendAudioOnce(ctx context.Context, number string, data []byte, mimetype string, seconds uint32, attempt int) error {
 	resp, err := w.client.Upload(ctx, data, whatsmeow.MediaAudio)
 	if err != nil {
+		log.Print("wabridge: PTT falha na etapa upload")
 		return fmt.Errorf("upload: %w", err)
 	}
 	msg := buildAudioMessage(resp, mimetype, seconds)
-	log.Printf("wabridge: PTT tentativa=%d/%d jid=%s@%s mime=%s bytes=%d seconds=%d sidecar=%d waveform=%d",
-		attempt, sendAudioMaxAttempts, number, types.DefaultUserServer, mimetype, resp.FileLength, seconds,
-		len(resp.StreamingSidecar), len(msg.Waveform))
+	id := w.client.GenerateMessageID()
+	// O recibo pode chegar antes de SendMessage retornar; timeout não autoriza duplicar o envio.
+	w.trackAudio(id, time.Now())
+	log.Printf("wabridge: PTT envio msgID=%s mime=%s bytes=%d seconds=%d sidecar=%d",
+		id, mimetype, resp.FileLength, seconds, len(resp.StreamingSidecar))
 
 	jid := types.JID{User: number, Server: types.DefaultUserServer}
-	sendResp, err := w.client.SendMessage(ctx, jid, &waE2E.Message{AudioMessage: msg})
+	sendResp, err := w.client.SendMessage(ctx, jid, &waE2E.Message{AudioMessage: msg}, whatsmeow.SendRequestExtra{ID: id})
 	if err != nil {
+		log.Printf("wabridge: PTT falha na etapa envio msgID=%s; entrega indeterminada, sem reenvio automático", id)
 		return fmt.Errorf("send: %w", err)
 	}
-	log.Printf("wabridge: PTT enviado para %s, msgID=%s, ts=%d", number, sendResp.ID, sendResp.Timestamp.Unix())
+	log.Printf("wabridge: PTT msgID=%s ts=%d aceito pelo servidor; entrega não confirmada por este aceite",
+		sendResp.ID, sendResp.Timestamp.Unix())
 	return nil
 }
 
-// buildAudioMessage monta o AudioMessage (PTT) a partir do response do upload.
-// O StreamingSidecar vem do CDN e é obrigatório: sem ele a mensagem é aceita
-// (msgID retornado) mas não reproduz no aparelho — mesmo sintoma do wamux #18.
+func (w *whatsmeowClient) trackAudio(id types.MessageID, sentAt time.Time) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.sentAudio == nil {
+		w.sentAudio = make(map[types.MessageID]time.Time)
+	}
+	if _, exists := w.sentAudio[id]; !exists && len(w.sentAudio) >= 32 {
+		var oldest types.MessageID
+		var oldestTime time.Time
+		for candidate, timestamp := range w.sentAudio {
+			if oldest == "" || timestamp.Before(oldestTime) || timestamp.Equal(oldestTime) && candidate < oldest {
+				oldest, oldestTime = candidate, timestamp
+			}
+		}
+		delete(w.sentAudio, oldest)
+	}
+	w.sentAudio[id] = sentAt
+}
+
+// Esta versão do whatsmeow calcula sidecar só para vídeo; áudio vazio é esperado.
 func buildAudioMessage(resp whatsmeow.UploadResponse, mimetype string, seconds uint32) *waE2E.AudioMessage {
 	url := resp.URL
 	directPath := resp.DirectPath
@@ -351,57 +346,7 @@ func buildAudioMessage(resp whatsmeow.UploadResponse, mimetype string, seconds u
 		Seconds:           &seconds,
 		MediaKeyTimestamp: &now,
 		StreamingSidecar:  resp.StreamingSidecar,
-		Waveform:          makeWaveform(resp.StreamingSidecar, 64),
 	}
-}
-
-// makeWaveform gera 64 valores de amplitude (0-100) para o diagrama da nota.
-// O app oficial exige o campo para tratar a mensagem como PTT (iOS principalmente).
-func makeWaveform(data []byte, n int) []byte {
-	if n <= 0 {
-		return nil
-	}
-	out := make([]byte, n)
-	if len(data) == 0 {
-		for i := range out {
-			out[i] = 50
-		}
-		return out
-	}
-	step := len(data) / n
-	if step < 1 {
-		step = 1
-	}
-	for i := 0; i < n; i++ {
-		start := i * step
-		end := start + step
-		if end > len(data) {
-			end = len(data)
-		}
-		if start >= end {
-			out[i] = 0
-			continue
-		}
-		var sum int
-		for _, b := range data[start:end] {
-			sum += int(b)
-		}
-		v := (sum / (end - start)) % 101
-		if v < 1 {
-			v = 1
-		}
-		out[i] = byte(v)
-	}
-	return out
-}
-
-const sendAudioMaxAttempts = 3
-
-// sendAudioBackoff: 250ms, 500ms, 1s (com jitter de ±25%).
-func sendAudioBackoff(attempt int) time.Duration {
-	base := time.Duration(250*(1<<(attempt-1))) * time.Millisecond
-	jitter := time.Duration(float64(base) * (0.75 + 0.5*float64(time.Now().UnixNano()%1000)/1000.0))
-	return jitter
 }
 
 // ContactEntry é um contato da agenda (lista interativa do app).
@@ -510,6 +455,15 @@ func (w *whatsmeowClient) onEvent(evt any) {
 		w.mu.Unlock()
 	case *events.LoggedOut:
 		log.Println("wabridge: desconectado")
+	case *events.Receipt:
+		for _, id := range e.MessageIDs {
+			w.mu.Lock()
+			_, tracked := w.sentAudio[id]
+			w.mu.Unlock()
+			if tracked {
+				log.Printf("wabridge: PTT recibo msgID=%s tipo=%s ts=%d", id, e.Type.GoString(), e.Timestamp.Unix())
+			}
+		}
 	case *events.Message:
 		msg := e.Message
 		if msg == nil {

@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -201,10 +203,12 @@ func (s *Server) handleMedia(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleReplyAudio(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 26<<20)
 	if err := r.ParseMultipartForm(25 << 20); err != nil {
 		writeJSON(w, 400, map[string]string{"error": "formato inválido"})
 		return
 	}
+	defer r.MultipartForm.RemoveAll()
 	audioID := r.FormValue("audioId")
 	to := onlyDigits(r.FormValue("to"))
 	if to == "" {
@@ -225,26 +229,17 @@ func (s *Server) handleReplyAudio(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	buf := make([]byte, 0)
-	tmp := make([]byte, 32*1024)
-	for {
-		n, err := file.Read(tmp)
-		if n > 0 {
-			buf = append(buf, tmp[:n]...)
-		}
-		if err != nil {
-			break
-		}
+	buf, err := io.ReadAll(file)
+	if err != nil || len(buf) == 0 {
+		writeJSON(w, 400, map[string]string{"error": "arquivo de áudio vazio ou leitura incompleta"})
+		return
 	}
+	log.Printf("wabridge: áudio recebido bytes=%d sha256=%x", len(buf), sha256.Sum256(buf))
 
 	mime := r.FormValue("mimeType")
 	if mime == "" {
 		mime = "audio/mp4"
 	}
-	// Normaliza o MIME tipo de áudio para o valor que o WhatsApp espera.
-	// O app manda "audio/ogg; codecs=opus" mas a API (e o próprio WhatsApp)
-	// só reconhece o valor base "audio/ogg" — parâmetros adicionais fazem
-	// o destinatário não reproduzir a nota de voz.
 	if strings.HasPrefix(mime, "audio/ogg") {
 		mime = "audio/ogg"
 	}
@@ -254,7 +249,7 @@ func (s *Server) handleReplyAudio(w http.ResponseWriter, r *http.Request) {
 		if info, err := parseOGGOpusInfo(buf); err != nil {
 			log.Printf("wabridge: AVISO OGG inválido (%d bytes): %v", len(buf), err)
 		} else {
-			log.Printf("wabridge: OGG ok — canais=%d sampleRate=%d opusTags=%v",
+			log.Printf("wabridge: cabeçalho OGG — canais=%d inputSampleRate=%d opusTags=%v (decodificação não validada)",
 				info.Channels, info.SampleRate, info.HasOpusTags)
 			if !info.HasOpusTags {
 				log.Printf("wabridge: AVISO OpusTags ausente — OGG não segue RFC 7845")
@@ -281,7 +276,7 @@ func (s *Server) handleReplyAudio(w http.ResponseWriter, r *http.Request) {
 		delete(s.pending, audioID)
 		s.mu.Unlock()
 	}
-	log.Printf("wabridge: resposta de áudio enviada para %s (%d bytes)", to, len(buf))
+	log.Printf("wabridge: resposta aceita pelo servidor (%d bytes); entrega depende de recibo", len(buf))
 	writeJSON(w, 200, map[string]any{"ok": true, "to": to})
 }
 
@@ -404,7 +399,6 @@ func (s *Server) handleAllowedNumbers(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, 200, map[string]any{"ok": true, "allowedNumbers": s.cfg.Allowed()})
 }
-
 
 // handleContacts devolve contatos e grupos para a lista interativa do app.
 func (s *Server) handleContacts(w http.ResponseWriter, r *http.Request) {
