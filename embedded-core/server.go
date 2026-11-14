@@ -240,10 +240,6 @@ func (s *Server) handleReplyAudio(w http.ResponseWriter, r *http.Request) {
 	if mime == "" {
 		mime = "audio/mp4"
 	}
-	if strings.HasPrefix(mime, "audio/ogg") {
-		mime = "audio/ogg"
-	}
-
 	// log diagnóstico: valida o OGG/Opus quando o MIME indica OGG
 	if strings.Contains(mime, "ogg") || strings.Contains(mime, "opus") {
 		if info, err := parseOGGOpusInfo(buf); err != nil {

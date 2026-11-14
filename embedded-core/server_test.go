@@ -391,8 +391,8 @@ func TestReplyAudioPassaMimeTypeOGG(t *testing.T) {
 		t.Fatalf("esperava 1 áudio enviado, veio %d", len(fake.sentAudio))
 	}
 	got := fake.sentAudio[0]
-	if got.mime != "audio/ogg" {
-		t.Errorf("mime errado: %q (esperava \"audio/ogg\" — parâmetros como \"; codecs=opus\" devem ser removidos)", got.mime)
+	if got.mime != "audio/ogg; codecs=opus" {
+		t.Errorf("mime mudou no caminho: %q", got.mime)
 	}
 }
 
@@ -657,8 +657,7 @@ func TestIntegrationReplyAudioFullPipeline(t *testing.T) {
 		t.Fatal("áudio veio vazio em /media")
 	}
 
-	// 4) Envia o reply com o MESMO binário e o MIME que o app envia hoje
-	//    ("audio/ogg; codecs=opus"). O daemon deve NORMALIZAR para "audio/ogg".
+	// Envia o reply com o MIME recebido do app sem alteração.
 	oggBytes := integraOGGReal()
 	var buf bytes.Buffer
 	w := multipart.NewWriter(&buf)
@@ -680,7 +679,7 @@ func TestIntegrationReplyAudioFullPipeline(t *testing.T) {
 		t.Fatalf("POST /reply/audio retornou %d: %s", resPost.StatusCode, body)
 	}
 
-	// 5) Assertiva central: o motor recebeu EXATAMENTE os bytes e o MIME puro.
+	// 5) Assertiva central: o motor recebeu EXATAMENTE os bytes e o MIME original.
 	if len(fake.sentAudio) != 1 {
 		t.Fatalf("esperava 1 SendAudio, veio %d", len(fake.sentAudio))
 	}
@@ -688,8 +687,8 @@ func TestIntegrationReplyAudioFullPipeline(t *testing.T) {
 	if got.number != "5511999990001" {
 		t.Errorf("número errado: %s", got.number)
 	}
-	if got.mime != "audio/ogg" {
-		t.Errorf("MIME deveria chegar PURO 'audio/ogg' ao motor, veio %q", got.mime)
+	if got.mime != "audio/ogg; codecs=opus" {
+		t.Errorf("mime mudou no caminho: %q", got.mime)
 	}
 	if got.seconds != 5 {
 		t.Errorf("seconds errado: %d (esperava 5)", got.seconds)
