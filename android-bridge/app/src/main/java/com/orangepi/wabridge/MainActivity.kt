@@ -256,6 +256,37 @@ class MainActivity : Activity() {
         urlInput.isEnabled = Prefs.mode(this) != Prefs.Engine.EMBUTIDO
     }
 
+    /** Di�logo com a configura��o do delay de �udio. */
+    private fun showAudioDelayDialog() {
+        val dialog = android.app.AlertDialog.Builder(this)
+            .setTitle(R.string.audio_delay_title)
+
+        val input = android.widget.EditText(this).apply {
+            setText(Prefs.audioDelay(this).toString())
+            setInputType(android.text.InputType.TYPE_CLASS_NUMBER)
+            setHint(R.string.audio_delay_hint)
+        }
+        val layout = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(32, 24, 32, 8)
+        }
+        layout.addView(input)
+        dialog.setView(layout)
+
+        dialog.setPositiveButton(R.string.ok) { _, _ ->
+            try {
+                val valor = input.text.toString().toInt()
+                if (valor < 0) valor = 0
+                if (valor > 10) valor = 10
+                Prefs.setAudioDelay(this, valor)
+            } catch (e: Exception) {
+                android.widget.Toast.makeText(this, R.string.audio_error, android.widget.Toast.LENGTH_LONG).show()
+            }
+        }
+        dialog.setNegativeButton(android.R.string.cancel, null)
+        dialog.show()
+    }
+
     /** Gera o código de 8 dígitos para parear sem QR. */
     private fun setupPairing() {
         countryCodeInput.setText(Prefs.countryCode(this))
@@ -465,7 +496,9 @@ class MainActivity : Activity() {
             return
         }
         val ok = BluetoothHelper.isConnected(this, addr)
-        view.text = getString(if (ok) R.string.bt_connected else R.string.bt_disconnected)
+        // Mostra nome + estado (ex: "Fone X5 - Conectado")
+        val nome = BluetoothHelper.getDeviceName(this, addr) ?: addr
+        view.text = getString(if (ok) R.string.bt_connected else R.string.bt_disconnected, nome)
         view.removeCallbacks(btTicker)
         view.postDelayed(btTicker, 3000)
     }
@@ -531,6 +564,9 @@ class MainActivity : Activity() {
         // fonte da verdade: valores selecionados (atualizado em cada click)
         val selecionados = Prefs.allowedNumbers(this).toMutableSet()
 
+        // Tabs: 0 = contatos, 1 = grupos
+        val abaAtual = mutableIntOf(0)
+
         val itens = mutableListOf<ContactItem>()
         if (contatos.isNotEmpty()) {
             itens += ContactItem(getString(R.string.allowed_tab_contacts), "")
@@ -545,6 +581,18 @@ class MainActivity : Activity() {
             orientation = android.widget.LinearLayout.VERTICAL
             setPadding(48, 24, 48, 8)
         }
+
+        // Header com tabs
+        val tabs = android.widget.TabHost(this).apply {
+            setupTabHost()
+            // Tab Contatos
+            addTab("Contatos", getString(R.string.allowed_tab_contacts)) { 0 }
+            // Tab Grupos
+            addTab("Grupos", getString(R.string.allowed_tab_groups)) { 1 }
+            setCurrentTab(0)
+        }
+        container.addView(tabs)
+
         val busca = android.widget.EditText(this).apply {
             hint = getString(R.string.allowed_search)
             setSingleLine()
@@ -555,17 +603,20 @@ class MainActivity : Activity() {
         container.addView(busca)
         container.addView(lista)
 
-        // índices (em itens) dos itens visíveis no momento
-        var visiveis = itens.indices.toList()
-
-        fun rebuild(query: String) {
+        fun rebuild(query: String, aba: Int) {
+            abaAtual.value = aba
             visiveis = itens.indices.filter { i ->
                 val item = itens[i]
+                // Filtra apenas itens da aba atual
                 if (item.value.isEmpty()) {
-                    val grupo = if (item.name == getString(R.string.allowed_tab_contacts)) contatos else grupos
-                    grupo.any { combina(it, query) }
+                    // Cabeçalho da tab — sempre visível
+                    true
+                } else if (aba == 0) {
+                    // Aba Contatos
+                    contatos.any { combina(it, query) }
                 } else {
-                    combina(item, query)
+                    // Aba Grupos
+                    grupos.any { combina(it, query) }
                 }
             }
             lista.adapter = android.widget.ArrayAdapter(
@@ -580,11 +631,16 @@ class MainActivity : Activity() {
             }
         }
 
-        // clique no item → togla em selecionados e sincroniza o check
+        // Inicializa rebuild para a aba atual
+        rebuild("", abaAtual.value)
+
+        // Clique no item → togla em selecionados e sincroniza o check
         lista.setOnItemClickListener { _, _, pos, _ ->
             val item = itens.getOrNull(visiveis.getOrNull(pos) ?: return@setOnItemClickListener) ?: return@setOnItemClickListener
             if (item.value.isEmpty()) return@setOnItemClickListener // cabeçalho
             if (item.value in selecionados) selecionados.remove(item.value) else selecionados.add(item.value)
+            // Atualiza a lista visível (porque o adapter foi recriado)
+            rebuild("", abaAtual.value)
             lista.setItemChecked(pos, item.value in selecionados)
         }
 
@@ -602,14 +658,33 @@ class MainActivity : Activity() {
 
         busca.addTextChangedListener(object : android.text.TextWatcher {
             override fun afterTextChanged(s: android.text.Editable?) {
-                rebuild(s?.toString()?.trim()?.lowercase().orEmpty())
+                rebuild(s?.toString()?.trim()?.lowercase().orEmpty(), abaAtual.value)
             }
             override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) = Unit
             override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) = Unit
         })
 
-        rebuild("")
         dialog.show()
+
+        /** Configura o TabHost manualmente (não há XML para isso). */
+        private fun TabHost.setupTabHost() {
+            addView(tabs)
+        }
+        private fun TabHost.addTab(label: String, contentDesc: Int, tag: Int) {
+            val newTabSpec = newTabSpec(label)
+            newTabSpec.setContent({ /* placeholder */ })
+            newTabSpec.setIndicator(label)
+            addTab(newTabSpec)
+        }
+        private fun TabHost.newTabSpec(label: String): TabHost.TabSpec {
+            return newTabSpec(label)
+        }
+        private fun TabHost.addTab(newTabSpec: TabHost.TabSpec) {
+            tabs.addTab(newTabSpec)
+        }
+        private fun TabHost.setCurrentTab(index: Int) {
+            tabs.setCurrentIndex(index)
+        }
     }
 
     private fun combina(item: ContactItem, q: String): Boolean {

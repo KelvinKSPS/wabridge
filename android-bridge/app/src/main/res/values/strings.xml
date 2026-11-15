@@ -65,7 +65,12 @@
     <string name="allowed_selected">%1$d selecionado(s)</string>
     <string name="allowed_search">buscar nome ou número…</string>
 
-    <!-- Tela de chamada -->
+    <!-- Configurações -->
+    <string name="audio_delay_title">Delay de áudio (segundos)</string>
+    <string name="audio_delay_hint">0 a 10 segundos antes de iniciar gravação</string>
+    <string name="audio_error">delay inválido, use 0 a 10</string>
+
+<!-- Tela de chamada -->
     <string name="incoming_call">chamada de voz</string>
     <string name="incoming_from">de %s</string>
     <string name="incoming_call_duration">de %1$s · %2$s</string>
