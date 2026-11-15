@@ -145,6 +145,14 @@
                     android:textSize="13sp"
                     android:textStyle="bold" />
 
+                <TextView
+                    android:id="@+id/accountStatusText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:textColor="@color/on_surface_variant"
+                    android:textSize="13sp" />
+
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -308,19 +316,13 @@
                     android:text="@string/bt_only"
                     android:textColor="@color/on_surface" />
 
-                <com.google.android.material.textfield.TextInputLayout
-                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btPickButton"
+                    style="@style/Widget.Material3.Button.TonalButton"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:hint="@string/bt_pick">
-
-                    <com.google.android.material.textfield.MaterialAutoCompleteTextView
-                        android:id="@+id/btDeviceSpinner"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:inputType="none" />
-                </com.google.android.material.textfield.TextInputLayout>
+                    android:text="@string/bt_pick" />
 
                 <TextView
                     android:id="@+id/btState"

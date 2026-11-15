@@ -25,12 +25,14 @@ class MainActivity : Activity() {
     private lateinit var audioDelaySpinner: android.widget.AutoCompleteTextView
     private lateinit var modeSpinner: android.widget.AutoCompleteTextView
     private lateinit var engineStatusText: TextView
+    private lateinit var accountStatusText: TextView
     private lateinit var countryCodeInput: EditText
     private lateinit var phoneInput: EditText
     private lateinit var pairButton: Button
     private lateinit var pairResultText: TextView
     private lateinit var allowedInput: EditText
     private var diagnosticFolder: java.io.File? = null
+    private var refreshStatusHandler = android.os.Handler(android.os.Looper.getMainLooper())
 
     private val statusReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -52,6 +54,7 @@ class MainActivity : Activity() {
         audioDelaySpinner = findViewById(R.id.audioDelaySpinner)
         modeSpinner = findViewById(R.id.modeSpinner)
         engineStatusText = findViewById(R.id.engineStatusText)
+        accountStatusText = findViewById(R.id.accountStatusText)
         countryCodeInput = findViewById(R.id.countryCodeInput)
         phoneInput = findViewById(R.id.phoneInput)
         pairButton = findViewById(R.id.pairButton)
@@ -304,6 +307,8 @@ class MainActivity : Activity() {
                     pairButton.isEnabled = true
                     pairResultText.visibility = android.view.View.VISIBLE
                     pairResultText.text = code ?: getString(R.string.pair_failed)
+                    // Inicia refresh do status da conta a cada 3s por 3min
+                    if (code != null) scheduleStatusRefresh()
                 }
             }.start()
         }
@@ -313,6 +318,54 @@ class MainActivity : Activity() {
         setupBluetooth()
         setupAcceptOwn()
         setupPending()
+        refreshAccountStatus()
+    }
+
+    /** Atualiza o status de autenticação da conta. */
+    private fun refreshAccountStatus() {
+        Thread {
+            val status = PairingClient.status(this)
+            runOnUiThread {
+                accountStatusText.text = when {
+                    status == null -> getString(R.string.account_unknown)
+                    status.loggedIn -> {
+                        val phone = formatPhone(status.phone)
+                        if (status.connected) getString(R.string.account_linked, phone)
+                        else getString(R.string.account_linked_offline, phone)
+                    }
+                    else -> getString(R.string.account_not_linked)
+                }
+            }
+        }.start()
+    }
+
+    /** Formata número +55 com 12-13 dígitos como +55 DD NNNNN-NNNN. */
+    private fun formatPhone(phone: String): String {
+        if (!phone.startsWith("55") || phone.length !in 12..13) return "+$phone"
+        val parte1 = phone.substring(0, 2)  // 55
+        val parte2 = phone.substring(2, 4)  // DD
+        val parte3 = phone.substring(4, 9)  // NNNNN
+        val parte4 = phone.substring(9)     // NNNN
+        return "+$parte1 $parte2 $parte3-$parte4"
+    }
+
+    /** Agenda refresh do status a cada 3s por até 3 min. */
+    private fun scheduleStatusRefresh() {
+        var attempts = 0
+        val refresh: Runnable = object : Runnable {
+            override fun run() {
+                if (!this@MainActivity::accountStatusText.isInitialized || attempts > 60) return
+                refreshAccountStatus()
+                attempts++
+                Thread {
+                    val status = PairingClient.status(this@MainActivity)
+                    if (status?.loggedIn != true && attempts <= 60) {
+                        refreshStatusHandler.postDelayed(this, 3000)
+                    }
+                }.start()
+            }
+        }
+        refreshStatusHandler.post(refresh)
     }
 
     /** Checkbox para tocar os próprios áudios (modo de teste). */
@@ -400,7 +453,7 @@ class MainActivity : Activity() {
     /** Seletor de relógio/fone: só toca se o aparelho escolhido estiver conectado. */
     private fun setupBluetooth() {
         val check = findViewById<android.widget.CheckBox>(R.id.btOnlyCheck)
-        val spinner = findViewById<android.widget.AutoCompleteTextView>(R.id.btDeviceSpinner)
+        val button = findViewById<Button>(R.id.btPickButton)
 
         check.isChecked = Prefs.btOnlyConnected(this)
 
@@ -413,45 +466,56 @@ class MainActivity : Activity() {
         }
 
         val devices = BluetoothHelper.paired(this)
-        val nomes = if (devices.isEmpty()) {
-            listOf(getString(R.string.bt_none))
+        if (devices.isEmpty()) {
+            button.isEnabled = false
+            android.widget.Toast.makeText(this, R.string.bt_none, android.widget.Toast.LENGTH_LONG).show()
         } else {
-            listOf(getString(R.string.bt_pick)) + devices.map { it.name }
+            button.setOnClickListener {
+                val saved = Prefs.btDevices(this)
+                val checked = BooleanArray(devices.size) { devices[it].address in saved }
+                android.app.AlertDialog.Builder(this)
+                    .setTitle(R.string.bt_pick)
+                    .setMultiChoiceItems(devices.map { it.name }.toTypedArray(), checked) { _, idx, v ->
+                        checked[idx] = v
+                    }
+                    .setPositiveButton(android.R.string.ok) { _, _ ->
+                        val selected = devices.filterIndexed { i, _ -> checked[i] }.map { it.address }.toSet()
+                        Prefs.setBtDevices(this@MainActivity, selected)
+                        updateBtState()
+                    }
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show()
+            }
         }
-        spinner.setAdapter(
-            android.widget.ArrayAdapter(this, android.R.layout.simple_list_item_1, nomes),
-        )
 
-        val salvo = Prefs.btDevice(this)
-        val posSalvo = devices.indexOfFirst { it.address == salvo }
-        if (posSalvo >= 0) {
-            spinner.setText(nomes[posSalvo + 1], false)
-        }
-
-        spinner.setOnItemClickListener { _, _, pos, _ ->
-            Prefs.setBtDevice(this@MainActivity, devices.getOrNull(pos - 1)?.address ?: "")
-            updateBtState()
-        }
         check.setOnCheckedChangeListener { _, v -> Prefs.setBtOnlyConnected(this, v) }
-
         updateBtState()
     }
 
-    /** Mostra se o aparelho escolhido está conectado agora. */
+    /** Mostra estado dos aparelhos escolhidos. */
     private fun updateBtState() {
         val view = findViewById<TextView>(R.id.btState) ?: return
-        val addr = Prefs.btDevice(this)
-        if (addr.isBlank()) {
-            view.text = getString(R.string.bt_none)
+        val addrs = Prefs.btDevices(this)
+        if (addrs.isEmpty()) {
+            view.text = getString(R.string.bt_any)
+            view.removeCallbacks(btTicker)
+            view.postDelayed(btTicker, 3000)
             return
         }
-        val ok = BluetoothHelper.isConnected(this, addr)
-        view.text = getString(if (ok) R.string.bt_connected else R.string.bt_disconnected)
+        val devices = BluetoothHelper.paired(this)
+        val lines = devices.filter { it.address in addrs }.map { dev ->
+            val status = if (BluetoothHelper.isConnected(this, dev.address))
+                getString(R.string.bt_connected)
+            else
+                getString(R.string.bt_disconnected)
+            "${dev.name} — $status"
+        }
+        view.text = lines.joinToString("\n")
         view.removeCallbacks(btTicker)
         view.postDelayed(btTicker, 3000)
     }
 
-    /** Rele o estado do bluetooth de tempos em tempos. */
+    /** Atualiza o estado do bluetooth de tempos em tempos. */
     private val btTicker = Runnable { updateBtState() }
 
     /** Atualiza o resumo ao lado do botão "escolher". */

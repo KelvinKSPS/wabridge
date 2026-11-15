@@ -60,6 +60,7 @@
     <string name="bt_only">só ligar quando o relógio estiver conectado</string>
     <string name="bt_pick">escolher aparelho</string>
     <string name="bt_none">nenhum aparelho pareado</string>
+    <string name="bt_any">qualquer aparelho</string>
     <string name="bt_connected">conectado agora</string>
     <string name="bt_disconnected">desconectado</string>
     <string name="bt_permission">permissão de bluetooth negada</string>
