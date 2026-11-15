@@ -173,3 +173,42 @@ func TestReceiptFiltraIDsSemExporDadosDaMensagem(t *testing.T) {
 		t.Fatal("cliente sem envios registrou recibo não relacionado")
 	}
 }
+
+func TestSortRecentContactsPorUltimosAtivos(t *testing.T) {
+	cs := []ContactEntry{
+		{Nome: "Alice", Numero: "111", LastActivity: 1000},
+		{Nome: "Bob", Numero: "222", LastActivity: 2000},
+		{Nome: "Charlie", Numero: "333", LastActivity: 1500},
+	}
+	sortRecentContacts(cs)
+	if cs[0].Numero != "222" || cs[1].Numero != "333" || cs[2].Numero != "111" {
+		t.Fatalf("ordenação por lastActivity falhou: %v", cs)
+	}
+}
+
+func TestSortRecentContactsEmpate(t *testing.T) {
+	cs := []ContactEntry{
+		{Nome: "Zebra", Numero: "111", LastActivity: 1000},
+		{Nome: "Alice", Numero: "222", LastActivity: 1000},
+		{Nome: "Bob", Numero: "333", LastActivity: 2000},
+	}
+	sortRecentContacts(cs)
+	if cs[0].Numero != "333" {
+		t.Fatalf("contato mais recente não é o primeiro")
+	}
+	if cs[1].Nome != "Alice" || cs[2].Nome != "Zebra" {
+		t.Fatalf("empate não ordenado por nome em minúsculas: %v", cs)
+	}
+}
+
+func TestSortRecentGroupsPorUltimosAtivos(t *testing.T) {
+	gs := []GroupEntry{
+		{Nome: "Grupo A", JID: "111@g.us", LastActivity: 500},
+		{Nome: "Grupo B", JID: "222@g.us", LastActivity: 1500},
+		{Nome: "Grupo C", JID: "333@g.us", LastActivity: 1000},
+	}
+	sortRecentGroups(gs)
+	if gs[0].JID != "222@g.us" || gs[1].JID != "333@g.us" || gs[2].JID != "111@g.us" {
+		t.Fatalf("ordenação por lastActivity falhou: %v", gs)
+	}
+}

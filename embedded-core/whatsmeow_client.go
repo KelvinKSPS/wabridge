@@ -89,6 +89,8 @@ func (w *whatsmeowClient) Connect(ctx context.Context) error {
 	// pareamento (aparelho ainda não logado) uma queda deixaria o daemon
 	// morto para sempre — então a gente reconecta na mão.
 	go w.watch(ctx)
+	// Ticker para salvar o histórico de atividades recentes a cada 15 segundos
+	go w.watchRecentSave(ctx)
 	return nil
 }
 
@@ -144,6 +146,20 @@ func (w *whatsmeowClient) watch(ctx context.Context) {
 		}
 		log.Println("wabridge: conexão perdida antes do pareamento; reconectando")
 		w.connectOnce(ctx)
+	}
+}
+
+// watchRecentSave salva o histórico de atividades recentes a cada 15 segundos.
+func (w *whatsmeowClient) watchRecentSave(ctx context.Context) {
+	t := time.NewTicker(15 * time.Second)
+	defer t.Stop()
+	for range t.C {
+		if ctx.Err() != nil {
+			return
+		}
+		if err := w.recent.SaveIfDirty(); err != nil {
+			log.Printf("wabridge: erro salvando histórico recente: %v", err)
+		}
 	}
 }
 
@@ -351,6 +367,24 @@ func buildAudioMessage(resp whatsmeow.UploadResponse, mimetype string, seconds u
 	}
 }
 
+// recentKey devolve a chave da conversa (número para contato, JID para grupo) ou "".
+func (w *whatsmeowClient) recentKey(ctx context.Context, jid types.JID) string {
+	switch jid.Server {
+	case types.GroupServer:
+		return jid.ToNonAD().String()
+	case types.HiddenUserServer:
+		if pn, err := w.client.Store.LIDs.GetPNForLID(ctx, jid); err == nil {
+			return pn.User
+		}
+		return ""
+	case types.DefaultUserServer:
+		return jid.User
+	default:
+		// broadcast, status, newsletter, bot — ignorar
+		return ""
+	}
+}
+
 // ContactEntry é um contato da agenda (lista interativa do app).
 type ContactEntry struct {
 	Nome         string `json:"name"`
@@ -380,6 +414,10 @@ func (w *whatsmeowClient) Contacts(ctx context.Context) ([]ContactEntry, []Group
 	if err != nil {
 		return nil, nil, err
 	}
+
+	// Mapa para deduplicar: número → índice do contato mantido
+	seenNumbers := make(map[string]int)
+
 	contatos := make([]ContactEntry, 0, len(cs))
 	for jid, info := range cs {
 		if jid.Server == types.GroupServer || jid.Server == types.BotServer {
@@ -398,11 +436,26 @@ func (w *whatsmeowClient) Contacts(ctx context.Context) ([]ContactEntry, []Group
 		if nome == "" {
 			nome = info.FirstName
 		}
-		contatos = append(contatos, ContactEntry{Nome: nome, Numero: numero})
+
+		// Deduplicação: se número já foi visto, manter o que tem nome não vazio
+		if idx, exists := seenNumbers[numero]; exists {
+			if nome != "" && contatos[idx].Nome == "" {
+				contatos[idx].Nome = nome
+			}
+			continue
+		}
+
+		lastActivity := w.recent.Get(numero)
+		contatos = append(contatos, ContactEntry{
+			Nome:         nome,
+			Numero:       numero,
+			LastActivity: lastActivity,
+		})
+		seenNumbers[numero] = len(contatos) - 1
 	}
-	sort.Slice(contatos, func(i, j int) bool {
-		return strings.ToLower(contatos[i].Nome) < strings.ToLower(contatos[j].Nome)
-	})
+
+	// Ordenar: LastActivity decrescente; empate → nome em minúsculas crescente
+	sortRecentContacts(contatos)
 
 	// fora da conexão o IQ de grupos falha; devolve vazio em vez de erro
 	var gs []*types.GroupInfo
@@ -418,12 +471,35 @@ func (w *whatsmeowClient) Contacts(ctx context.Context) ([]ContactEntry, []Group
 		if g == nil {
 			continue
 		}
-		grupos = append(grupos, GroupEntry{JID: g.JID.String(), Nome: g.Name})
+		lastActivity := w.recent.Get(g.JID.String())
+		grupos = append(grupos, GroupEntry{
+			JID:          g.JID.String(),
+			Nome:         g.Name,
+			LastActivity: lastActivity,
+		})
 	}
-	sort.Slice(grupos, func(i, j int) bool {
-		return strings.ToLower(grupos[i].Nome) < strings.ToLower(grupos[j].Nome)
-	})
+	sortRecentGroups(grupos)
 	return contatos, grupos, nil
+}
+
+// sortRecentContacts ordena contatos por LastActivity (decrescente); empate → nome em minúsculas (crescente).
+func sortRecentContacts(cs []ContactEntry) {
+	sort.Slice(cs, func(i, j int) bool {
+		if cs[i].LastActivity != cs[j].LastActivity {
+			return cs[i].LastActivity > cs[j].LastActivity
+		}
+		return strings.ToLower(cs[i].Nome) < strings.ToLower(cs[j].Nome)
+	})
+}
+
+// sortRecentGroups ordena grupos por LastActivity (decrescente); empate → nome em minúsculas (crescente).
+func sortRecentGroups(gs []GroupEntry) {
+	sort.Slice(gs, func(i, j int) bool {
+		if gs[i].LastActivity != gs[j].LastActivity {
+			return gs[i].LastActivity > gs[j].LastActivity
+		}
+		return strings.ToLower(gs[i].Nome) < strings.ToLower(gs[j].Nome)
+	})
 }
 
 // SendText envia uma mensagem de texto.
@@ -435,6 +511,12 @@ func (w *whatsmeowClient) SendText(ctx context.Context, number string, text stri
 
 // Close fecha a sessão.
 func (w *whatsmeowClient) Close() {
+	// Salva o histórico de atividades antes de fechar
+	if w.recent != nil {
+		if err := w.recent.SaveIfDirty(); err != nil {
+			log.Printf("wabridge: erro salvando histórico ao fechar: %v", err)
+		}
+	}
 	if w.client != nil {
 		w.client.Disconnect()
 	}
@@ -459,6 +541,25 @@ func (w *whatsmeowClient) onEvent(evt any) {
 		w.mu.Unlock()
 	case *events.LoggedOut:
 		log.Println("wabridge: desconectado")
+	case *events.HistorySync:
+		// Processa o histórico de conversas (chega logo após pareamento)
+		ctx, cancel := context.WithTimeout(w.ctx, 30*time.Second)
+		conversations := e.Data.GetConversations()
+		for _, c := range conversations {
+			if c == nil {
+				continue
+			}
+			jid, err := types.ParseJID(c.GetID())
+			if err != nil {
+				continue
+			}
+			ts := max(c.GetConversationTimestamp(), c.GetLastMsgTimestamp())
+			w.recent.Touch(w.recentKey(ctx, jid), int64(ts))
+		}
+		cancel()
+		if len(conversations) > 0 {
+			log.Printf("wabridge: history sync %d conversas", len(conversations))
+		}
 	case *events.Receipt:
 		for _, id := range e.MessageIDs {
 			w.mu.Lock()
@@ -473,6 +574,12 @@ func (w *whatsmeowClient) onEvent(evt any) {
 		if msg == nil {
 			return
 		}
+
+		// Registra atividade antes de processar o áudio
+		ctx, cancel := context.WithTimeout(w.ctx, 5*time.Second)
+		w.recent.Touch(w.recentKey(ctx, e.Info.Chat), e.Info.Timestamp.Unix())
+		cancel()
+
 		audio := msg.GetAudioMessage()
 		if audio == nil {
 			return
