@@ -22,6 +22,7 @@ class MainActivity : Activity() {
     private lateinit var urlInput: EditText
     private lateinit var statusText: TextView
     private lateinit var speedSpinner: android.widget.AutoCompleteTextView
+    private lateinit var audioDelaySpinner: android.widget.AutoCompleteTextView
     private lateinit var modeSpinner: android.widget.AutoCompleteTextView
     private lateinit var engineStatusText: TextView
     private lateinit var countryCodeInput: EditText
@@ -48,6 +49,7 @@ class MainActivity : Activity() {
         urlInput = findViewById(R.id.urlInput)
         statusText = findViewById(R.id.statusText)
         speedSpinner = findViewById(R.id.speedSpinner)
+        audioDelaySpinner = findViewById(R.id.audioDelaySpinner)
         modeSpinner = findViewById(R.id.modeSpinner)
         engineStatusText = findViewById(R.id.engineStatusText)
         countryCodeInput = findViewById(R.id.countryCodeInput)
@@ -83,6 +85,21 @@ class MainActivity : Activity() {
         speedSpinner.setText(speedLabels[posAtual], false)
         speedSpinner.setOnItemClickListener { _, _, pos, _ ->
             Prefs.setSpeed(this@MainActivity, PlaybackSpeed.menu.getOrElse(pos) { 1.0f })
+        }
+
+        // delay do áudio até começar a tocar
+        val currentDelay = Prefs.audioDelayMs(this)
+        val delayLabels = Prefs.AUDIO_DELAY_OPTIONS.map { ms ->
+            val secs = ms / 1000.0
+            if (secs == secs.toLong().toDouble()) "${secs.toLong()} s" else "$secs s"
+        }
+        audioDelaySpinner.setAdapter(
+            android.widget.ArrayAdapter(this, android.R.layout.simple_list_item_1, delayLabels),
+        )
+        val posPosDelay = Prefs.AUDIO_DELAY_OPTIONS.indexOfFirst { it == currentDelay }.coerceAtLeast(0)
+        audioDelaySpinner.setText(delayLabels[posPosDelay], false)
+        audioDelaySpinner.setOnItemClickListener { _, _, pos, _ ->
+            Prefs.setAudioDelayMs(this@MainActivity, Prefs.AUDIO_DELAY_OPTIONS.getOrElse(pos) { 1000L })
         }
 
         findViewById<Button>(R.id.connectButton).setOnClickListener {

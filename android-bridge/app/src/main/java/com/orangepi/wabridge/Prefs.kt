@@ -6,6 +6,7 @@ object Prefs {
     private const val FILE = "wabridge"
     private const val KEY_URL = "server_url"
     private const val KEY_SPEED = "playback_speed"
+    private const val KEY_AUDIO_DELAY = "audio_delay_ms"
     private const val KEY_MODE = "engine_mode"
     private const val KEY_PHONE = "phone_number"
     private const val KEY_ALLOWED = "allowed_numbers"
@@ -21,6 +22,10 @@ object Prefs {
     /** Velocidade padrão de reprodução das notas de voz. */
     val DEFAULT_SPEED = 1.0f
 
+    /** Opções de delay do áudio (em ms). */
+    val AUDIO_DELAY_OPTIONS = listOf(0L, 500L, 1000L, 2000L, 3000L, 5000L)
+    const val DEFAULT_AUDIO_DELAY_MS = 1000L
+
     /** Taxa de amostragem da gravação. O servidor externo re-encoda com ffmpeg
      *  a 16000 Hz (libopus); o app grava 48000 Hz. A/B testável por broadcast. */
     val DEFAULT_SAMPLE_RATE = 48000
@@ -33,6 +38,19 @@ object Prefs {
         ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
             .edit()
             .putInt(KEY_SAMPLE_RATE, rate)
+            .apply()
+    }
+
+    /** Tempo até o áudio começar após atender (em ms). */
+    fun audioDelayMs(ctx: Context): Long =
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .getLong(KEY_AUDIO_DELAY, DEFAULT_AUDIO_DELAY_MS)
+            .coerceIn(0L, 10_000L)
+
+    fun setAudioDelayMs(ctx: Context, value: Long) {
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .edit()
+            .putLong(KEY_AUDIO_DELAY, value.coerceIn(0L, 10_000L))
             .apply()
     }
 

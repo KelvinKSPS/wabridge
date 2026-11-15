@@ -52,6 +52,7 @@ class VoiceSession(
     private var recorderFile: File? = null
     private var scoReceiver: BroadcastReceiver? = null
     private val scoConnected = CompletableDeferred<Boolean>()
+    private val playbackGate = CompletableDeferred<Unit>()
     private var timeoutJob: Job? = null
     private val state = CallStateMachine()
 
@@ -115,15 +116,17 @@ class VoiceSession(
         audio.startBluetoothSco()
         audio.isBluetoothScoOn = true
 
+        val answeredAt = SystemClock.elapsedRealtime()
+        val delayMs = Prefs.audioDelayMs(ctx)
+        preparePlayback()               // baixa e prepara o áudio JÁ, em paralelo à espera
+
         scope.launch {
             val ok = withTimeoutOrNull(SCO_TIMEOUT_MS) { scoConnected.await() } ?: false
             if (!ok) Log.w(TAG, "SCO não conectou a tempo; seguindo assim mesmo")
-            // buffer de negociação: o canal SCO precisa estabilizar antes do áudio
-            delay(SCO_SETTLE_MS)
-            startPlayback()
-            // velocidade padrão configurada pelo usuário
-            val default = Prefs.speed(ctx)
-            if (default != 1.0f) delay(200).let { setSpeed(default) }
+            val restante = delayMs - (SystemClock.elapsedRealtime() - answeredAt)
+            if (restante > 0) delay(restante)
+            Log.i(TAG, "áudio liberado ${SystemClock.elapsedRealtime() - answeredAt} ms após atender (config ${delayMs} ms)")
+            playbackGate.complete(Unit)
         }
         return true
     }
@@ -178,8 +181,7 @@ class VoiceSession(
         scoReceiver = receiver
     }
 
-    private fun startPlayback() {
-        state.onPlaybackStarted()
+    private fun preparePlayback() {
         try {
             val mp = MediaPlayer()
             mp.setAudioAttributes(
@@ -189,19 +191,42 @@ class VoiceSession(
                     .build()
             )
             mp.setDataSource(payload.audioUrl)
-            mp.setOnPreparedListener { it.start() }
+            mp.setOnPreparedListener {
+                scope.launch {
+                    playbackGate.await()
+                    startPrepared(it)
+                }
+            }
             mp.setOnCompletionListener { onPlaybackFinished() }
             mp.setOnErrorListener { _, _, _ ->
                 Log.e(TAG, "erro na reprodução; indo para gravação")
-                onPlaybackFinished()
+                scope.launch {
+                    playbackGate.await()
+                    onPlaybackFinished()
+                }
                 true
             }
             player = mp
             mp.prepareAsync()
         } catch (e: Exception) {
             Log.e(TAG, "falha ao tocar áudio: ${e.message}")
-            onPlaybackFinished()
+            scope.launch {
+                playbackGate.await()
+                onPlaybackFinished()
+            }
         }
+    }
+
+    private fun startPrepared(mp: MediaPlayer) {
+        if (ended || player !== mp) {
+            Log.i(TAG, "sessão encerrada antes de reproduzir (ended=$ended, playerMatch=${player === mp})")
+            return
+        }
+        state.onPlaybackStarted()
+        // aplica a velocidade padrão antes do start
+        val v = Prefs.speed(ctx)
+        if (v != 1.0f) setSpeed(v)
+        if (!mp.isPlaying) mp.start()
     }
 
     /* ---------------------------------------------------------------- *
@@ -440,7 +465,6 @@ class VoiceSession(
     companion object {
         private const val TAG = "VoiceSession"
         private const val SCO_TIMEOUT_MS = 3_000L
-        private const val SCO_SETTLE_MS = 800L
         private const val PLAYBACK_TO_RECORD_DELAY_MS = 300L
         private const val RECORD_TIMEOUT_MS = 90_000L
 

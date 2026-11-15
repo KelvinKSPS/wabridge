@@ -16,6 +16,8 @@
     <string name="server_label">servidor</string>
     <string name="url_hint">http://192.168.15.100:8097</string>
     <string name="speed_label">velocidade padrão de reprodução</string>
+    <string name="audio_delay_label">tempo até o áudio começar</string>
+    <string name="audio_delay_hint">conta a partir do atender. Com 0 s o áudio espera só o relógio abrir o canal de voz.</string>
     <string name="status_label">status</string>
     <string name="connect">iniciar</string>
     <string name="stop">parar</string>
