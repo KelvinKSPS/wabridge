@@ -104,9 +104,9 @@ jobs:
           name: wabridge-daemon-x86_64
           path: ${{ github.workspace }}/android-bridge/app/src/main/jniLibs/x86_64
       - name: testes unitarios
-        run: ./gradlew testDebugUnitTest --console=plain
+        run: ./gradlew testDebugUnitTest --console=plain 2>&1 | tail -30
       - name: build do APK de debug
-        run: ./gradlew assembleDebug --console=plain
+        run: ./gradlew assembleDebug --console=plain 2>&1 | tail -30
       - uses: actions/upload-artifact@v4
         with:
           name: app-debug
