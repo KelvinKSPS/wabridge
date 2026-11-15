@@ -36,6 +36,7 @@ type whatsmeowClient struct {
 	events    chan Event
 	qr        string
 	connected chan struct{}
+	recent    *RecentStore
 
 	// retry de mídia: quando o CDN retorna hash errado, pedimos ao remetente
 	// que reenvie — o whatsmeow entrega um events.MediaRetry com novo DirectPath
@@ -73,6 +74,7 @@ func NewWhatsmeow(dir string, phone string) (*whatsmeowClient, error) {
 		client:       cli,
 		events:       make(chan Event, 32),
 		connected:    make(chan struct{}),
+		recent:       NewRecentStore(dir),
 		pendingRetry: make(map[string]chan *events.MediaRetry),
 	}
 	cli.AddEventHandler(w.onEvent)
@@ -351,14 +353,16 @@ func buildAudioMessage(resp whatsmeow.UploadResponse, mimetype string, seconds u
 
 // ContactEntry é um contato da agenda (lista interativa do app).
 type ContactEntry struct {
-	Nome   string `json:"name"`
-	Numero string `json:"number"`
+	Nome         string `json:"name"`
+	Numero       string `json:"number"`
+	LastActivity int64  `json:"lastActivity"`
 }
 
 // GroupEntry é um grupo do WhatsApp (lista interativa do app).
 type GroupEntry struct {
-	JID  string `json:"jid"`
-	Nome string `json:"name"`
+	JID          string `json:"jid"`
+	Nome         string `json:"name"`
+	LastActivity int64  `json:"lastActivity"`
 }
 
 // Contacts lista os contatos e os grupos da conta.
