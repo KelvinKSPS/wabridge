@@ -399,23 +399,56 @@ class MainActivity : Activity() {
         }
 
         val devices = BluetoothHelper.paired(this)
+
+        // Se não há permissão para ler nomes, usa endereços MAC
+        val isBTConnectPermissionGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
+            ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) ==
+                PackageManager.PERMISSION_GRANTED
+
         val nomes = if (devices.isEmpty()) {
             listOf(getString(R.string.bt_none))
-        } else {
+        } else if (isBTConnectPermissionGranted) {
             listOf(getString(R.string.bt_pick)) + devices.map { it.name }
+        } else {
+            // Sem permissão: mostra apenas endereços para selecionar múltiplos
+            val prefix = getString(R.string.bt_pick)
+            listOf(prefix) + devices.map { "$prefix ${it.address}" }
         }
         spinner.setAdapter(
-            android.widget.ArrayAdapter(this, android.R.layout.simple_list_item_1, nomes),
+            android.widget.ArrayAdapter(this, android.R.layout.simple_list_item_single_choice, nomes),
         )
 
-        val salvo = Prefs.btDevice(this)
-        val posSalvo = devices.indexOfFirst { it.address == salvo }
-        if (posSalvo >= 0) {
-            spinner.setText(nomes[posSalvo + 1], false)
-        }
+        // Estado de seleção múltipla: múltiplos BTs podem ser selecionados,
+        // mas apenas um está "ativo" por vez (o primeiro selecionado)
+        val selectedAddress = mutableListOf<String>()
 
         spinner.setOnItemClickListener { _, _, pos, _ ->
-            Prefs.setBtDevice(this@MainActivity, devices.getOrNull(pos - 1)?.address ?: "")
+            val selected = if (pos > 0) {
+                val addr = if (isBTConnectPermissionGranted) {
+                    devices.getOrNull(pos - 1)?.address ?: ""
+                } else {
+                    // Sem permissão, o endereço está no item: "BT <address>"
+                    devices.getOrNull(pos - 2)?.address ?: ""
+                }
+                if (addr.isNotEmpty()) {
+                    // Toggle: se já selecionado, remove; senão, adiciona
+                    if (selectedAddress.contains(addr)) {
+                        selectedAddress.remove(addr)
+                    } else {
+                        selectedAddress.add(addr)
+                    }
+                    // Atualiza o spinner para mostrar o selecionado
+                    val newList = if (isBTConnectPermissionGranted) {
+                        listOf(getString(R.string.bt_pick)) + devices.map { it.name }
+                    } else {
+                        val prefix = getString(R.string.bt_pick)
+                        listOf(prefix) + devices.map { selectedAddress.contains(it.address) ? "$prefix [${it.address}]" : "$prefix ${it.address}" }
+                    }
+                    spinner.adapter.notifyDataSetChanged()
+                    if (selectedAddress.isEmpty()) "" else selectedAddress.first()
+                } else ""
+            } else ""
+            Prefs.setBtDevice(this@MainActivity, selected.firstOrNull() ?: "")
             updateBtState()
         }
         check.setOnCheckedChangeListener { _, v -> Prefs.setBtOnlyConnected(this, v) }

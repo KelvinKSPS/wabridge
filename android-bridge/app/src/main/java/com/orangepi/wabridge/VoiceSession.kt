@@ -67,13 +67,13 @@ class VoiceSession(
         private set
 
     /**
-     * Muda a velocidade de reprodução (0.5 a 2.0).
+     * Muda a velocidade de reprodução (0.5 a 2.5).
      *
      * Vale para a nota de voz que está tocando: dá para ouvir mais rápido
      * (ou mais devagar) sem perder a chamada.
      */
     fun setSpeed(value: Float): Float {
-        val v = value.coerceIn(0.5f, 2.0f)
+        val v = value.coerceIn(0.5f, 2.5f)
         val p = player ?: return speed
         runCatching {
             val params = p.playbackParams ?: android.media.PlaybackParams()
@@ -89,6 +89,9 @@ class VoiceSession(
     /** Momento em que a gravação começou (0 = não está gravando). */
     @Volatile
     private var recordingStartedAt: Long = 0L
+
+    /** Delay em milissegundos antes de iniciar gravação após SCO conectado. */
+    private const val DELAY_AFTER_SCO_MS = 1000
 
     /** Quanto tempo já foi gravado, em ms. */
     val recordElapsedMs: Long
@@ -225,7 +228,7 @@ class VoiceSession(
                 tone.release()
             }
             vibrateToSpeak()
-            delay(200)
+            delay(DELAY_AFTER_SCO_MS)
             startRecording()
         }
     }

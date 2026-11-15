@@ -39,6 +39,10 @@ object Prefs {
     /** Como o app fala com o WhatsApp. */
     enum class Engine { EMBUTIDO, EXTERNO }
 
+    /** Segundos de delay antes de iniciar áudio após conectar SCO. */
+    const val KEY_AUDIO_DELAY = "audio_delay"
+    const val DEFAULT_AUDIO_DELAY = 4
+
     /** Modo do motor: embutido (daemon no APK) ou servidor externo. */
     fun mode(ctx: Context): Engine {
         val v = ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
@@ -112,6 +116,28 @@ object Prefs {
         ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(KEY_BT_ONLY, value)
+            .apply()
+    }
+
+    /** Estado de link Bluetooth: 0=não ligado, 1=ligado com sucesso, -1=erro. */
+    fun btLinkState(ctx: Context): Int =
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).getInt(KEY_BT_ONLY, -1)
+
+    fun setBtLinkState(ctx: Context, state: Int) {
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .edit()
+            .putInt(KEY_BT_ONLY, state)
+            .apply()
+    }
+
+    /** Delay de áudio em segundos antes de iniciar (padrão = 4s). */
+    fun audioDelay(ctx: Context): Int =
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).getInt(KEY_AUDIO_DELAY, DEFAULT_AUDIO_DELAY)
+
+    fun setAudioDelay(ctx: Context, seconds: Int) {
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .edit()
+            .putInt(KEY_AUDIO_DELAY, seconds.coerceIn(0, 10))
             .apply()
     }
 
