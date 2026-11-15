@@ -139,7 +139,7 @@ object Prefs {
             .apply()
     }
 
-    /** Velocidade padrão de reprodução (0.5 a 2.5). */
+    /** Velocidade padrão de reprodução (0.5 a 3.0). */
     fun speed(ctx: Context): Float =
         ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
             .getFloat(KEY_SPEED, DEFAULT_SPEED)

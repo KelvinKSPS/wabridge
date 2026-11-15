@@ -67,13 +67,13 @@ class VoiceSession(
         private set
 
     /**
-     * Muda a velocidade de reprodução (0.5 a 2.0).
+     * Muda a velocidade de reprodução (0.5 a 3.0).
      *
      * Vale para a nota de voz que está tocando: dá para ouvir mais rápido
      * (ou mais devagar) sem perder a chamada.
      */
     fun setSpeed(value: Float): Float {
-        val v = value.coerceIn(0.5f, 2.5f)
+        val v = PlaybackSpeed.clamp(value)
         val p = player ?: return speed
         runCatching {
             val params = p.playbackParams ?: android.media.PlaybackParams()

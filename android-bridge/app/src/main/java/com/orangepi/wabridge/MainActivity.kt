@@ -31,9 +31,6 @@ class MainActivity : Activity() {
     private lateinit var allowedInput: EditText
     private var diagnosticFolder: java.io.File? = null
 
-    /** Velocidades oferecidas no menu (mesma ordem do array de recursos). */
-    private val speedOptions = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f)
-
     private val statusReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             statusText.text = intent?.getStringExtra(BridgeForegroundService.EXTRA_TEXT) ?: ""
@@ -78,14 +75,14 @@ class MainActivity : Activity() {
 
         // velocidade padrão de reprodução
         val current = Prefs.speed(this)
-        val speedLabels = speedOptions.map { PlaybackSpeed.label(it) }
+        val speedLabels = PlaybackSpeed.menu.map { PlaybackSpeed.label(it) }
         speedSpinner.setAdapter(
             android.widget.ArrayAdapter(this, android.R.layout.simple_list_item_1, speedLabels),
         )
-        val posAtual = speedOptions.indexOfFirst { it == current }.coerceAtLeast(0)
+        val posAtual = PlaybackSpeed.menu.indexOfFirst { it == current }.coerceAtLeast(0)
         speedSpinner.setText(speedLabels[posAtual], false)
         speedSpinner.setOnItemClickListener { _, _, pos, _ ->
-            Prefs.setSpeed(this@MainActivity, speedOptions.getOrElse(pos) { 1.0f })
+            Prefs.setSpeed(this@MainActivity, PlaybackSpeed.menu.getOrElse(pos) { 1.0f })
         }
 
         findViewById<Button>(R.id.connectButton).setOnClickListener {
