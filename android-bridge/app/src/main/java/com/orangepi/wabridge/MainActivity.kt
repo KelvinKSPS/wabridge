@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
 import android.widget.Button
@@ -31,6 +32,11 @@ class MainActivity : Activity() {
     private lateinit var pairButton: Button
     private lateinit var pairResultText: TextView
     private lateinit var allowedInput: EditText
+    private lateinit var startButton: Button
+    private lateinit var stopButton: Button
+    private lateinit var serviceStateText: TextView
+    private lateinit var languageSpinner: android.widget.AutoCompleteTextView
+    private lateinit var languageDescText: TextView
     private var diagnosticFolder: java.io.File? = null
     private var refreshStatusHandler = android.os.Handler(android.os.Looper.getMainLooper())
 
@@ -60,13 +66,19 @@ class MainActivity : Activity() {
         pairButton = findViewById(R.id.pairButton)
         pairResultText = findViewById(R.id.pairResultText)
         allowedInput = findViewById(R.id.allowedInput)
+        startButton = findViewById(R.id.startButton)
+        stopButton = findViewById(R.id.stopButton)
+        serviceStateText = findViewById(R.id.serviceStateText)
+        languageSpinner = findViewById(R.id.languageSpinner)
+        languageDescText = findViewById(R.id.languageDesc)
         urlInput.setText(Prefs.url(this))
 
+        setupLanguage()
         setupModeSpinner()
         setupPairing()
         setupBattery()
+        updateServiceState()
         findViewById<Button>(R.id.audioDiagnosticsButton).setOnClickListener { showAudioDiagnostics() }
-        refreshEngineStatus()
 
         // No modo embutido o daemon precisa estar no ar antes de qualquer
         // coisa (gerar código, escanear QR, receber nota de voz).
@@ -95,23 +107,22 @@ class MainActivity : Activity() {
             Prefs.setAudioDelayMs(this@MainActivity, Prefs.AUDIO_DELAY_OPTIONS.getOrElse(pos) { 1000L })
         }
 
-        // Start/Stop existem em dois lugares: no topo (acesso rápido) e na
-        // seção de ações. Os dois disparam a mesma coisa.
-        val onConnect = {
+        // Start/Stop no topo (acesso rápido)
+        val onServiceStart = {
             Prefs.setUrl(this, urlInput.text.toString())
             Prefs.setAllowedNumbers(this, allowedInput.text.toString())
             requestMissingPermissions()
             startBridge()
             refreshEngineStatus()
+            updateServiceState()
         }
-        val onStop = {
+        val onServiceStop = {
             stopService(Intent(this, BridgeForegroundService::class.java))
             statusText.text = getString(R.string.stopped)
+            updateServiceState()
         }
-        findViewById<Button>(R.id.connectButton).setOnClickListener { onConnect() }
-        findViewById<Button>(R.id.connectButtonTop).setOnClickListener { onConnect() }
-        findViewById<Button>(R.id.stopButton).setOnClickListener { onStop() }
-        findViewById<Button>(R.id.stopButtonTop).setOnClickListener { onStop() }
+        startButton.setOnClickListener { onServiceStart() }
+        stopButton.setOnClickListener { onServiceStop() }
 
         findViewById<Button>(R.id.testCallButton).setOnClickListener {
             Prefs.setUrl(this, urlInput.text.toString())
@@ -229,6 +240,8 @@ class MainActivity : Activity() {
             setupBluetooth()
             ensureBridgeRunning()
         }
+        // Reaplica o idioma (em caso de mudança na tela)
+        applyLanguage()
         ContextCompat.registerReceiver(
             this,
             statusReceiver,
@@ -783,6 +796,82 @@ class MainActivity : Activity() {
         )
     }
 
+    /**
+     * Configura o seletor de idioma e carrega o idioma salvo.
+     * Suporta: português, inglês, espanhol, mandarim.
+     * Usa idioma do sistema como padrão, cai para inglês se não suportado.
+     */
+    private fun setupLanguage() {
+        val languages = listOf(
+            Language.PORTUGUESE to getString(R.string.language_portuguese),
+            Language.ENGLISH to getString(R.string.language_english),
+            Language.SPANISH to getString(R.string.language_spanish),
+            Language.CHINESE to getString(R.string.language_chinese)
+        )
+        val labels = languages.map { it.second }
+
+        languageSpinner.setAdapter(
+            object : android.widget.ArrayAdapter<String>(
+                this, android.R.layout.simple_list_item_1, labels
+            ) {
+                private val noopFilter = object : android.widget.Filter() {
+                    override fun performFiltering(constraint: CharSequence?) =
+                        FilterResults().apply { values = labels; count = labels.size }
+                    override fun publishResults(constraint: CharSequence?, results: FilterResults?) = notifyDataSetChanged()
+                }
+                override fun getFilter(): android.widget.Filter = noopFilter
+            }
+        )
+
+        val saved = Prefs.language(this)
+        val savedPos = languages.indexOfFirst { it.first == saved }.coerceAtLeast(0)
+        languageSpinner.setText(labels[savedPos], false)
+        languageSpinner.setOnItemClickListener { _, _, pos, _ ->
+            val lang = languages.getOrElse(pos) { languages[0] }.first
+            Prefs.setLanguage(this@MainActivity, lang)
+            applyLanguage()
+        }
+
+        applyLanguage()
+    }
+
+    /** Atualiza a UI para o idioma selecionado. */
+    private fun applyLanguage() {
+        val lang = Prefs.language(this)
+        val desc = when (lang) {
+            Language.SYSTEM -> getString(R.string.language_desc_system)
+            Language.PORTUGUESE -> getString(R.string.language_desc_selected, getString(R.string.language_portuguese))
+            Language.ENGLISH -> getString(R.string.language_desc_selected, getString(R.string.language_english))
+            Language.SPANISH -> getString(R.string.language_desc_selected, getString(R.string.language_spanish))
+            Language.CHINESE -> getString(R.string.language_desc_selected, getString(R.string.language_chinese))
+        }
+        languageDescText.text = desc
+
+        // Atualiza strings que mudam
+        serviceStateText.text = when {
+            BridgeForegroundService.isRunning(this) -> getString(R.string.service_on)
+            else -> getString(R.string.service_off)
+        }
+    }
+
+    /** Atualiza o estado do serviço no topo (start/stop). */
+    private fun updateServiceState() {
+        serviceStateText.text = when {
+            BridgeForegroundService.isRunning(this) -> getString(R.string.service_on)
+            else -> getString(R.string.service_off)
+        }
+    }
+
+    private fun getSystemLanguageName(): String {
+        val locale = resources.configuration.locales.get(0)
+        return when (locale.language) {
+            "pt" -> "português"
+            "es" -> "español"
+            "zh" -> "中文"
+            else -> "English"
+        }
+    }
+
     private fun requestMissingPermissions() {
         val wanted = mutableListOf(Manifest.permission.RECORD_AUDIO)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -798,4 +887,13 @@ class MainActivity : Activity() {
             requestPermissions(missing.toTypedArray(), 1001)
         }
     }
+}
+
+/** Idiomas suportados. */
+enum class Language {
+    SYSTEM,
+    PORTUGUESE,
+    ENGLISH,
+    SPANISH,
+    CHINESE
 }

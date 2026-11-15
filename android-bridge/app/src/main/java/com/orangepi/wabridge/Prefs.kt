@@ -8,6 +8,7 @@ object Prefs {
     private const val KEY_SPEED = "playback_speed"
     private const val KEY_AUDIO_DELAY = "audio_delay_ms"
     private const val KEY_MODE = "engine_mode"
+    private const val KEY_LANGUAGE = "app_language"
     private const val KEY_PHONE = "phone_number"
     private const val KEY_ALLOWED = "allowed_numbers"
     private const val KEY_BT_DEVICE = "bt_device"
@@ -179,6 +180,20 @@ object Prefs {
         ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
             .edit()
             .putFloat(KEY_SPEED, PlaybackSpeed.clamp(value))
+            .apply()
+    }
+
+    /** Idioma do app: sistema, português, inglês, espanhol ou mandarim. */
+    fun language(ctx: Context): Language {
+        val v = ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .getString(KEY_LANGUAGE, Language.SYSTEM.name)
+        return runCatching { Language.valueOf(v ?: Language.SYSTEM.name) }.getOrDefault(Language.SYSTEM)
+    }
+
+    fun setLanguage(ctx: Context, value: Language) {
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_LANGUAGE, value.name)
             .apply()
     }
 }

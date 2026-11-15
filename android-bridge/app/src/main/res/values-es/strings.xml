@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Wabridge</string>
+    <string name="subtitle">llamadas de voz en reloj inteligente</string>
+    <string name="section_connection">conexión</string>
+    <string name="section_pairing">emparejar WhatsApp</string>
+    <string name="section_allowed">quién puede llamar</string>
+    <string name="section_bluetooth">reloj / audífonos</string>
+    <string name="section_language">idioma</string>
+
+    <!-- Tela principal -->
+    <string name="engine_label">cómo hablar con WhatsApp</string>
+    <string name="mode_embedded">motor embebido: %s</string>
+    <string name="mode_embedded_short">embebido (sin servidor)</string>
+    <string name="mode_external">servidor externo</string>
+    <string name="daemon_missing">motor embebido no está en este APK (use el APK completo)</string>
+    <string name="server_label">servidor</string>
+    <string name="url_hint">http://192.168.15.100:8097</string>
+    <string name="speed_label">velocidad de reproducción por defecto</string>
+    <string name="audio_delay_label">tiempo hasta que empiece el audio</string>
+    <string name="audio_delay_hint">cuenta desde la respuesta. Con 0s el audio espera solo a que el reloj abra el canal de voz.</string>
+    <string name="status_label">estado</string>
+    <string name="start">iniciar</string>
+    <string name="stop">detener</string>
+    <string name="service_on">servicio activo</string>
+    <string name="service_off">servicio detenido</string>
+    <string name="test_call">probar llamada</string>
+    <string name="audio_diagnostics">diagnóstico de audio</string>
+    <string name="audio_diagnostics_empty">Contesta un audio primero. Las últimas 3 grabaciones se guardan en este dispositivo.</string>
+    <string name="audio_diagnostics_actions">Exportar guarda ZIP con voz original, destinatario y SHA-256. Importar envía una copia convertida al mismo número mediante motor embebido, solo tras confirmación.</string>
+    <string name="audio_export">exportar original (ZIP)</string>
+    <string name="audio_import">importar OGG convertido y enviar</string>
+    <string name="audio_confirm">¿Enviar este OGG convertido a %1$s mediante motor embebido? Será un nuevo mensaje. Original: %2$s</string>
+    <string name="starting">iniciando…</string>
+    <string name="stopped">detenido</string>
+    <string name="test_caller">llamando al reloj…</string>
+
+    <!-- Pareamento -->
+    <string name="pairing_label">emparejar WhatsApp</string>
+    <string name="country_code_hint">ICC</string>
+    <string name="phone_hint">Código + número</string>
+    <string name="phone_required">ingrese número con código de área</string>
+    <string name="pair">generar código de 8 dígitos</string>
+    <string name="pairing">generando código…</string>
+    <string name="pair_failed">falló al generar código</string>
+    <string name="account_linked">✓ cuenta vinculada: +%s</string>
+    <string name="account_linked_offline">✓ cuenta vinculada: +%s (sin conexión ahora)</string>
+    <string name="account_not_linked">cuenta no vinculada — genere código abajo</string>
+    <string name="account_unknown">estado de cuenta no disponible (motor detenido o servidor externo)</string>
+    <string name="battery">no dejar que el teléfono duerma la app</string>
+    <string name="allowed_label">quién puede llamar al reloj</string>
+    <string name="allowed_hint">números con código de área separados por coma (vacío = todos)</string>
+    <string name="allowed_empty">todos (lista vacía)</string>
+    <string name="allowed_pick">elegir</string>
+    <string name="allowed_title">quién puede llamar al reloj</string>
+    <string name="allowed_tab_contacts_n">contactos (%d)</string>
+    <string name="allowed_tab_groups_n">grupos (%d)</string>
+    <string name="allowed_empty_tab">nada aquí</string>
+    <string name="allowed_loading">obteniendo contactos…</string>
+    <string name="allowed_none">no hay contactos en la agenda</string>
+    <string name="allowed_error">falló al obtener contactos</string>
+    <string name="bt_label">reloj / audífonos en Bluetooth</string>
+    <string name="bt_only">llamar solo cuando el reloj esté conectado</string>
+    <string name="bt_pick">elegir dispositivo</string>
+    <string name="bt_none">ningún dispositivo emparejado</string>
+    <string name="bt_any">cualquier dispositivo</string>
+    <string name="bt_connected">conectado ahora</string>
+    <string name="bt_disconnected">desconectado</string>
+    <string name="bt_permission">permiso de Bluetooth negado</string>
+    <string name="pending_label">notas de voz recibidas</string>
+    <string name="pending_title">notas de voz en cola</string>
+    <string name="pending_none">no hay notas en cola</string>
+    <string name="pending_error">falló al obtener notas</string>
+    <string name="pending_from">%1$s · %2$s</string>
+    <string name="allowed_only_embedded">lista de contactos solo funciona en modo embebido</string>
+    <string name="allowed_selected">%1$d seleccionado(s)</string>
+    <string name="allowed_search">buscar nombre o número…</string>
+
+    <!-- Tela de chamada -->
+    <string name="incoming_call">llamada de voz</string>
+    <string name="incoming_from">de %s</string>
+    <string name="incoming_call_duration">de %1$s · %2$s</string>
+    <string name="unknown_caller">número desconocido</string>
+    <string name="recording">grabando…</string>
+    <string name="sending">enviando…</string>
+    <string name="answer">contestar</string>
+    <string name="reject">colgar</string>
+    <string name="hangup">colgar</string>
+    <string name="speed">Velocidad: 1x</string>
+    <string name="speed_value">Velocidad: %s</string>
+    <string name="status_playing">reproduciendo…</string>
+    <string name="status_wait">esperando…</string>
+    <string name="status_recorded">grabado</string>
+    <string name="status_too_short">audio demasiado corto</string>
+    <string name="quick_reply">No puedo atender la llamada en este momento.</string>
+    <string name="quick_reply_busy">No puedo atender la llamada en este momento.</string>
+    <string name="action_quick_reply">responder por texto</string>
+
+    <!-- Notificações -->
+    <string name="notification_channel">Wabridge</string>
+    <string name="notification_channel_desc">Mantiene la puente WhatsApp activa</string>
+    <string name="channel_name">Llamada de voz</string>
+    <string name="channel_call_name">Llamada de voz</string>
+    <string name="accept_own_label">Reproducir mis propios audios (modo prueba)</string>
+
+    <!-- Idiomas -->
+    <string name="language_label">idioma de la app</string>
+    <string name="language_system">sistema (%s)</string>
+    <string name="language_portuguese">português</string>
+    <string name="language_english">english</string>
+    <string name="language_spanish">español</string>
+    <string name="language_chinese">中文 (mandarín)</string>
+    <string name="language_desc_default">seleccione o use el idioma del sistema</string>
+    <string name="language_desc_system">usando idioma del sistema</string>
+    <string name="language_desc_selected">idioma seleccionado: %s</string>
+</resources>

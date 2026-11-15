@@ -289,6 +289,9 @@ class BridgeForegroundService : Service() {
         var instance: BridgeForegroundService? = null
             private set
 
+        /** true se o serviço está rodando. */
+        fun isRunning(context: Context): Boolean = instance != null
+
         /** Sobe o serviço em foreground (usado pelo boot e pelo botão da tela). */
         fun start(context: Context) {
             runCatching {
