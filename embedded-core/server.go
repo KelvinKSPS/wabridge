@@ -234,34 +234,34 @@ func (s *Server) handleReplyAudio(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 400, map[string]string{"error": "arquivo de áudio vazio ou leitura incompleta"})
 		return
 	}
-	log.Printf("wabridge: áudio recebido bytes=%d sha256=%x", len(buf), sha256.Sum256(buf))
+	originalSHA := sha256.Sum256(buf)
+	log.Printf("wabridge: áudio recebido bytes=%d sha256=%x", len(buf), originalSHA)
 
 	mime := r.FormValue("mimeType")
 	if mime == "" {
 		mime = "audio/mp4"
 	}
-	// log diagnóstico: valida o OGG/Opus quando o MIME indica OGG
-	if strings.Contains(mime, "ogg") || strings.Contains(mime, "opus") {
-		if info, err := parseOGGOpusInfo(buf); err != nil {
-			log.Printf("wabridge: AVISO OGG inválido (%d bytes): %v", len(buf), err)
-		} else {
-			log.Printf("wabridge: cabeçalho OGG — canais=%d inputSampleRate=%d opusTags=%v (decodificação não validada)",
-				info.Channels, info.SampleRate, info.HasOpusTags)
-			if !info.HasOpusTags {
-				log.Printf("wabridge: AVISO OpusTags ausente — OGG não segue RFC 7845")
-			}
-		}
-	}
-
 	dur, _ := strconv.ParseUint(r.FormValue("durationSec"), 10, 32)
 	seconds := uint32(dur)
-	if seconds == 0 {
-		// fallback: estima da taxa de bits (OGG/Opus e M4A/AAC a ~32kbps)
+
+	if strings.Contains(mime, "ogg") || strings.Contains(mime, "opus") {
+		normalized, normalizedSeconds, err := normalizeOGGOpus(buf)
+		if err != nil {
+			log.Printf("wabridge: OGG/Opus recusado (%d bytes): %v", len(buf), err)
+			writeJSON(w, 400, map[string]string{"error": "OGG/Opus inválido: " + err.Error()})
+			return
+		}
+		log.Printf("wabridge: OGG normalizado bytes=%d sha256=%x duracao=%ds", len(normalized), sha256.Sum256(normalized), normalizedSeconds)
+		buf = normalized
+		seconds = normalizedSeconds
+	} else if seconds == 0 {
+		// fallback: estima da taxa de bits (M4A/AAC a ~32kbps)
 		seconds = uint32(len(buf) * 8 / 32000)
 		if seconds == 0 {
 			seconds = 1
 		}
 	}
+
 	if err := s.wa.SendAudio(contextTODO(), to, buf, mime, seconds); err != nil {
 		log.Printf("wabridge: erro ao enviar áudio: %v", err)
 		writeJSON(w, 502, map[string]string{"error": err.Error()})
@@ -450,65 +450,6 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 /* ------------------------------------------------------------------ *
  * Utilidades
  * ------------------------------------------------------------------ */
-
-// oggOpusInfo contém as informações básicas extraídas do cabeçalho OGG/Opus.
-type oggOpusInfo struct {
-	Channels    int
-	SampleRate  uint32
-	HasOpusTags bool
-}
-
-// parseOGGOpusInfo valida e extrai metadados de um stream OGG/Opus.
-// Retorna erro se o arquivo não for OGG/Opus válido (magic, OpusHead ausente, etc.).
-// hasOpusTags indica se a segunda página (obrigatória por RFC 7845) está presente.
-func parseOGGOpusInfo(data []byte) (*oggOpusInfo, error) {
-	if len(data) < 4 || string(data[:4]) != "OggS" {
-		return nil, fmt.Errorf("não é OGG: magic %q", safeSlice(data, 0, 4))
-	}
-	if len(data) < 27 {
-		return nil, fmt.Errorf("OGG muito curto (%d bytes)", len(data))
-	}
-	nSeg := int(data[26])
-	dataOff := 27 + nSeg
-	if len(data) < dataOff+8 {
-		return nil, fmt.Errorf("OGG: sem dados após cabeçalho de página")
-	}
-	if string(data[dataOff:dataOff+8]) != "OpusHead" {
-		return nil, fmt.Errorf("primeira página OGG não é OpusHead: %q", safeSlice(data, dataOff, dataOff+8))
-	}
-	// OpusHead: magic(8) + version(1) + channels(1) + pre_skip(2) + sample_rate(4)
-	if len(data) < dataOff+16 {
-		return nil, fmt.Errorf("OpusHead truncado")
-	}
-	channels := int(data[dataOff+9])
-	sr := uint32(data[dataOff+12]) | uint32(data[dataOff+13])<<8 |
-		uint32(data[dataOff+14])<<16 | uint32(data[dataOff+15])<<24
-
-	// Calcula onde a primeira página termina para encontrar a segunda (OpusTags).
-	// RFC 7845 exige duas páginas de identificação antes dos dados de áudio.
-	var segSum int
-	for i := 0; i < nSeg; i++ {
-		segSum += int(data[27+i])
-	}
-	page0End := 27 + nSeg + segSum
-	hasOpusTags := false
-	if page0End+35 <= len(data) && string(data[page0End:page0End+4]) == "OggS" {
-		p1nSeg := int(data[page0End+26])
-		p1DataOff := page0End + 27 + p1nSeg
-		if p1DataOff+8 <= len(data) {
-			hasOpusTags = string(data[p1DataOff:p1DataOff+8]) == "OpusTags"
-		}
-	}
-
-	return &oggOpusInfo{Channels: channels, SampleRate: sr, HasOpusTags: hasOpusTags}, nil
-}
-
-func safeSlice(b []byte, from, to int) []byte {
-	if to > len(b) {
-		to = len(b)
-	}
-	return b[from:to]
-}
 
 func writeJSON(w http.ResponseWriter, status int, body any) {
 	w.Header().Set("Content-Type", "application/json")
