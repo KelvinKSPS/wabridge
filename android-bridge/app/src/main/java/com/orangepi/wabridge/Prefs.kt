@@ -11,6 +11,7 @@ object Prefs {
     private const val KEY_PHONE = "phone_number"
     private const val KEY_ALLOWED = "allowed_numbers"
     private const val KEY_BT_DEVICE = "bt_device"
+    private const val KEY_BT_DEVICES = "bt_devices"
     private const val KEY_BT_ONLY = "bt_only_connected"
     private const val KEY_COUNTRY_CODE = "country_code"
     private const val KEY_ACCEPT_OWN = "accept_own"
@@ -111,14 +112,25 @@ object Prefs {
             .apply()
     }
 
-    /** Endereço do relógio/fone que libera o toque (vazio = qualquer um). */
-    fun btDevice(ctx: Context): String =
-        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString(KEY_BT_DEVICE, "") ?: ""
+    /** Endereços dos aparelhos que liberam o toque (vazio = qualquer um). */
+    fun btDevices(ctx: Context): Set<String> {
+        val prefs = ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+        // Tenta ler KEY_BT_DEVICES (novo); se não existir, tenta migrar de KEY_BT_DEVICE (antigo)
+        val csv = prefs.getString(KEY_BT_DEVICES, null)
+        if (csv != null) {
+            return csv.split(',').map { it.trim() }.filter { it.isNotBlank() }.toSet()
+        }
+        // Migração do antigo KEY_BT_DEVICE
+        val oldDevice = prefs.getString(KEY_BT_DEVICE, "") ?: ""
+        return if (oldDevice.isNotBlank()) setOf(oldDevice) else emptySet()
+    }
 
-    fun setBtDevice(ctx: Context, value: String) {
-        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
-            .edit()
-            .putString(KEY_BT_DEVICE, value.trim())
+    fun setBtDevices(ctx: Context, devices: Set<String>) {
+        val prefs = ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+        val csv = devices.filter { it.isNotBlank() }.sorted().joinToString(",")
+        prefs.edit()
+            .putString(KEY_BT_DEVICES, csv)
+            .remove(KEY_BT_DEVICE) // remove a chave antiga
             .apply()
     }
 

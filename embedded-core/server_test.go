@@ -241,6 +241,20 @@ func TestContacts(t *testing.T) {
 	if len(body.Grupos) != 1 || body.Grupos[0].Nome != "Família" {
 		t.Fatalf("grupos errados: %+v", body.Grupos)
 	}
+
+	// o JSON precisa expor lastActivity (0 quando sem dado)
+	res2, err := http.Get(ts.URL + "/contacts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res2.Body.Close()
+	raw, err := io.ReadAll(res2.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), "lastActivity") {
+		t.Fatalf("JSON de /contacts não tem lastActivity: %s", raw)
+	}
 }
 
 func TestPairCode(t *testing.T) {
@@ -494,7 +508,10 @@ func TestAuthStatus(t *testing.T) {
 	_, _, ts := newTestServer(t)
 	defer ts.Close()
 
-	res, _ := http.Get(ts.URL + "/auth/status")
+	res, err := http.Get(ts.URL + "/auth/status")
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer res.Body.Close()
 	var st Status
 	json.NewDecoder(res.Body).Decode(&st)
@@ -514,7 +531,10 @@ func TestAllowedNumbers(t *testing.T) {
 	}
 	res.Body.Close()
 
-	res, _ = http.Get(ts.URL + "/config/allowed-numbers")
+	res, err = http.Get(ts.URL + "/config/allowed-numbers")
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer res.Body.Close()
 	var body map[string]any
 	json.NewDecoder(res.Body).Decode(&body)
@@ -531,7 +551,10 @@ func TestRemetenteBloqueadoNaoEntra(t *testing.T) {
 	fake.events <- Event{Kind: "audio", Audio: &AudioMessage{ID: "MSG3", FromNumber: "5511888888888"}}
 	time.Sleep(300 * time.Millisecond)
 
-	res, _ := http.Get(ts.URL + "/pending")
+	res, err := http.Get(ts.URL + "/pending")
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer res.Body.Close()
 	var list []PendingCall
 	json.NewDecoder(res.Body).Decode(&list)

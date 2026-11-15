@@ -512,62 +512,121 @@ class MainActivity : Activity() {
         // fonte da verdade: valores selecionados (atualizado em cada click)
         val selecionados = Prefs.allowedNumbers(this).toMutableSet()
 
-        val itens = mutableListOf<ContactItem>()
-        if (contatos.isNotEmpty()) {
-            itens += ContactItem(getString(R.string.allowed_tab_contacts), "")
-            itens += contatos
-        }
-        if (grupos.isNotEmpty()) {
-            itens += ContactItem(getString(R.string.allowed_tab_groups), "")
-            itens += grupos
-        }
-
         val container = android.widget.LinearLayout(this).apply {
             orientation = android.widget.LinearLayout.VERTICAL
-            setPadding(48, 24, 48, 8)
+            setPadding(0, 0, 0, 0)
         }
+
+        // Abas: contatos e grupos
+        val tabLayout = com.google.android.material.tabs.TabLayout(this).apply {
+            layoutParams = android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
+            )
+        }
+        tabLayout.addTab(tabLayout.newTab().setText(getString(R.string.allowed_tab_contacts_n, contatos.size)))
+        tabLayout.addTab(tabLayout.newTab().setText(getString(R.string.allowed_tab_groups_n, grupos.size)))
+
+        // Busca
         val busca = android.widget.EditText(this).apply {
             hint = getString(R.string.allowed_search)
             setSingleLine()
+            layoutParams = android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
+            ).apply { setMargins(16, 8, 16, 8) }
         }
+
+        // ListView com altura fixa (400dp)
         val lista = android.widget.ListView(this).apply {
             choiceMode = android.widget.ListView.CHOICE_MODE_MULTIPLE
+            layoutParams = android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                android.util.TypedValue.applyDimension(
+                    android.util.TypedValue.COMPLEX_UNIT_DIP, 400f, resources.displayMetrics
+                ).toInt(),
+            )
         }
+
+        container.addView(tabLayout)
         container.addView(busca)
         container.addView(lista)
 
-        // índices (em itens) dos itens visíveis no momento
-        var visiveis = itens.indices.toList()
+        // Estado atual da aba
+        var abaAtual = 0
 
         fun rebuild(query: String) {
-            visiveis = itens.indices.filter { i ->
-                val item = itens[i]
-                if (item.value.isEmpty()) {
-                    val grupo = if (item.name == getString(R.string.allowed_tab_contacts)) contatos else grupos
-                    grupo.any { combina(it, query) }
-                } else {
-                    combina(item, query)
+            val source = if (abaAtual == 0) contatos else grupos
+            val filtrados = source.filter { item ->
+                if (query.isEmpty()) true else {
+                    item.name.lowercase().contains(query) || item.value.contains(query)
                 }
             }
-            lista.adapter = android.widget.ArrayAdapter(
-                this, android.R.layout.simple_list_item_multiple_choice,
-                visiveis.map { i ->
-                    val item = itens[i]
-                    if (item.value.isEmpty()) item.name else "${item.name} (${item.value})"
-                },
-            )
-            visiveis.forEachIndexed { pos, i ->
-                lista.setItemChecked(pos, itens[i].value.isNotEmpty() && itens[i].value in selecionados)
+
+            val displayItems = filtrados.map { item ->
+                val relativeTime = if (item.lastActivity > 0) {
+                    " · " + android.text.format.DateUtils.getRelativeTimeSpanString(item.lastActivity * 1000)
+                } else {
+                    ""
+                }
+                "${item.name} (${item.value})$relativeTime"
+            }
+
+            if (displayItems.isEmpty()) {
+                lista.adapter = android.widget.ArrayAdapter(
+                    this@MainActivity,
+                    android.R.layout.simple_list_item_multiple_choice,
+                    listOf(getString(R.string.allowed_empty_tab)),
+                ).apply {
+                    // Desabilita o item vazio
+                    this.getView(0, null, lista)?.isEnabled = false
+                }
+                lista.clearChoices()
+            } else {
+                lista.adapter = android.widget.ArrayAdapter(
+                    this@MainActivity,
+                    android.R.layout.simple_list_item_multiple_choice,
+                    displayItems,
+                )
+                filtrados.forEachIndexed { pos, item ->
+                    lista.setItemChecked(pos, item.value in selecionados)
+                }
             }
         }
 
-        // clique no item → togla em selecionados e sincroniza o check
+        // Clique no item → togla em selecionados
         lista.setOnItemClickListener { _, _, pos, _ ->
-            val item = itens.getOrNull(visiveis.getOrNull(pos) ?: return@setOnItemClickListener) ?: return@setOnItemClickListener
-            if (item.value.isEmpty()) return@setOnItemClickListener // cabeçalho
+            val source = if (abaAtual == 0) contatos else grupos
+            val filtrados = source.filter { item ->
+                if (busca.text.isEmpty()) true else {
+                    item.name.lowercase().contains(busca.text.toString().lowercase()) ||
+                    item.value.contains(busca.text.toString())
+                }
+            }
+            val item = filtrados.getOrNull(pos) ?: return@setOnItemClickListener
+            if (item.value.isEmpty()) return@setOnItemClickListener
             if (item.value in selecionados) selecionados.remove(item.value) else selecionados.add(item.value)
             lista.setItemChecked(pos, item.value in selecionados)
         }
+
+        // Mudança de aba
+        tabLayout.addOnTabSelectedListener(object : com.google.android.material.tabs.TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: com.google.android.material.tabs.TabLayout.Tab?) {
+                abaAtual = tab?.position ?: 0
+                rebuild(busca.text.toString().lowercase())
+            }
+            override fun onTabUnselected(tab: com.google.android.material.tabs.TabLayout.Tab?) = Unit
+            override fun onTabReselected(tab: com.google.android.material.tabs.TabLayout.Tab?) = Unit
+        })
+
+        // Texto de busca muda
+        busca.addTextChangedListener(object : android.text.TextWatcher {
+            override fun afterTextChanged(s: android.text.Editable?) {
+                rebuild(s?.toString()?.trim()?.lowercase().orEmpty())
+            }
+            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) = Unit
+            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) = Unit
+        })
 
         val dialog = android.app.AlertDialog.Builder(this)
             .setTitle(R.string.allowed_title)
@@ -580,14 +639,6 @@ class MainActivity : Activity() {
             }
             .setNeutralButton(android.R.string.cancel, null)
             .create()
-
-        busca.addTextChangedListener(object : android.text.TextWatcher {
-            override fun afterTextChanged(s: android.text.Editable?) {
-                rebuild(s?.toString()?.trim()?.lowercase().orEmpty())
-            }
-            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) = Unit
-            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) = Unit
-        })
 
         rebuild("")
         dialog.show()

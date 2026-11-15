@@ -13,6 +13,8 @@ import java.net.URL
  */
 object PairingClient {
 
+    data class AuthStatus(val loggedIn: Boolean, val connected: Boolean, val phone: String)
+
     /** Gera o código de 8 dígitos. Devolve null se falhar. */
     fun requestCode(context: Context, phone: String): String? =
         runCatching {
@@ -32,6 +34,27 @@ object PairingClient {
             json.optString("code").takeIf { it.isNotBlank() }
         }.getOrElse {
             android.util.Log.w("WabridgePairing", "pair-code: ${it.message}")
+            null
+        }
+
+    /** Obtém o status de autenticação da conta. Devolve null se falhar. */
+    fun status(context: Context): AuthStatus? =
+        runCatching {
+            val url = URL(Prefs.engineUrl(context) + "/auth/status")
+            val conn = url.openConnection() as HttpURLConnection
+            conn.requestMethod = "GET"
+            conn.connectTimeout = 5_000
+            conn.readTimeout = 5_000
+            val body = readAll(conn.inputStream)
+            conn.disconnect()
+            val json = org.json.JSONObject(body)
+            AuthStatus(
+                loggedIn = json.optBoolean("loggedIn", false),
+                connected = json.optBoolean("connected", false),
+                phone = json.optString("phone", ""),
+            )
+        }.getOrElse {
+            android.util.Log.w("WabridgeAuth", "status: ${it.message}")
             null
         }
 
@@ -63,6 +86,7 @@ object PairingClient {
             ContactItem(
                 name = o.optString("name").ifBlank { o.optString(key) },
                 value = o.optString(key),
+                lastActivity = o.optLong("lastActivity", 0L),
             )
         }
     }
