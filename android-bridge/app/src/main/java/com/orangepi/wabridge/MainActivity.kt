@@ -81,12 +81,7 @@ class MainActivity : Activity() {
         // velocidade padrão de reprodução
         val current = Prefs.speed(this)
         val speedLabels = PlaybackSpeed.menu.map { PlaybackSpeed.label(it) }
-        speedSpinner.setAdapter(
-            android.widget.ArrayAdapter(this, android.R.layout.simple_list_item_1, speedLabels),
-        )
-        val posAtual = PlaybackSpeed.menu.indexOfFirst { it == current }.coerceAtLeast(0)
-        speedSpinner.setText(speedLabels[posAtual], false)
-        speedSpinner.setOnItemClickListener { _, _, pos, _ ->
+        setupDropdown(speedSpinner, speedLabels, PlaybackSpeed.menu.indexOfFirst { it == current }) { pos ->
             Prefs.setSpeed(this@MainActivity, PlaybackSpeed.menu.getOrElse(pos) { 1.0f })
         }
 
@@ -96,27 +91,27 @@ class MainActivity : Activity() {
             val secs = ms / 1000.0
             if (secs == secs.toLong().toDouble()) "${secs.toLong()} s" else "$secs s"
         }
-        audioDelaySpinner.setAdapter(
-            android.widget.ArrayAdapter(this, android.R.layout.simple_list_item_1, delayLabels),
-        )
-        val posPosDelay = Prefs.AUDIO_DELAY_OPTIONS.indexOfFirst { it == currentDelay }.coerceAtLeast(0)
-        audioDelaySpinner.setText(delayLabels[posPosDelay], false)
-        audioDelaySpinner.setOnItemClickListener { _, _, pos, _ ->
+        setupDropdown(audioDelaySpinner, delayLabels, Prefs.AUDIO_DELAY_OPTIONS.indexOfFirst { it == currentDelay }) { pos ->
             Prefs.setAudioDelayMs(this@MainActivity, Prefs.AUDIO_DELAY_OPTIONS.getOrElse(pos) { 1000L })
         }
 
-        findViewById<Button>(R.id.connectButton).setOnClickListener {
+        // Start/Stop existem em dois lugares: no topo (acesso rápido) e na
+        // seção de ações. Os dois disparam a mesma coisa.
+        val onConnect = {
             Prefs.setUrl(this, urlInput.text.toString())
             Prefs.setAllowedNumbers(this, allowedInput.text.toString())
             requestMissingPermissions()
             startBridge()
             refreshEngineStatus()
         }
-
-        findViewById<Button>(R.id.stopButton).setOnClickListener {
+        val onStop = {
             stopService(Intent(this, BridgeForegroundService::class.java))
             statusText.text = getString(R.string.stopped)
         }
+        findViewById<Button>(R.id.connectButton).setOnClickListener { onConnect() }
+        findViewById<Button>(R.id.connectButtonTop).setOnClickListener { onConnect() }
+        findViewById<Button>(R.id.stopButton).setOnClickListener { onStop() }
+        findViewById<Button>(R.id.stopButtonTop).setOnClickListener { onStop() }
 
         findViewById<Button>(R.id.testCallButton).setOnClickListener {
             Prefs.setUrl(this, urlInput.text.toString())
@@ -255,16 +250,41 @@ class MainActivity : Activity() {
         statusText.text = getString(R.string.starting)
     }
 
+    /**
+     * Configura um dropdown (ExposedDropdownMenu) que NÃO filtra ao reabrir.
+     *
+     * O MaterialAutoCompleteTextView, por ser um AutoComplete, filtra a lista
+     * pelo texto já escrito no campo. Depois de escolher uma opção ("1.5x"),
+     * reabrir mostrava só os itens que casavam com "1.5x" — parecia travado.
+     * Usamos um ArrayAdapter com filtro no-op: a lista inteira sempre aparece.
+     */
+    private fun setupDropdown(
+        spinner: android.widget.AutoCompleteTextView,
+        labels: List<String>,
+        selected: Int,
+        onPick: (Int) -> Unit,
+    ) {
+        val adapter = object : android.widget.ArrayAdapter<String>(
+            this, android.R.layout.simple_list_item_1, labels,
+        ) {
+            private val noopFilter = object : android.widget.Filter() {
+                override fun performFiltering(constraint: CharSequence?) =
+                    FilterResults().apply { values = labels; count = labels.size }
+                override fun publishResults(constraint: CharSequence?, results: FilterResults?) = notifyDataSetChanged()
+            }
+            override fun getFilter(): android.widget.Filter = noopFilter
+        }
+        spinner.setAdapter(adapter)
+        val pos = selected.coerceAtLeast(0)
+        spinner.setText(labels.getOrElse(pos) { "" }, false)
+        spinner.setOnItemClickListener { _, _, p, _ -> onPick(p) }
+    }
+
     /** Seletor do motor: embutido (daemon no APK) ou servidor externo. */
     private fun setupModeSpinner() {
         val modes = listOf(Prefs.Engine.EMBUTIDO, Prefs.Engine.EXTERNO)
         val labels = modes.map { if (it == Prefs.Engine.EMBUTIDO) getString(R.string.mode_embedded_short) else getString(R.string.mode_external) }
-        modeSpinner.setAdapter(
-            android.widget.ArrayAdapter(this, android.R.layout.simple_list_item_1, labels),
-        )
-        val pos = modes.indexOf(Prefs.mode(this)).coerceAtLeast(0)
-        modeSpinner.setText(labels[pos], false)
-        modeSpinner.setOnItemClickListener { _, _, item, _ ->
+        setupDropdown(modeSpinner, labels, modes.indexOf(Prefs.mode(this))) { item ->
             Prefs.setMode(this@MainActivity, modes.getOrElse(item) { Prefs.Engine.EMBUTIDO })
             val embutido = Prefs.mode(this@MainActivity) == Prefs.Engine.EMBUTIDO
             urlInput.isEnabled = !embutido
