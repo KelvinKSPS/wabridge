@@ -73,7 +73,7 @@ class VoiceSession(
      * (ou mais devagar) sem perder a chamada.
      */
     fun setSpeed(value: Float): Float {
-        val v = value.coerceIn(0.5f, 2.0f)
+        val v = value.coerceIn(0.5f, 2.5f)
         val p = player ?: return speed
         runCatching {
             val params = p.playbackParams ?: android.media.PlaybackParams()
