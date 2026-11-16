@@ -52,28 +52,12 @@
                     android:textColor="@color/on_surface_variant"
                     android:textSize="14sp" />
 
-                <LinearLayout
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/toggleServiceButton"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
-                    android:orientation="horizontal">
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/startButton"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/start" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/stopButton"
-                        style="@style/Widget.Material3.Button.TonalButton"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="8dp"
-                        android:layout_weight="1"
-                        android:text="@string/stop" />
-                </LinearLayout>
+                    android:text="@string/start" />
 
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>

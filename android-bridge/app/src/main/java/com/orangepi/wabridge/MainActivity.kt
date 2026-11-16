@@ -32,8 +32,7 @@ class MainActivity : Activity() {
     private lateinit var pairButton: Button
     private lateinit var pairResultText: TextView
     private lateinit var allowedInput: EditText
-    private lateinit var startButton: Button
-    private lateinit var stopButton: Button
+    private lateinit var toggleServiceButton: Button
     private lateinit var serviceStateText: TextView
     private lateinit var languageSpinner: android.widget.AutoCompleteTextView
     private lateinit var languageDescText: TextView
@@ -66,8 +65,7 @@ class MainActivity : Activity() {
         pairButton = findViewById(R.id.pairButton)
         pairResultText = findViewById(R.id.pairResultText)
         allowedInput = findViewById(R.id.allowedInput)
-        startButton = findViewById(R.id.startButton)
-        stopButton = findViewById(R.id.stopButton)
+        toggleServiceButton = findViewById(R.id.toggleServiceButton)
         serviceStateText = findViewById(R.id.serviceStateText)
         languageSpinner = findViewById(R.id.languageSpinner)
         languageDescText = findViewById(R.id.languageDesc)
@@ -107,22 +105,20 @@ class MainActivity : Activity() {
             Prefs.setAudioDelayMs(this@MainActivity, Prefs.AUDIO_DELAY_OPTIONS.getOrElse(pos) { 1000L })
         }
 
-        // Start/Stop no topo (acesso rápido)
-        val onServiceStart = {
-            Prefs.setUrl(this, urlInput.text.toString())
-            Prefs.setAllowedNumbers(this, allowedInput.text.toString())
-            requestMissingPermissions()
-            startBridge()
-            refreshEngineStatus()
+        // Botão único no topo: alterna entre iniciar e parar o serviço.
+        toggleServiceButton.setOnClickListener {
+            if (BridgeForegroundService.isRunning(this)) {
+                stopService(Intent(this, BridgeForegroundService::class.java))
+                statusText.text = getString(R.string.stopped)
+            } else {
+                Prefs.setUrl(this, urlInput.text.toString())
+                Prefs.setAllowedNumbers(this, allowedInput.text.toString())
+                requestMissingPermissions()
+                startBridge()
+                refreshEngineStatus()
+            }
             updateServiceState()
         }
-        val onServiceStop = {
-            stopService(Intent(this, BridgeForegroundService::class.java))
-            statusText.text = getString(R.string.stopped)
-            updateServiceState()
-        }
-        startButton.setOnClickListener { onServiceStart() }
-        stopButton.setOnClickListener { onServiceStop() }
 
         findViewById<Button>(R.id.testCallButton).setOnClickListener {
             Prefs.setUrl(this, urlInput.text.toString())
@@ -856,10 +852,9 @@ class MainActivity : Activity() {
 
     /** Atualiza o estado do serviço no topo (start/stop). */
     private fun updateServiceState() {
-        serviceStateText.text = when {
-            BridgeForegroundService.isRunning(this) -> getString(R.string.service_on)
-            else -> getString(R.string.service_off)
-        }
+        val running = BridgeForegroundService.isRunning(this)
+        serviceStateText.text = getString(if (running) R.string.service_on else R.string.service_off)
+        toggleServiceButton.text = getString(if (running) R.string.stop else R.string.start)
     }
 
     private fun getSystemLanguageName(): String {

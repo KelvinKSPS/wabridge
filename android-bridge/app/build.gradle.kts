@@ -23,8 +23,8 @@ android {
         applicationId = "com.orangepi.wabridge"
         minSdk = 26
         targetSdk = 34
-        versionCode = 44
-        versionName = "1.0.44"
+        versionCode = 46
+        versionName = "1.0.46"
     }
 
     signingConfigs {
