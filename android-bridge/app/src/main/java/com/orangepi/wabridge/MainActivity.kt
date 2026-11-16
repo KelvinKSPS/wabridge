@@ -39,6 +39,10 @@ class MainActivity : Activity() {
     private lateinit var serviceStateText: TextView
     private lateinit var languageSpinner: android.widget.AutoCompleteTextView
     private lateinit var languageDescText: TextView
+    private lateinit var versionText: TextView
+    private lateinit var saveLogButton: Button
+    private lateinit var audioDiagnosticsButton: Button
+    private var versionTaps = 0
     private var diagnosticFolder: java.io.File? = null
     private var refreshStatusHandler = android.os.Handler(android.os.Looper.getMainLooper())
 
@@ -72,14 +76,19 @@ class MainActivity : Activity() {
         serviceStateText = findViewById(R.id.serviceStateText)
         languageSpinner = findViewById(R.id.languageSpinner)
         languageDescText = findViewById(R.id.languageDesc)
+        versionText = findViewById(R.id.versionText)
+        saveLogButton = findViewById(R.id.saveLogButton)
+        audioDiagnosticsButton = findViewById(R.id.audioDiagnosticsButton)
         urlInput.setText(Prefs.url(this))
 
         setupLanguage()
         setupModeSpinner()
         setupPairing()
         setupBattery()
+        setupVersion()
         updateServiceState()
-        findViewById<Button>(R.id.audioDiagnosticsButton).setOnClickListener { showAudioDiagnostics() }
+        audioDiagnosticsButton.setOnClickListener { showAudioDiagnostics() }
+        saveLogButton.setOnClickListener { saveLog() }
 
         // No modo embutido o daemon precisa estar no ar antes de qualquer
         // coisa (gerar código, escanear QR, receber nota de voz).
@@ -174,7 +183,32 @@ class MainActivity : Activity() {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode !in listOf(2001, 2002) || resultCode != RESULT_OK) return
+        if (resultCode != RESULT_OK) return
+
+        // Salvar log: lê o logcat deste processo e grava no arquivo escolhido.
+        if (requestCode == 3001) {
+            val uri = data?.data ?: return
+            Thread {
+                val resultado = runCatching {
+                    val proc = Runtime.getRuntime().exec(arrayOf("logcat", "-d", "-v", "time"))
+                    val log = proc.inputStream.bufferedReader().use { it.readText() }
+                    if (log.isBlank()) return@runCatching false
+                    contentResolver.openOutputStream(uri)?.use { it.write(log.toByteArray(Charsets.UTF_8)) }
+                        ?: error("arquivo indisponível")
+                    true
+                }
+                runOnUiThread {
+                    val msg = resultado.fold(
+                        onSuccess = { if (it) R.string.save_log_ok else R.string.save_log_empty },
+                        onFailure = { R.string.save_log_error },
+                    )
+                    android.widget.Toast.makeText(this, msg, android.widget.Toast.LENGTH_LONG).show()
+                }
+            }.start()
+            return
+        }
+
+        if (requestCode !in listOf(2001, 2002)) return
         val uri = data?.data ?: return
         val folder = diagnosticFolder ?: return
         Thread {
@@ -855,6 +889,44 @@ class MainActivity : Activity() {
         val running = BridgeForegroundService.isRunning(this)
         serviceStateText.text = getString(if (running) R.string.service_on else R.string.service_off)
         toggleServiceButton.text = getString(if (running) R.string.stop else R.string.start)
+    }
+
+    /**
+     * Mostra a versão ao lado do título. Cinco toques nela liberam o botão
+     * de diagnóstico de áudio (fica escondido por padrão).
+     */
+    private fun setupVersion() {
+        val versao = runCatching {
+            packageManager.getPackageInfo(packageName, 0).versionName
+        }.getOrNull() ?: ""
+        versionText.text = "v$versao"
+        if (Prefs.diagnosticsUnlocked(this)) {
+            audioDiagnosticsButton.visibility = android.view.View.VISIBLE
+        }
+        versionText.setOnClickListener {
+            if (Prefs.diagnosticsUnlocked(this)) return@setOnClickListener
+            versionTaps++
+            if (versionTaps >= 5) {
+                Prefs.setDiagnosticsUnlocked(this, true)
+                audioDiagnosticsButton.visibility = android.view.View.VISIBLE
+                android.widget.Toast.makeText(this, R.string.diag_unlocked, android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    /**
+     * Salva o log do app (logcat deste processo) num TXT que o usuário
+     * escolhe onde gravar, via seletor de documentos.
+     */
+    private fun saveLog() {
+        startActivityForResult(
+            Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TITLE, "wabridge-log-${System.currentTimeMillis()}.txt")
+            },
+            3001,
+        )
     }
 
     private fun requestMissingPermissions() {

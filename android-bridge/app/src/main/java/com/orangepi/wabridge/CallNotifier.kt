@@ -61,7 +61,7 @@ object CallNotifier {
         return Notification.Builder(context, CHANNEL_SERVICE)
             .setContentTitle(context.getString(R.string.app_name))
             .setContentText(text)
-            .setSmallIcon(android.R.drawable.stat_sys_upload)
+            .setSmallIcon(R.drawable.ic_notification)
             .setOngoing(true)
             .setContentIntent(open)
             .addAction(

@@ -26,6 +26,11 @@
     <string name="service_off">服务已停止</string>
     <string name="test_call">测试通话</string>
     <string name="audio_diagnostics">音频诊断</string>
+    <string name="save_log">保存日志 (TXT)</string>
+    <string name="save_log_ok">日志已保存</string>
+    <string name="save_log_empty">还没有日志</string>
+    <string name="save_log_error">保存日志失败</string>
+    <string name="diag_unlocked">诊断模式已解锁</string>
     <string name="audio_diagnostics_empty">请先回复一条语音。最近3条录音会保存在此设备上。</string>
     <string name="audio_diagnostics_actions">导出保存包含原始语音、收件人和SHA-256的ZIP文件。导入会将转换后的副本发送到相同号码，需通过内置引擎且需确认。</string>
     <string name="audio_export">导出原始文件（ZIP）</string>

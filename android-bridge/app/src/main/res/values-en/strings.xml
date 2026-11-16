@@ -26,6 +26,11 @@
     <string name="service_off">service stopped</string>
     <string name="test_call">test call</string>
     <string name="audio_diagnostics">audio diagnostics</string>
+    <string name="save_log">save log (TXT)</string>
+    <string name="save_log_ok">log saved</string>
+    <string name="save_log_empty">no log yet</string>
+    <string name="save_log_error">failed to save log</string>
+    <string name="diag_unlocked">diagnostics mode unlocked</string>
     <string name="audio_diagnostics_empty">Answer an audio first. Last 3 recordings are saved on this device.</string>
     <string name="audio_diagnostics_actions">Export saves ZIP with original voice, recipient and SHA-256. Import sends a converted copy to same number via embedded engine, only after confirmation.</string>
     <string name="audio_export">export original (ZIP)</string>

@@ -9,6 +9,7 @@ object Prefs {
     private const val KEY_AUDIO_DELAY = "audio_delay_ms"
     private const val KEY_MODE = "engine_mode"
     private const val KEY_LANGUAGE = "app_language"
+    private const val KEY_DIAG_UNLOCKED = "diagnostics_unlocked"
     private const val KEY_PHONE = "phone_number"
     private const val KEY_ALLOWED = "allowed_numbers"
     private const val KEY_BT_DEVICE = "bt_device"
@@ -194,6 +195,17 @@ object Prefs {
         ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
             .edit()
             .putString(KEY_LANGUAGE, value.name)
+            .apply()
+    }
+
+    /** Diagnóstico de áudio liberado (5 toques na versão). */
+    fun diagnosticsUnlocked(ctx: Context): Boolean =
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean(KEY_DIAG_UNLOCKED, false)
+
+    fun setDiagnosticsUnlocked(ctx: Context, value: Boolean) {
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_DIAG_UNLOCKED, value)
             .apply()
     }
 }
