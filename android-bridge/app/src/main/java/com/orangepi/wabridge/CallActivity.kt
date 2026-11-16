@@ -27,6 +27,10 @@ import android.widget.TextView
  */
 class CallActivity : Activity() {
 
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(LocaleHelper.wrap(newBase))
+    }
+
     private lateinit var callerName: TextView
     private lateinit var callerNumber: TextView
     private lateinit var statusLine: TextView

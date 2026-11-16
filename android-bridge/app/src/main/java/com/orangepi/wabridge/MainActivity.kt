@@ -7,7 +7,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
-import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
 import android.widget.Button
@@ -19,6 +18,10 @@ import java.io.InputStreamReader
 import java.net.URL
 
 class MainActivity : Activity() {
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(LocaleHelper.wrap(newBase))
+    }
 
     private lateinit var urlInput: EditText
     private lateinit var statusText: TextView
@@ -824,30 +827,27 @@ class MainActivity : Activity() {
         languageSpinner.setText(labels[savedPos], false)
         languageSpinner.setOnItemClickListener { _, _, pos, _ ->
             val lang = languages.getOrElse(pos) { languages[0] }.first
-            Prefs.setLanguage(this@MainActivity, lang)
-            applyLanguage()
+            if (lang != Prefs.language(this@MainActivity)) {
+                Prefs.setLanguage(this@MainActivity, lang)
+                // Recria a tela: attachBaseContext reaplica o locale e toda a
+                // UI recarrega já no idioma novo.
+                recreate()
+            }
         }
 
         applyLanguage()
     }
 
-    /** Atualiza a UI para o idioma selecionado. */
+    /** Texto abaixo do seletor dizendo qual idioma está ativo. */
     private fun applyLanguage() {
-        val lang = Prefs.language(this)
-        val desc = when (lang) {
-            Language.SYSTEM -> getString(R.string.language_desc_system)
-            Language.PORTUGUESE -> getString(R.string.language_desc_selected, getString(R.string.language_portuguese))
-            Language.ENGLISH -> getString(R.string.language_desc_selected, getString(R.string.language_english))
-            Language.SPANISH -> getString(R.string.language_desc_selected, getString(R.string.language_spanish))
-            Language.CHINESE -> getString(R.string.language_desc_selected, getString(R.string.language_chinese))
+        val nome = when (Prefs.language(this)) {
+            Language.SYSTEM -> getString(R.string.language_english)
+            Language.PORTUGUESE -> getString(R.string.language_portuguese)
+            Language.ENGLISH -> getString(R.string.language_english)
+            Language.SPANISH -> getString(R.string.language_spanish)
+            Language.CHINESE -> getString(R.string.language_chinese)
         }
-        languageDescText.text = desc
-
-        // Atualiza strings que mudam
-        serviceStateText.text = when {
-            BridgeForegroundService.isRunning(this) -> getString(R.string.service_on)
-            else -> getString(R.string.service_off)
-        }
+        languageDescText.text = getString(R.string.language_desc_selected, nome)
     }
 
     /** Atualiza o estado do serviço no topo (start/stop). */
@@ -855,16 +855,6 @@ class MainActivity : Activity() {
         val running = BridgeForegroundService.isRunning(this)
         serviceStateText.text = getString(if (running) R.string.service_on else R.string.service_off)
         toggleServiceButton.text = getString(if (running) R.string.stop else R.string.start)
-    }
-
-    private fun getSystemLanguageName(): String {
-        val locale = resources.configuration.locales.get(0)
-        return when (locale.language) {
-            "pt" -> "português"
-            "es" -> "español"
-            "zh" -> "中文"
-            else -> "English"
-        }
     }
 
     private fun requestMissingPermissions() {
