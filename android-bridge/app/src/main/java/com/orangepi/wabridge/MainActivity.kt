@@ -24,7 +24,6 @@ class MainActivity : Activity() {
     }
 
     private lateinit var urlInput: EditText
-    private lateinit var statusText: TextView
     private lateinit var speedSpinner: android.widget.AutoCompleteTextView
     private lateinit var audioDelaySpinner: android.widget.AutoCompleteTextView
     private lateinit var modeSpinner: android.widget.AutoCompleteTextView
@@ -48,7 +47,8 @@ class MainActivity : Activity() {
 
     private val statusReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            statusText.text = intent?.getStringExtra(BridgeForegroundService.EXTRA_TEXT) ?: ""
+            // Atualiza o único card de estado no topo.
+            if (this@MainActivity::serviceStateText.isInitialized) updateServiceState()
         }
     }
 
@@ -61,7 +61,6 @@ class MainActivity : Activity() {
         setContentView(R.layout.activity_main)
 
         urlInput = findViewById(R.id.urlInput)
-        statusText = findViewById(R.id.statusText)
         speedSpinner = findViewById(R.id.speedSpinner)
         audioDelaySpinner = findViewById(R.id.audioDelaySpinner)
         modeSpinner = findViewById(R.id.modeSpinner)
@@ -121,7 +120,6 @@ class MainActivity : Activity() {
         toggleServiceButton.setOnClickListener {
             if (BridgeForegroundService.isRunning(this)) {
                 stopService(Intent(this, BridgeForegroundService::class.java))
-                statusText.text = getString(R.string.stopped)
             } else {
                 Prefs.setUrl(this, urlInput.text.toString())
                 Prefs.setAllowedNumbers(this, allowedInput.text.toString())
@@ -140,7 +138,6 @@ class MainActivity : Activity() {
                 Intent(this, BridgeForegroundService::class.java)
                     .setAction(BridgeForegroundService.ACTION_TEST_CALL),
             )
-            statusText.text = getString(R.string.test_caller)
         }
     }
 
@@ -216,7 +213,7 @@ class MainActivity : Activity() {
                 if (requestCode == 2001) {
                     val output = contentResolver.openOutputStream(uri) ?: error("arquivo indisponível")
                     ReplyArchive.export(folder, output)
-                    runOnUiThread { statusText.text = "Original exportado; ZIP contém voz e destinatário." }
+                    runOnUiThread { toast("Original exportado; ZIP contém voz e destinatário.") }
                 } else {
                     val file = java.io.File.createTempFile("converted_", ".ogg", cacheDir)
                     try {
@@ -245,9 +242,9 @@ class MainActivity : Activity() {
                                             check(DaemonManager.start(this)) { "motor indisponível" }
                                             android.util.Log.i("AudioDiagnostics", "convertido sha256=${ReplyArchive.sha256(file)} bytes=${file.length()}")
                                             val ok = Uploader.sendReply(DaemonManager.EMBEDDED_URL, "", metadata.getString("to"), file, metadata.getInt("durationSec"))
-                                            runOnUiThread { statusText.text = if (ok) "Cópia aceita pelo servidor; aguarde recibo no log." else "Envio falhou; original preservado." }
+                                            runOnUiThread { toast(if (ok) "Cópia aceita pelo servidor; aguarde recibo no log." else "Envio falhou; original preservado.") }
                                         } catch (e: Exception) {
-                                            runOnUiThread { statusText.text = "Diagnóstico: ${e.message}" }
+                                            runOnUiThread { toast("Diagnóstico: ${e.message}") }
                                         } finally { file.delete() }
                                     }.start()
                                 }
@@ -260,9 +257,12 @@ class MainActivity : Activity() {
                         throw e
                     }
                 }
-            }.onFailure { e -> runOnUiThread { statusText.text = "Diagnóstico: ${e.message}" } }
+            }.onFailure { e -> runOnUiThread { toast("Diagnóstico: ${e.message}") } }
         }.start()
     }
+
+    private fun toast(msg: String) =
+        android.widget.Toast.makeText(this, msg, android.widget.Toast.LENGTH_LONG).show()
 
     override fun onStart() {
         super.onStart()
@@ -293,7 +293,6 @@ class MainActivity : Activity() {
             this,
             Intent(this, BridgeForegroundService::class.java),
         )
-        statusText.text = getString(R.string.starting)
     }
 
     /**

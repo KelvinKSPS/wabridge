@@ -427,25 +427,6 @@
             android:layout_marginTop="8dp"
             android:text="@string/save_log" />
 
-        <!-- Status -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:text="@string/status_label"
-            android:textColor="@color/on_surface_variant"
-            android:textSize="12sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/statusText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="@string/starting"
-            android:textColor="@color/on_surface"
-            android:textSize="14sp" />
-
         <!-- ===== Idioma (último, no fim da página) ===== -->
         <com.google.android.material.card.MaterialCardView
             style="@style/Widget.Material3.CardView.Filled"

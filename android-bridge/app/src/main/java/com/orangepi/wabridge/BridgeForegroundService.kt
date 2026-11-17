@@ -24,6 +24,13 @@ import kotlinx.coroutines.launch
  */
 class BridgeForegroundService : Service() {
 
+    override fun attachBaseContext(newBase: Context) {
+        // Mesma envoltura de idioma da Activity: sem isso o serviço usa o
+        // locale do sistema e as notificações saíam em idioma diferente da
+        // tela (o estado do Bluetooth piscava entre idiomas).
+        super.attachBaseContext(LocaleHelper.wrap(newBase))
+    }
+
     private val job = SupervisorJob()
     private val scope = CoroutineScope(job + Dispatchers.Default)
     private var ws: WsManager? = null
@@ -48,7 +55,7 @@ class BridgeForegroundService : Service() {
             ServiceCompat.startForeground(
                 this,
                 CallNotifier.NOTIFICATION_ID,
-                CallNotifier.serviceNotification(this, getString(R.string.starting)),
+                CallNotifier.serviceNotification(this, getString(R.string.service_notification_active)),
                 baseForegroundType(),
             )
         } catch (e: Exception) {
@@ -110,12 +117,33 @@ class BridgeForegroundService : Service() {
             ServiceCompat.startForeground(
                 this,
                 CallNotifier.NOTIFICATION_ID,
-                CallNotifier.serviceNotification(this, getString(R.string.starting)),
+                CallNotifier.serviceNotification(this, getString(R.string.service_notification_active)),
                 type,
             )
             Log.i(TAG, "serviço promovido para foreground com microfone")
         }.onFailure {
             Log.w(TAG, "não foi possível adicionar o tipo microphone: ${it.message}")
+        }
+    }
+
+    /**
+     * Volta o foreground service ao tipo base (sem microfone).
+     *
+     * O tipo `microphone` faz o Android mostrar o ícone/chip de microfone na
+     * barra de status o tempo todo. Depois da chamada não precisamos mais
+     * dele, então voltamos ao tipo base para o ícone sumir.
+     */
+    private fun demoteFromMicrophone() {
+        runCatching {
+            ServiceCompat.startForeground(
+                this,
+                CallNotifier.NOTIFICATION_ID,
+                CallNotifier.serviceNotification(this, getString(R.string.service_notification_active)),
+                baseForegroundType(),
+            )
+            Log.i(TAG, "serviço voltou ao tipo base (sem microfone)")
+        }.onFailure {
+            Log.w(TAG, "não foi possível remover o tipo microphone: ${it.message}")
         }
     }
 
@@ -249,6 +277,8 @@ class BridgeForegroundService : Service() {
         val next = callQueue.release()
         if (next == null) {
             Log.i(TAG, "chamada encerrada; fila vazia")
+            // Sem mais chamadas: solta o tipo microfone para o ícone sumir.
+            demoteFromMicrophone()
             return
         }
         Log.i(TAG, "chamada encerrada; tocando a próxima da fila")
@@ -259,11 +289,14 @@ class BridgeForegroundService : Service() {
         Log.i(TAG, text)
         statusText = text
         sendBroadcast(Intent(ACTION_STATUS).setPackage(packageName).putExtra(EXTRA_TEXT, text))
-        // atualiza a notificação de serviço
+        // A notificação de serviço é obrigatória (foreground), mas não deve
+        // ficar piscando "iniciando/conectando...": mostra sempre o rótulo
+        // estável de serviço ativo. Os estados transitórios ficam só no log
+        // e no broadcast (a tela os ignora).
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
         manager.notify(
             CallNotifier.NOTIFICATION_ID,
-            CallNotifier.serviceNotification(this, text),
+            CallNotifier.serviceNotification(this, getString(R.string.service_notification_active)),
         )
     }
 

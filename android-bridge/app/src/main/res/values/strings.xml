@@ -102,6 +102,7 @@
     <string name="action_quick_reply">responder por texto</string>
 
     <!-- Notificações -->
+    <string name="service_notification_active">WhatsApp conectado no relógio</string>
     <string name="notification_channel">Wabridge</string>
     <string name="notification_channel_desc">Mantém a ponte WhatsApp ativa</string>
     <string name="channel_name">Chamada de voz</string>
