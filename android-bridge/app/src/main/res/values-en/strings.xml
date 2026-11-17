@@ -8,7 +8,7 @@
     <string name="section_bluetooth">watch / headset</string>
     <string name="section_language">language</string>
 
-    <!-- Tela principal -->
+    <!-- Main screen -->
     <string name="engine_label">how to talk to WhatsApp</string>
     <string name="mode_embedded">embedded engine: %s</string>
     <string name="mode_embedded_short">embedded (no server)</string>
@@ -17,6 +17,10 @@
     <string name="server_label">server</string>
     <string name="url_hint">http://192.168.15.100:8097</string>
     <string name="speed_label">default playback speed</string>
+    <string name="speed_custom">custom…</string>
+    <string name="speed_custom_title">custom playback speed</string>
+    <string name="speed_custom_range">Enter a value from 0.25x to 4x.</string>
+    <string name="speed_custom_invalid">Enter a valid number from 0.25 to 4.</string>
     <string name="audio_delay_label">time until audio starts</string>
     <string name="audio_delay_hint">count from answer. With 0s audio waits only for the watch to open the voice channel.</string>
     <string name="status_label">status</string>
@@ -40,7 +44,7 @@
     <string name="stopped">stopped</string>
     <string name="test_caller">calling the watch…</string>
 
-    <!-- Pareamento -->
+    <!-- Pairing -->
     <string name="pairing_label">WhatsApp pairing</string>
     <string name="country_code_hint">CC</string>
     <string name="phone_hint">AC + number</string>
@@ -72,6 +76,15 @@
     <string name="bt_connected">connected now</string>
     <string name="bt_disconnected">disconnected</string>
     <string name="bt_permission">Bluetooth permission denied</string>
+    <string name="call_history_button_empty">audio history</string>
+    <string name="call_history_button">audio history (%1$d)</string>
+    <string name="call_history_title">audio history</string>
+    <string name="call_history_empty">no audio received yet</string>
+    <string name="call_history_received">received</string>
+    <string name="call_history_answered">answered</string>
+    <string name="call_history_rejected">rejected</string>
+    <string name="call_history_clear">clear history</string>
+    <string name="call_history_confirm_clear">Clear all audio history?</string>
     <string name="pending_label">received voice notes</string>
     <string name="pending_title">voice notes in queue</string>
     <string name="pending_none">no notes in queue</string>
@@ -81,7 +94,7 @@
     <string name="allowed_selected">%1$d selected</string>
     <string name="allowed_search">search name or number…</string>
 
-    <!-- Tela de chamada -->
+    <!-- Call screen -->
     <string name="incoming_call">voice call</string>
     <string name="incoming_from">from %s</string>
     <string name="incoming_call_duration">from %1$s · %2$s</string>
@@ -101,7 +114,7 @@
     <string name="quick_reply_busy">I can\'t answer the phone right now.</string>
     <string name="action_quick_reply">respond by text</string>
 
-    <!-- Notificações -->
+    <!-- Notifications -->
     <string name="service_notification_active">WhatsApp connected on your watch</string>
     <string name="notification_channel">Wabridge</string>
     <string name="notification_channel_desc">Keeps WhatsApp bridge active</string>
@@ -109,7 +122,7 @@
     <string name="channel_call_name">Voice call</string>
     <string name="accept_own_label">Play my own audios (test mode)</string>
 
-    <!-- Idiomas -->
+    <!-- Languages -->
     <string name="language_label">app language</string>
     <string name="language_system">system (%s)</string>
     <string name="language_portuguese">português</string>

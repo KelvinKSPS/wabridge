@@ -286,7 +286,7 @@ export function createBridge(deps: BridgeDeps = {}): Bridge {
   });
 
   /* ------------------------------------------------------------------ *
-   * Pareamento (QR) — a Evolution manda o QR por webhook
+   * Pairing (QR) — Evolution sends the QR code via webhook
    * ------------------------------------------------------------------ */
 
   app.get('/qrcode', async (_req, res) => {
@@ -300,9 +300,9 @@ export function createBridge(deps: BridgeDeps = {}): Bridge {
       ? `<h2>Código de pareamento</h2><p style="font-size:44px;letter-spacing:6px">${qr.pairingCode.slice(0, 4)}-${qr.pairingCode.slice(4, 8)}</p>` +
         `<p>WhatsApp → Aparelhos conectados → Conectar com número de telefone</p>`
       : '';
-    // o QR da Evolution gira a cada ~30s: a página se atualiza sozinha para
-    // nunca mostrar um QR vencido (senão o WhatsApp responde "não foi possível
-    // conectar o dispositivo").
+    // Evolution rotates the QR code every ~30 seconds; the page refreshes itself
+    // to avoid showing an expired code (otherwise WhatsApp reports that it
+    // could not connect the device).
     res.setHeader('Cache-Control', 'no-store');
     res.type('html').send(
       `<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="3">` +

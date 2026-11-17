@@ -65,7 +65,7 @@ export function generateToneWav(output: string, frequency = 440, seconds = 2): s
   const data = Buffer.alloc(samples * 2);
 
   for (let i = 0; i < samples; i++) {
-    // desce de 0.8 para 0 nos últimos 10%: evita estalo no fim do tom
+    // Fade from 0.8 to 0 over the final 10% to prevent a click at the end of the tone
     const fade = i > samples * 0.9 ? (samples - i) / (samples * 0.1) : 1;
     const value = Math.sin((2 * Math.PI * frequency * i) / sampleRate) * 0.8 * fade;
     data.writeInt16LE(Math.round(value * 32767), i * 2);
@@ -82,7 +82,7 @@ export function generateToneWav(output: string, frequency = 440, seconds = 2): s
   header.writeUInt32LE(sampleRate, 24);
   header.writeUInt32LE(sampleRate * 2, 28); // byte rate
   header.writeUInt16LE(2, 32); // block align
-  header.writeUInt16LE(16, 34); // bits por amostra
+  header.writeUInt16LE(16, 34); // bits per sample
   header.write('data', 36, 'ascii');
   header.writeUInt32LE(data.length, 40);
 

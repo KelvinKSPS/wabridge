@@ -8,7 +8,7 @@
     <string name="section_bluetooth">reloj / audífonos</string>
     <string name="section_language">idioma</string>
 
-    <!-- Tela principal -->
+    <!-- Main screen -->
     <string name="engine_label">cómo hablar con WhatsApp</string>
     <string name="mode_embedded">motor embebido: %s</string>
     <string name="mode_embedded_short">embebido (sin servidor)</string>
@@ -17,6 +17,10 @@
     <string name="server_label">servidor</string>
     <string name="url_hint">http://192.168.15.100:8097</string>
     <string name="speed_label">velocidad de reproducción por defecto</string>
+    <string name="speed_custom">personalizada…</string>
+    <string name="speed_custom_title">velocidad personalizada</string>
+    <string name="speed_custom_range">Introduce un valor entre 0,25x y 4x.</string>
+    <string name="speed_custom_invalid">Introduce un número válido entre 0,25 y 4.</string>
     <string name="audio_delay_label">tiempo hasta que empiece el audio</string>
     <string name="audio_delay_hint">cuenta desde la respuesta. Con 0s el audio espera solo a que el reloj abra el canal de voz.</string>
     <string name="status_label">estado</string>
@@ -40,7 +44,7 @@
     <string name="stopped">detenido</string>
     <string name="test_caller">llamando al reloj…</string>
 
-    <!-- Pareamento -->
+    <!-- Pairing -->
     <string name="pairing_label">emparejar WhatsApp</string>
     <string name="country_code_hint">ICC</string>
     <string name="phone_hint">Código + número</string>
@@ -72,6 +76,15 @@
     <string name="bt_connected">conectado ahora</string>
     <string name="bt_disconnected">desconectado</string>
     <string name="bt_permission">permiso de Bluetooth negado</string>
+    <string name="call_history_button_empty">historial de audio</string>
+    <string name="call_history_button">historial de audio (%1$d)</string>
+    <string name="call_history_title">historial de audio</string>
+    <string name="call_history_empty">aún no se recibió ningún audio</string>
+    <string name="call_history_received">recibido</string>
+    <string name="call_history_answered">atendido</string>
+    <string name="call_history_rejected">rechazado</string>
+    <string name="call_history_clear">borrar historial</string>
+    <string name="call_history_confirm_clear">¿Borrar todo el historial de audio?</string>
     <string name="pending_label">notas de voz recibidas</string>
     <string name="pending_title">notas de voz en cola</string>
     <string name="pending_none">no hay notas en cola</string>
@@ -81,7 +94,7 @@
     <string name="allowed_selected">%1$d seleccionado(s)</string>
     <string name="allowed_search">buscar nombre o número…</string>
 
-    <!-- Tela de chamada -->
+    <!-- Call screen -->
     <string name="incoming_call">llamada de voz</string>
     <string name="incoming_from">de %s</string>
     <string name="incoming_call_duration">de %1$s · %2$s</string>
@@ -101,7 +114,7 @@
     <string name="quick_reply_busy">No puedo atender la llamada en este momento.</string>
     <string name="action_quick_reply">responder por texto</string>
 
-    <!-- Notificações -->
+    <!-- Notifications -->
     <string name="service_notification_active">WhatsApp conectado en tu reloj</string>
     <string name="notification_channel">Wabridge</string>
     <string name="notification_channel_desc">Mantiene la puente WhatsApp activa</string>
@@ -109,7 +122,7 @@
     <string name="channel_call_name">Llamada de voz</string>
     <string name="accept_own_label">Reproducir mis propios audios (modo prueba)</string>
 
-    <!-- Idiomas -->
+    <!-- Languages -->
     <string name="language_label">idioma de la app</string>
     <string name="language_system">sistema (%s)</string>
     <string name="language_portuguese">português</string>

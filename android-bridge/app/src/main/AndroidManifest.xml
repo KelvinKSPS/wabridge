@@ -3,9 +3,9 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.VIBRATE" />
-    <!-- Iniciar o daemon embutido no boot -->
+    <!-- Start the embedded daemon on boot -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <!-- Isentar da otimização de bateria (o daemon precisa rodar o dia todo) -->
+    <!-- Exclude from battery optimization (the daemon needs to run all day) -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
@@ -13,7 +13,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
-    <!-- Sem o tipo "microphone" no foreground service o Android silencia o
+    <!-- Without the "microphone" foreground-service type, Android silences the
          microfone quando o app vai para background: a gravação sai vazia. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -49,7 +49,7 @@
             </intent-filter>
         </activity>
 
-        <!-- Tela de chamada do próprio app: relógio nem sempre tem discador. -->
+        <!-- In-app call screen for watches without a system dialer. -->
         <activity
             android:name=".CallActivity"
             android:excludeFromRecents="true"
@@ -68,7 +68,7 @@
             </intent-filter>
         </receiver>
 
-        <!-- No modo embutido o daemon precisa sobreviver ao boot. -->
+        <!-- In embedded mode, the daemon must survive reboot. -->
         <receiver
             android:name=".BootReceiver"
             android:exported="true">
@@ -78,7 +78,7 @@
             </intent-filter>
         </receiver>
 
-        <!-- A/B de formato: troca a taxa de amostragem sem rebuildar. -->
+        <!-- Format A/B test: change the sample rate without rebuilding. -->
         <receiver
             android:name=".AudioConfigReceiver"
             android:exported="true">
@@ -87,7 +87,7 @@
             </intent-filter>
         </receiver>
 
-        <!-- Serviço de chamada autogerenciado (Telecom). -->
+        <!-- Self-managed call service (Telecom). -->
         <service
             android:name=".BridgeConnectionService"
             android:exported="true"
@@ -97,7 +97,7 @@
             </intent-filter>
         </service>
 
-        <!-- Mantém o WebSocket vivo enquanto o app está em background.
+        <!-- Keeps the WebSocket alive while the app is in the background.
              O tipo "microphone" é obrigatório para a resposta gravada não
              sair muda quando o app não está na tela. -->
         <service

@@ -315,15 +315,11 @@ class VoiceSession(
         }
         Log.i(TAG, "fontes de áudio: $sources (sco conectado=$scoConnected)")
 
-        // neste momento a tela de chamada está na frente: o app está em
-        // primeiro plano, então é seguro pedir o tipo "microphone" do
-        // foreground service (sem isso o Android silencia a gravação).
-        BridgeForegroundService.requestMicrophone(ctx)
-
-        // foco de áudio: sem ele o sistema pode silenciar a gravação
+        // Request microphone foreground access immediately before capture starts.
         requestAudioFocus()
 
         for (source in sources) {
+            var microphonePromoted = false
             try {
                 val rec = MediaRecorder()
                 rec.setAudioSource(source)
@@ -339,6 +335,8 @@ class VoiceSession(
                 rec.setAudioChannels(1)
                 rec.setOutputFile(file.absolutePath)
                 rec.prepare()
+                BridgeForegroundService.requestMicrophone(ctx)
+                microphonePromoted = true
                 rec.start()
                 recorder = rec
                 recorderFile = file
@@ -346,12 +344,14 @@ class VoiceSession(
                 Log.i(TAG, "gravando em ${file.absolutePath} (source=$source)")
                 break
             } catch (e: Exception) {
+                if (microphonePromoted) BridgeForegroundService.releaseMicrophone(ctx)
                 Log.w(TAG, "falha com source=$source: ${e.message}")
                 runCatching { file.delete() }
             }
         }
 
         if (recorder == null) {
+            BridgeForegroundService.releaseMicrophone(ctx)
             Log.e(TAG, "não foi possível iniciar a gravação")
             return
         }
@@ -406,6 +406,7 @@ class VoiceSession(
         if (stopError != null) Log.e(TAG, "falha ao finalizar gravação", stopError)
         recorder?.release()
         recorder = null
+        BridgeForegroundService.releaseMicrophone(ctx)
 
         runCatching {
             audio.stopBluetoothSco()

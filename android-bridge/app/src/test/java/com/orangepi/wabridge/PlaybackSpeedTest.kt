@@ -31,10 +31,10 @@ class PlaybackSpeedTest {
     }
 
     @Test
-    fun `a velocidade e limitada entre meio e tres`() {
-        assertEquals(0.5f, PlaybackSpeed.clamp(0.1f), 0.001f)
-        assertEquals(3.0f, PlaybackSpeed.clamp(5.0f), 0.001f)
-        assertEquals(1.5f, PlaybackSpeed.clamp(1.5f), 0.001f)
+    fun `custom speed is clamped to supported range`() {
+        assertEquals(0.25f, PlaybackSpeed.clamp(0.1f), 0.001f)
+        assertEquals(4.0f, PlaybackSpeed.clamp(5.0f), 0.001f)
+        assertEquals(2.35f, PlaybackSpeed.clamp(2.35f), 0.001f)
     }
 
     @Test

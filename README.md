@@ -1,106 +1,90 @@
-# wabridge — ponte WhatsApp ⇄ smartwatch Huawei
+# Wabridge
 
-Áudio de voz do WhatsApp chega como **chamada telefônica** no relógio (via
-Bluetooth HFP/SCO) e a resposta gravada no relógio volta ao WhatsApp como
-nota de voz.
+**WhatsApp voice notes as watch calls.** Wabridge routes incoming WhatsApp voice notes to an Android or Huawei watch as phone-style calls, then sends spoken replies back as WhatsApp voice notes.
 
+[English](README.md) · [Português](README.pt-BR.md) · [Español](README.es.md) · [简体中文](README.zh-CN.md)
+
+## How it works
+
+```text
+WhatsApp / Evolution API
+        │ incoming voice-note webhook
+        ▼
+Node.js server or embedded Go daemon
+        │ decode/prepare audio, WebSocket event
+        ▼
+Android app ── Bluetooth HFP/SCO ── watch
+        ▲                              │
+        └──── recorded voice reply ────┘
 ```
- Evolution API ──webhook──▶ server (Node/TS)
-                               │  ffmpeg: opus → wav 16k mono
-                               │  WebSocket NEW_VOICE_NOTE
-                               ▼
-                        app Android (Kotlin)
-                    ConnectionService self-managed
-                    ▶ toca no SCO do relógio
-                    ▶ grava o microfone do relógio
-                    ▶ POST /reply/audio (multipart)
-                               │  ffmpeg: m4a → ogg opus (ptt)
-                               ▼
-                        Evolution API → WhatsApp
-```
 
-## Pastas
+The Android app supports an embedded Go engine and an external Node.js server. Incoming audio is presented as a call; after answering, the watch plays the note and records the reply. The app uploads the original recording and the engine sends it as a WhatsApp voice note.
 
-| Pasta | O quê |
+## Repository
+
+| Path | Purpose |
 |---|---|
-| `server/` | Node.js + TypeScript (Express + ws). Webhook, cache de mídia, upload de resposta. |
-| `android-bridge/` | App Kotlin (Gradle KTS) com `ConnectionService` autogerenciado. |
+| `android-bridge/` | Android app, Kotlin source, Gradle build, and JVM unit tests |
+| `embedded-core/` | Embedded Go WhatsApp engine, HTTP/WebSocket API, and tests |
+| `server/` | Optional Node.js/TypeScript server integrated with Evolution API |
+| `.github/workflows/ci.yml` | CI tests and Android APK builds/releases |
 
-## Rodar
+## Get the Android app
+
+Download the signed APK from the project's [GitHub Releases](https://github.com/KelvinKSPS/wabridge/releases). The release workflow runs when a `v*` tag is pushed. CI also builds debug APK artifacts for pushes and pull requests.
+
+## Build and test
+
+Android release APKs are built by GitHub Actions. To run JVM tests locally:
 
 ```bash
-# 1. servidor
-cd server
-cp .env.example .env      # ajuste ALLOWED_NUMBERS e PUBLIC_HOST
-npm install
-npm run dev               # ou: npm run build && npm start
-
-# 2. Evolution API (v2.3.7)
-cd ..
-docker compose up -d          # Evolution em :8098 + postgres + redis
-#    painel: http://192.168.15.100:8098/manager  (criar a instância e parear o QR)
-#    o webhook global já aponta para http://192.168.15.100:8097/webhook/whatsapp
-
-# 3. app
-cd ../android-bridge
-./gradlew assembleDebug   # APK em app/build/outputs/apk/debug/
+cd android-bridge
+./gradlew testDebugUnitTest --console=plain
 ```
 
-No relógio: abrir o app, colocar a URL do servidor (`http://IP:8097`) e tocar
-**Conectar**. A URL fica salva no aparelho.
+Run the embedded engine tests with Go:
 
-## Teste no relógio sem WhatsApp
+```bash
+cd embedded-core
+go test ./...
+```
 
-O app tem o botão **Testar chamada**: ele toca no relógio como se fosse uma
-mensagem de voz de verdade (o servidor gera um tom sintético em
-`GET /media/test.wav`, PCM 16 kHz mono). Serve para validar no relógio:
+For the optional Node server:
 
-1. o app conecta no servidor,
-2. a chamada chega (tela de chamada do app, com **Atender** e **Recusar**),
-3. o áudio toca no canal SCO,
-4. o tom de aviso dispara e a resposta começa a ser gravada,
-5. ao desligar, o áudio sobe para `POST /reply/audio`.
+```bash
+cd server
+npm ci
+npm test
+npm run build
+```
 
-Isso valida tudo menos o lado do WhatsApp (Evolution API + pareamento por QR).
+The Android app requires JDK 17 and Android SDK configuration. The CI workflow builds native Go libraries for Android `arm64-v8a` and `x86_64`, packages the APK, and uploads build artifacts. A signed release requires the Android signing secrets configured in the repository; without them, the release workflow reports that the keystore is unavailable.
 
-## Onde está cada coisa
+## Setup
 
-| Item | Caminho |
-|---|---|
-| APK release assinado | release v1.0.1 no GitHub |
-| Chave de assinatura | `android-bridge/wabridge.jks` (cópia em `~/wabridge-keys/`) |
-| Servidor rodando | pm2, `http://192.168.15.100:8097` (`pm2 logs wabridge`) |
-| Evolution API | `docker-compose.yml` na raiz — v2.3.7 em `http://192.168.15.100:8098` (painel em `/manager`) |
-| Relatório de validação | `RELATORIO.md` |
-| Progresso | `CHECKLIST.md` e `docs/checklist.html` |
+1. Install the APK on the Android phone or watch.
+2. Pair the WhatsApp account using the in-app pairing flow.
+3. Select the embedded engine, or configure the URL of an external server.
+4. Grant microphone, Bluetooth, and notification permissions when prompted.
+5. Select optional Bluetooth devices and allowed contacts/groups, then start the service.
 
-## Variáveis do servidor
+For the external server, configure `.env` from `server/.env.example`, including Evolution API credentials and the webhook host. Keep secrets out of source control. See [`server/README.md`](server/README.md) for server routes and configuration.
 
-| Var | Padrão | Função |
-|---|---|---|
-| `PORT` | `8090` | porta HTTP/WS |
-| `PUBLIC_HOST` | IP local detectado | URL usada pelo relógio para baixar o áudio |
-| `ALLOWED_NUMBERS` | vazio (aceita todos) | lista branca de remetentes |
-| `EVOLUTION_API_URL` | `http://127.0.0.1:8098` | Evolution API |
-| `EVOLUTION_INSTANCE` | `wabridge` | nome da instância |
-| `EVOLUTION_API_KEY` | vazio | chave da Evolution API |
-| `FFMPEG_PATH` | `ffmpeg` | binário do ffmpeg |
+## Features
 
-## Endpoints
+- Android foreground service with WhatsApp WebSocket reconnection.
+- Call-style playback and reply recording over Bluetooth HFP/SCO.
+- Configurable playback rate, including custom values from 0.25× to 4×.
+- Configurable delay before playback.
+- Call history for received, answered, and rejected voice notes, with clear-history action.
+- Optional Bluetooth device gate and contact/group allowlist.
+- Audio diagnostics and original-recording preservation for troubleshooting.
+- Portuguese, English, Spanish, and Simplified Chinese app localization.
 
-| Rota | Uso |
-|---|---|
-| `POST /webhook/whatsapp` | entrada dos eventos do WhatsApp (a Evolution v2 acrescenta o evento no caminho: `/webhook/whatsapp/messages-upsert`) |
-| `GET /media/:audioId.wav` | áudio recebido em cache (PCM 16k mono) |
-| `POST /reply/audio` | resposta do relógio (`multipart`: `file`, `audioId`, `to`) |
-| `GET /health` | estado do servidor |
-| `GET /pending` | conversas em aberto |
-| `GET /qrcode` · `GET /qrcode.png` | QR de pareamento (Evolution v2) |
-| `ws://host:8097/ws` | eventos para o app |
+## Security and privacy
 
-## Pendente: chave de assinatura (PK)
+The app processes WhatsApp account credentials and audio locally or through the configured server. Use a trusted network, protect Evolution API credentials and signing keys, and do not publish diagnostic audio or logs containing personal data. Microphone access is required only while recording a reply; Android's system privacy indicator remains visible during active microphone use.
 
-A assinatura de release do APK está isolada em `android-bridge/keystore.properties`
-(veja `keystore.properties.template`). Sem esse arquivo o build usa a chave de
-debug. Basta gerar o `.jks` e preencher o arquivo — o `build.gradle.kts` já
-lê e aplica automaticamente.
+## License
+
+See the repository's license file, if provided.

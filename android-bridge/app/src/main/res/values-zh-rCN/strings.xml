@@ -8,7 +8,7 @@
     <string name="section_bluetooth">手表/耳机</string>
     <string name="section_language">语言</string>
 
-    <!-- Tela principal -->
+    <!-- Main screen -->
     <string name="engine_label">与WhatsApp通信方式</string>
     <string name="mode_embedded">内置引擎: %s</string>
     <string name="mode_embedded_short">内置（无服务器）</string>
@@ -17,6 +17,10 @@
     <string name="server_label">服务器</string>
     <string name="url_hint">http://192.168.15.100:8097</string>
     <string name="speed_label">默认播放速度</string>
+    <string name="speed_custom">自定义…</string>
+    <string name="speed_custom_title">自定义播放速度</string>
+    <string name="speed_custom_range">请输入 0.25x 到 4x 之间的数值。</string>
+    <string name="speed_custom_invalid">请输入 0.25 到 4 之间的有效数值。</string>
     <string name="audio_delay_label">音频开始前的延迟</string>
     <string name="audio_delay_hint">从接听开始计时。设为0秒时，音频仅等待手表打开语音通道。</string>
     <string name="status_label">状态</string>
@@ -40,7 +44,7 @@
     <string name="stopped">已停止</string>
     <string name="test_caller">正在呼叫手表…</string>
 
-    <!-- Pareamento -->
+    <!-- Pairing -->
     <string name="pairing_label">WhatsApp配对</string>
     <string name="country_code_hint">国家代码</string>
     <string name="phone_hint">区号+号码</string>
@@ -72,6 +76,15 @@
     <string name="bt_connected">当前已连接</string>
     <string name="bt_disconnected">已断开</string>
     <string name="bt_permission">蓝牙权限被拒绝</string>
+    <string name="call_history_button_empty">音频记录</string>
+    <string name="call_history_button">音频记录（%1$d）</string>
+    <string name="call_history_title">音频记录</string>
+    <string name="call_history_empty">尚未收到音频</string>
+    <string name="call_history_received">已收到</string>
+    <string name="call_history_answered">已接听</string>
+    <string name="call_history_rejected">已拒绝</string>
+    <string name="call_history_clear">清除记录</string>
+    <string name="call_history_confirm_clear">清除所有音频记录？</string>
     <string name="pending_label">已接收语音消息</string>
     <string name="pending_title">语音消息队列</string>
     <string name="pending_none">队列中无消息</string>
@@ -81,7 +94,7 @@
     <string name="allowed_selected">已选择 %1$d 个</string>
     <string name="allowed_search">搜索姓名或号码…</string>
 
-    <!-- Tela de chamada -->
+    <!-- Call screen -->
     <string name="incoming_call">语音通话</string>
     <string name="incoming_from">来自 %s</string>
     <string name="incoming_call_duration">来自 %1$s · %2$s</string>
@@ -101,7 +114,7 @@
     <string name="quick_reply_busy">我目前无法接听电话。</string>
     <string name="action_quick_reply">短信回复</string>
 
-    <!-- Notificações -->
+    <!-- Notifications -->
     <string name="service_notification_active">WhatsApp 已连接到手表</string>
     <string name="notification_channel">Wabridge</string>
     <string name="notification_channel_desc">保持WhatsApp桥接运行</string>
@@ -109,7 +122,7 @@
     <string name="channel_call_name">语音通话</string>
     <string name="accept_own_label">播放我自己的音频（测试模式）</string>
 
-    <!-- Idiomas -->
+    <!-- Languages -->
     <string name="language_label">应用语言</string>
     <string name="language_system">系统语言 (%s)</string>
     <string name="language_portuguese">português</string>

@@ -12,7 +12,7 @@
         android:orientation="vertical"
         android:padding="20dp">
 
-        <!-- Título + versão (5 toques na versão libera o diagnóstico) -->
+        <!-- Title + version (tap version 5 times to unlock diagnostics) -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -46,7 +46,7 @@
             android:textColor="@color/on_surface_variant"
             android:textSize="13sp" />
 
-        <!-- ===== Estado atual (topo) ===== -->
+        <!-- ===== Current status (top) ===== -->
         <com.google.android.material.card.MaterialCardView
             style="@style/Widget.Material3.CardView.Filled"
             android:layout_width="match_parent"
@@ -76,10 +76,18 @@
                     android:layout_marginTop="12dp"
                     android:text="@string/start" />
 
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/callHistoryButton"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/call_history_button_empty" />
+
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- ===== Conexão ===== -->
+        <!-- ===== Connection ===== -->
         <com.google.android.material.card.MaterialCardView
             style="@style/Widget.Material3.CardView.Filled"
             android:layout_width="match_parent"
@@ -172,7 +180,7 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- ===== Pareamento ===== -->
+        <!-- ===== Pairing ===== -->
         <com.google.android.material.card.MaterialCardView
             style="@style/Widget.Material3.CardView.Filled"
             android:layout_width="match_parent"
@@ -270,7 +278,7 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- ===== Quem pode ligar ===== -->
+        <!-- ===== Who can call ===== -->
         <com.google.android.material.card.MaterialCardView
             style="@style/Widget.Material3.CardView.Filled"
             android:layout_width="match_parent"
@@ -384,7 +392,7 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- ===== Teste: aceitar próprios áudios ===== -->
+        <!-- ===== Test: accept own audio ===== -->
         <CheckBox
             android:id="@+id/acceptOwnCheck"
             android:layout_width="match_parent"
@@ -392,15 +400,7 @@
             android:layout_marginTop="8dp"
             android:text="@string/accept_own_label" />
 
-        <!-- ===== Ações ===== -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/pendingButton"
-            style="@style/Widget.Material3.Button.OutlinedButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="@string/pending_label" />
-
+        <!-- ===== Actions ===== -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/testCallButton"
             style="@style/Widget.Material3.Button.TextButton"
@@ -409,7 +409,7 @@
             android:layout_marginTop="8dp"
             android:text="@string/test_call" />
 
-        <!-- Diagnóstico de áudio: escondido até 5 toques na versão -->
+        <!-- Audio diagnostics: hidden until version is tapped 5 times -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/audioDiagnosticsButton"
             style="@style/Widget.Material3.Button.OutlinedButton"
@@ -427,7 +427,7 @@
             android:layout_marginTop="8dp"
             android:text="@string/save_log" />
 
-        <!-- ===== Idioma (último, no fim da página) ===== -->
+        <!-- ===== Language (last, at bottom of page) ===== -->
         <com.google.android.material.card.MaterialCardView
             style="@style/Widget.Material3.CardView.Filled"
             android:layout_width="match_parent"

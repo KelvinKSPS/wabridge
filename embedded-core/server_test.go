@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-// fakeWhatsApp é um motor de mentira: os testes não tocam no WhatsApp.
+// fakeWhatsApp is a fake engine: tests do not interact with WhatsApp.
 type fakeWhatsApp struct {
 	events    chan Event
 	sentAudio []struct {
@@ -120,7 +120,7 @@ func TestAudioViraChamadaEresponde(t *testing.T) {
 		ID: "MSG1", FromNumber: "5511999999999", FromName: "Sara", Seconds: 12,
 	}}
 
-	// o payload precisa aparecer em /pending
+	// The payload must appear in /pending
 	deadline := time.Now().Add(3 * time.Second)
 	var pend []PendingCall
 	for time.Now().Before(deadline) {
@@ -141,7 +141,7 @@ func TestAudioViraChamadaEresponde(t *testing.T) {
 		t.Fatalf("pendência errada: %+v", pend[0])
 	}
 
-	// e o áudio tem que estar disponível em /media
+	// And the audio must be available at /media
 	res, err := http.Get(ts.URL + "/media/MSG1.ogg")
 	if err != nil {
 		t.Fatal(err)
@@ -162,7 +162,7 @@ func TestReplyAudioEnviaParaORemendente(t *testing.T) {
 	fake.events <- Event{Kind: "audio", Audio: &AudioMessage{ID: "MSG2", FromNumber: "5511888888888", Seconds: 3}}
 	time.Sleep(300 * time.Millisecond)
 
-	// o endpoint recebe multipart (como no servidor Node)
+	// The endpoint receives multipart (as in the Node server)
 	var buf bytes.Buffer
 	w := multipart.NewWriter(&buf)
 	w.WriteField("audioId", "MSG2")
@@ -242,7 +242,7 @@ func TestContacts(t *testing.T) {
 		t.Fatalf("grupos errados: %+v", body.Grupos)
 	}
 
-	// o JSON precisa expor lastActivity (0 quando sem dado)
+	// The JSON must expose lastActivity (0 when there is no data)
 	res2, err := http.Get(ts.URL + "/contacts")
 	if err != nil {
 		t.Fatal(err)
@@ -331,9 +331,9 @@ func buildTestOGG(packets ...[]byte) []byte {
 	return out
 }
 
-// miniOGG é um OGG/Opus estruturalmente válido, gerado nos testes.
-// Os pacotes de áudio não são decodificáveis; servem para testar framing,
-// normalização, MIME e duração sem gravar áudio real.
+// miniOGG is a structurally valid OGG/Opus generated in tests.
+// The audio packets are not decodable; they are used to test framing,
+// normalization, MIME, and duration without recording real audio.
 var miniOGG = buildTestOGG(
 	bytes.Repeat([]byte{0xFC}, 20),
 	bytes.Repeat([]byte{0x81}, 40),
@@ -455,7 +455,7 @@ func TestReplyAudioNormalizaOGG(t *testing.T) {
 }
 
 func TestReplyAudioDefaultMimeSemCampo(t *testing.T) {
-	// Sem mimeType no form → server usa "audio/mp4" como fallback (legado).
+	// Without mimeType in the form → server uses "audio/mp4" as fallback (legacy).
 	_, fake, ts := newTestServer(t)
 	defer ts.Close()
 
@@ -481,11 +481,11 @@ func TestReplyAudioPendenciaRemovidaAposResposta(t *testing.T) {
 	_, _, ts := newTestServer(t)
 	defer ts.Close()
 
-	// injeta e aguarda ser listado
+	// Inject and wait for it to be listed
 	res1, _ := http.Get(ts.URL + "/pending")
 	res1.Body.Close()
 
-	// envia reply → pending deve ser removido
+	// Send reply → pending should be removed
 	buf, ct := multipartOGG(t, "MSG15", "5511333333333", "audio/ogg; codecs=opus", 2, miniOGG)
 	res2, err := http.Post(ts.URL+"/reply/audio", ct, buf)
 	if err != nil {
@@ -579,7 +579,7 @@ func TestMediaTestWav(t *testing.T) {
 	}
 }
 
-// Integração HTTP com motor falso; não valida codec, upload ou entrega WhatsApp.
+// HTTP integration with fake engine; does not validate codec, upload, or WhatsApp delivery.
 
 func integraOGGReal() []byte {
 	return buildTestOGG(bytes.Repeat([]byte{0xFC}, 20), bytes.Repeat([]byte{0x81}, 40))
@@ -594,12 +594,12 @@ func TestIntegrationReplyAudioFullPipeline(t *testing.T) {
 	_, fake, ts := newTestServer(t)
 	defer ts.Close()
 
-	// 1) Injeta o evento de áudio recebido (como se fosse da Sara).
+	// 1) Inject the received audio event (as if from the sender).
 	fake.events <- Event{Kind: "audio", Audio: &AudioMessage{
 		ID: "INT-1", FromNumber: "5511999990001", FromName: "Sara", Seconds: 4,
 	}}
 
-	// 2) Espera o daemon processar e disponibilizar em /pending.
+	// 2) Wait for the daemon to process it and make it available at /pending.
 	deadline := time.Now().Add(3 * time.Second)
 	var pend []PendingCall
 	for time.Now().Before(deadline) {
@@ -615,7 +615,7 @@ func TestIntegrationReplyAudioFullPipeline(t *testing.T) {
 		t.Fatalf("pendência não apareceu em /pending: %+v", pend)
 	}
 
-	// 3) Baixa o áudio do daemon (deve ser o mesmo binário que injetamos antes).
+	// 3) Download the audio from the daemon (should be the same bytes injected above).
 	resMedia, err := http.Get(ts.URL + "/media/INT-1.ogg")
 	if err != nil {
 		t.Fatal(err)
@@ -626,7 +626,7 @@ func TestIntegrationReplyAudioFullPipeline(t *testing.T) {
 		t.Fatal("áudio veio vazio em /media")
 	}
 
-	// Envia o reply com o MIME recebido do app sem alteração.
+	// Send the reply with the MIME received from the app unchanged.
 	var buf bytes.Buffer
 	w := multipart.NewWriter(&buf)
 	w.WriteField("audioId", "INT-1")
@@ -647,7 +647,7 @@ func TestIntegrationReplyAudioFullPipeline(t *testing.T) {
 		t.Fatalf("POST /reply/audio retornou %d: %s", resPost.StatusCode, body)
 	}
 
-	// 5) Assertiva central: o motor recebeu EXATAMENTE os bytes e o MIME original.
+	// 5) Main assertion: the engine received EXACTLY the original bytes and MIME.
 	if len(fake.sentAudio) != 1 {
 		t.Fatalf("esperava 1 SendAudio, veio %d", len(fake.sentAudio))
 	}
@@ -668,7 +668,7 @@ func TestIntegrationReplyAudioFullPipeline(t *testing.T) {
 		t.Errorf("tamanho dos bytes mudou no caminho: %d != %d", got.size, len(expectedAudio))
 	}
 
-	// 6) A pendência deve ter sido removida após o reply.
+	// 6) The pending item should have been removed after the reply.
 	resPend, _ := http.Get(ts.URL + "/pending")
 	var after []PendingCall
 	json.NewDecoder(resPend.Body).Decode(&after)
@@ -680,7 +680,7 @@ func TestIntegrationReplyAudioFullPipeline(t *testing.T) {
 	}
 }
 
-// Regressão: mesmo sem durationSec explícito, o fallback NUNCA pode zerar.
+// Regression: even without explicit durationSec, the fallback must NEVER return zero.
 func TestIntegrationFallbackDuracaoNuncaZero(t *testing.T) {
 	_, fake, ts := newTestServer(t)
 	defer ts.Close()
@@ -693,7 +693,7 @@ func TestIntegrationFallbackDuracaoNuncaZero(t *testing.T) {
 	w.WriteField("audioId", "INT-2")
 	w.WriteField("to", "5511999990002")
 	w.WriteField("mimeType", "audio/ogg; codecs=opus")
-	// SEM durationSec
+	// WITHOUT durationSec
 	fw, _ := w.CreateFormFile("file", "reply.ogg")
 	fw.Write(integraOGGReal())
 	w.Close()

@@ -126,13 +126,7 @@ class BridgeForegroundService : Service() {
         }
     }
 
-    /**
-     * Volta o foreground service ao tipo base (sem microfone).
-     *
-     * O tipo `microphone` faz o Android mostrar o ícone/chip de microfone na
-     * barra de status o tempo todo. Depois da chamada não precisamos mais
-     * dele, então voltamos ao tipo base para o ícone sumir.
-     */
+    /** Returns the foreground service to its base type without microphone access. */
     private fun demoteFromMicrophone() {
         runCatching {
             ServiceCompat.startForeground(
@@ -179,6 +173,7 @@ class BridgeForegroundService : Service() {
         when (json.optString("type")) {
             "NEW_VOICE_NOTE" -> {
                 val payload = CallPayload.fromJson(json.toString()) ?: return
+                Prefs.addCallHistory(this, payload, CallHistoryOutcome.RECEIVED)
                 Log.i(TAG, "áudio recebido de ${payload.senderName}")
                 broadcastStatus("chamada de ${payload.senderName}")
                 ringIncoming(payload)
@@ -227,11 +222,6 @@ class BridgeForegroundService : Service() {
     }
 
     private fun startRinging(payload: CallPayload) {
-        // A chamada chega com o app em primeiro plano (a tela de chamada vai
-        // abrir): é o momento seguro para pedir o tipo "microphone" do
-        // foreground service. Sem isso o Android silencia o microfone
-        // quando o app sair da tela e a resposta sai vazia.
-        promoteToMicrophone()
         CallPayload.setCurrent(payload)
 
         // A tela de chamada do app não depende do Telecom: aparece mesmo em
@@ -371,6 +361,10 @@ class BridgeForegroundService : Service() {
                         .setAction(ACTION_NEED_MIC),
                 )
             }
+        }
+
+        fun releaseMicrophone(@Suppress("UNUSED_PARAMETER") context: Context) {
+            instance?.demoteFromMicrophone()
         }
     }
 }

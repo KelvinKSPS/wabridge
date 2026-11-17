@@ -26,7 +26,7 @@ func TestIsAllowedComLista(t *testing.T) {
 }
 
 func TestIsAllowedPorSufixo(t *testing.T) {
-	// código do país diferente, mesmo número
+	// Different country code, same number
 	if !IsAllowed([]string{"999999999"}, "5511999999999") {
 		t.Fatal("deveria comparar pelo sufixo")
 	}
@@ -48,7 +48,7 @@ func TestConfigStorePersiste(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// relê do disco
+	// Read back from disk
 	store2, err := NewConfigStore(dir)
 	if err != nil {
 		t.Fatal(err)
@@ -58,7 +58,7 @@ func TestConfigStorePersiste(t *testing.T) {
 		t.Fatalf("config não persistiu: %+v", got)
 	}
 
-	// o arquivo existe
+	// The file exists
 	if _, err := os.Stat(filepath.Join(dir, "config.json")); err != nil {
 		t.Fatalf("config.json não foi criado: %v", err)
 	}

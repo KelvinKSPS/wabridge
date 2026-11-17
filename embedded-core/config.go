@@ -8,23 +8,22 @@ import (
 	"sync"
 )
 
-// Config é a configuração local do daemon (persistida em JSON no diretório
-// de dados do app).
+// Config is the daemon's local configuration, persisted as JSON in the app's data directory.
 type Config struct {
-	// AllowedNumbers é a lista branca de remetentes (vazio = todos).
+	// AllowedNumbers is the allowlist of senders (empty = everyone).
 	AllowedNumbers []string `json:"allowedNumbers"`
-	// AcceptAll desliga o filtro (equivale a lista vazia).
+	// AcceptAll disables filtering (equivalent to an empty list).
 	AcceptAll bool `json:"acceptAll"`
 }
 
-// ConfigStore guarda a configuração em disco.
+// ConfigStore stores the configuration on disk.
 type ConfigStore struct {
 	mu   sync.RWMutex
 	path string
 	cfg  Config
 }
 
-// NewConfigStore carrega (ou cria) a configuração no diretório.
+// NewConfigStore loads (or creates) the configuration in the directory.
 func NewConfigStore(dir string) (*ConfigStore, error) {
 	s := &ConfigStore{path: filepath.Join(dir, "config.json")}
 	if err := os.MkdirAll(dir, 0o700); err != nil {
@@ -39,7 +38,7 @@ func NewConfigStore(dir string) (*ConfigStore, error) {
 	return s, nil
 }
 
-// Allowed devolve a lista de números permitidos (nil = todos).
+// Allowed returns the list of allowed numbers (nil = everyone).
 func (s *ConfigStore) Allowed() []string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -53,7 +52,7 @@ func (s *ConfigStore) Allowed() []string {
 	return out
 }
 
-// SetAllowed grava a lista branca.
+// SetAllowed saves the allowlist.
 func (s *ConfigStore) SetAllowed(numbers []string, acceptAll bool) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -72,10 +71,10 @@ func (s *ConfigStore) SetAllowed(numbers []string, acceptAll bool) error {
 	return os.WriteFile(s.path, data, 0o600)
 }
 
-// IsAllowed diz se o número pode entrar.
+// IsAllowed reports whether the number is allowed.
 //
-// Mesma regra do servidor Node: lista vazia = todos; lista preenchida = só
-// os números exatos ou os que terminam com o sufixo informado.
+// Uses the same rule as the Node server: an empty list means everyone;
+// a non-empty list allows only exact numbers or numbers ending in a listed suffix.
 func IsAllowed(allowed []string, number string) bool {
 	if len(allowed) == 0 {
 		return true
@@ -96,7 +95,7 @@ func IsAllowed(allowed []string, number string) bool {
 	return false
 }
 
-// onlyDigits tira tudo que não é dígito.
+// onlyDigits removes everything that is not a digit.
 func onlyDigits(v string) string {
 	var b strings.Builder
 	for _, r := range v {

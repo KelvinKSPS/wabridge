@@ -20,15 +20,15 @@ import (
 	"go.mau.fi/whatsmeow/types/events"
 	waLog "go.mau.fi/whatsmeow/util/log"
 
-	// mattn/go-sqlite3 (CGO): o "modernc.org/sqlite" puro em Go usa
-	// syscalls que o seccomp do Android bloqueia (SIGSYS na hora do
-	// fstatat) — por isso o daemon crashava ao abrir a sessão.
+	// mattn/go-sqlite3 (CGO): the pure-Go "modernc.org/sqlite" uses
+	// syscalls blocked by Android's seccomp (SIGSYS during fstatat),
+	// which caused the daemon to crash when opening the session.
 	_ "github.com/mattn/go-sqlite3"
 )
 
-// whatsmeowClient é o motor do WhatsApp (implementa a interface [WhatsApp]).
+// whatsmeowClient is the WhatsApp engine (implements the [WhatsApp] interface).
 type whatsmeowClient struct {
-	// ctx de fundo para chamadas feitas dos handlers de evento
+	// Background context for calls made by event handlers
 	ctx       context.Context
 	mu        sync.Mutex
 	container *sqlstore.Container
@@ -38,13 +38,13 @@ type whatsmeowClient struct {
 	connected chan struct{}
 	recent    *RecentStore
 
-	// retry de mídia: quando o CDN retorna hash errado, pedimos ao remetente
-	// que reenvie — o whatsmeow entrega um events.MediaRetry com novo DirectPath
+	// Media retry: when the CDN returns a wrong hash, ask the sender
+	// to resend; whatsmeow delivers an events.MediaRetry with a new DirectPath.
 	pendingRetry map[string]chan *events.MediaRetry // keyed by message ID
 	sentAudio    map[types.MessageID]time.Time
 }
 
-// NewWhatsmeow abre (ou cria) a sessão local e devolve o motor.
+// NewWhatsmeow opens (or creates) the local session and returns the engine.
 func NewWhatsmeow(dir string, phone string) (*whatsmeowClient, error) {
 	ctx := context.Background()
 	dsn := "file:" + filepath.Join(dir, "session.db") + "?_foreign_keys=on&_busy_timeout=5000"
@@ -81,28 +81,28 @@ func NewWhatsmeow(dir string, phone string) (*whatsmeowClient, error) {
 	return w, nil
 }
 
-// Connect abre a sessão (e fica reconectando sozinho).
+// Connect opens the session and keeps reconnecting automatically.
 func (w *whatsmeowClient) Connect(ctx context.Context) error {
 	w.client.EnableAutoReconnect = true
 	w.connectOnce(ctx)
-	// O auto-reconnect do whatsmeow só age depois do login. Na janela do
-	// pareamento (aparelho ainda não logado) uma queda deixaria o daemon
-	// morto para sempre — então a gente reconecta na mão.
+	// whatsmeow auto-reconnect only works after login. A disconnect during
+	// pairing (before the device is logged in) would leave the daemon offline,
+	// so reconnect manually.
 	go w.watch(ctx)
-	// Ticker para salvar o histórico de atividades recentes a cada 15 segundos
+	// Ticker to save recent activity history every 15 seconds
 	go w.watchRecentSave(ctx)
 	return nil
 }
 
-// connectOnce cria o canal de QR e abre a conexão.
+// connectOnce creates the QR channel and opens the connection.
 //
-// O canal do QR precisa ser criado ANTES do connect (exigência da biblioteca).
+// The QR channel must be created BEFORE connect (library requirement).
 func (w *whatsmeowClient) connectOnce(ctx context.Context) {
 	ch, err := w.client.GetQRChannel(ctx)
 	if err != nil {
 		log.Printf("wabridge: canal de QR: %v", err)
 	} else {
-		// QR: o canal entrega o ref; a gente desenha o PNG.
+		// QR: the channel provides the reference; render it as a PNG.
 		go func() {
 			for item := range ch {
 				if item.Error != nil {
@@ -133,7 +133,7 @@ func (w *whatsmeowClient) connectOnce(ctx context.Context) {
 	}()
 }
 
-// watch reconecta quando a conexão cai antes do pareamento.
+// watch reconnects if the connection drops before pairing.
 func (w *whatsmeowClient) watch(ctx context.Context) {
 	t := time.NewTicker(20 * time.Second)
 	defer t.Stop()
@@ -149,7 +149,7 @@ func (w *whatsmeowClient) watch(ctx context.Context) {
 	}
 }
 
-// watchRecentSave salva o histórico de atividades recentes a cada 15 segundos.
+// watchRecentSave saves recent activity history every 15 seconds.
 func (w *whatsmeowClient) watchRecentSave(ctx context.Context) {
 	t := time.NewTicker(15 * time.Second)
 	defer t.Stop()
@@ -163,7 +163,7 @@ func (w *whatsmeowClient) watchRecentSave(ctx context.Context) {
 	}
 }
 
-// markReady libera o pedido de código de pareamento (o cliente já conectou).
+// markReady enables pairing-code requests (the client has connected).
 func (w *whatsmeowClient) markReady() {
 	select {
 	case <-w.connected:
@@ -172,7 +172,7 @@ func (w *whatsmeowClient) markReady() {
 	}
 }
 
-// Status devolve o estado do pareamento.
+// Status returns the pairing status.
 func (w *whatsmeowClient) Status() Status {
 	w.mu.Lock()
 	qr := w.qr
@@ -186,20 +186,20 @@ func (w *whatsmeowClient) Status() Status {
 	return st
 }
 
-// PairCode gera o código de 8 dígitos (pareia sem QR).
+// PairCode generates an 8-digit code (pairs without a QR code).
 //
-// O whatsmeow devolve o código na hora e a confirmação chega depois, por
-// notificação — então esta chamada não bloqueia.
+// whatsmeow returns the code immediately; confirmation arrives later in a
+// notification, so this call does not block.
 func (w *whatsmeowClient) PairCode(ctx context.Context, phone string) (string, error) {
-	// o cliente precisa estar conectado (e ter recebido o QR) antes do pedido
+	// The client must be connected (and have received the QR) before the request.
 	select {
 	case <-w.connected:
 	case <-time.After(20 * time.Second):
 		return "", fmt.Errorf("o cliente ainda não conectou ao WhatsApp")
 	}
 
-	// o nome do cliente precisa estar no formato "Browser (OS)": o
-	// WhatsApp valida e devolve 400 se não for um browser/SO conhecido
+	// The client name must use the "Browser (OS)" format; WhatsApp validates it
+	// and returns 400 if it is not a known browser/OS.
 	code, err := w.client.PairPhone(ctx, phone, true, whatsmeow.PairClientChrome, "Chrome (Android)")
 	if err != nil {
 		return "", err
@@ -207,7 +207,7 @@ func (w *whatsmeowClient) PairCode(ctx context.Context, phone string) (string, e
 	return code, nil
 }
 
-// Logout desloga e apaga a sessão.
+// Logout signs out and clears the session.
 func (w *whatsmeowClient) Logout(ctx context.Context) error {
 	if w.client.IsLoggedIn() {
 		if err := w.client.Logout(ctx); err != nil {
@@ -220,12 +220,12 @@ func (w *whatsmeowClient) Logout(ctx context.Context) error {
 	return nil
 }
 
-// Events entrega os eventos recebidos.
+// Events returns received events.
 func (w *whatsmeowClient) Events() <-chan Event { return w.events }
 
-// DownloadAudio baixa o áudio da nota de voz.
-// Se o CDN devolver hash errado, envia SendMediaRetryReceipt e aguarda
-// o WhatsApp reenviar a mídia com novo DirectPath (até 30 s).
+// DownloadAudio downloads the voice note audio.
+// If the CDN returns a wrong hash, send SendMediaRetryReceipt and wait
+// for WhatsApp to resend the media with a new DirectPath (up to 30 seconds).
 func (w *whatsmeowClient) DownloadAudio(ctx context.Context, audio AudioMessage) ([]byte, error) {
 	mime := audio.Mimetype
 	seconds := uint32(audio.Seconds)
@@ -250,11 +250,11 @@ func (w *whatsmeowClient) DownloadAudio(ctx context.Context, audio AudioMessage)
 		return data, nil
 	}
 
-	// tentativa de retry: pede ao remetente que reenvie a mídia
+	// Retry attempt: ask the sender to resend the media.
 	log.Printf("wabridge: download falhou (%v) — tentando media retry…", err)
 	chatJID, parseErr := types.ParseJID(audio.ChatJID)
 	if parseErr != nil || audio.ChatJID == "" {
-		return nil, err // sem info suficiente para retry
+		return nil, err // Not enough information to retry.
 	}
 
 	info := &types.MessageInfo{
@@ -310,7 +310,7 @@ func (w *whatsmeowClient) SendAudio(ctx context.Context, number string, data []b
 	}
 	msg := buildAudioMessage(resp, mimetype, seconds)
 	id := w.client.GenerateMessageID()
-	// O recibo pode chegar antes de SendMessage retornar; timeout não autoriza duplicar o envio.
+	// The receipt may arrive before SendMessage returns; timeout does not authorize resending.
 	w.trackAudio(id, time.Now())
 	log.Printf("wabridge: PTT envio msgID=%s mime=%s bytes=%d seconds=%d sidecar=%d",
 		id, mimetype, resp.FileLength, seconds, len(resp.StreamingSidecar))
@@ -345,7 +345,7 @@ func (w *whatsmeowClient) trackAudio(id types.MessageID, sentAt time.Time) {
 	w.sentAudio[id] = sentAt
 }
 
-// Esta versão do whatsmeow calcula sidecar só para vídeo; áudio vazio é esperado.
+// This whatsmeow version calculates sidecars only for video; an empty audio sidecar is expected.
 func buildAudioMessage(resp whatsmeow.UploadResponse, mimetype string, seconds uint32) *waE2E.AudioMessage {
 	url := resp.URL
 	directPath := resp.DirectPath
@@ -367,7 +367,7 @@ func buildAudioMessage(resp whatsmeow.UploadResponse, mimetype string, seconds u
 	}
 }
 
-// recentKey devolve a chave da conversa (número para contato, JID para grupo) ou "".
+// recentKey returns the conversation key (contact number, group JID), or "".
 func (w *whatsmeowClient) recentKey(ctx context.Context, jid types.JID) string {
 	switch jid.Server {
 	case types.GroupServer:
@@ -380,32 +380,32 @@ func (w *whatsmeowClient) recentKey(ctx context.Context, jid types.JID) string {
 	case types.DefaultUserServer:
 		return jid.User
 	default:
-		// broadcast, status, newsletter, bot — ignorar
+		// Broadcast, status, newsletter, bot — ignore.
 		return ""
 	}
 }
 
-// ContactEntry é um contato da agenda (lista interativa do app).
+// ContactEntry is a contact from the address book (app interactive list).
 type ContactEntry struct {
 	Nome         string `json:"name"`
 	Numero       string `json:"number"`
 	LastActivity int64  `json:"lastActivity"`
 }
 
-// GroupEntry é um grupo do WhatsApp (lista interativa do app).
+// GroupEntry is a WhatsApp group (app interactive list).
 type GroupEntry struct {
 	JID          string `json:"jid"`
 	Nome         string `json:"name"`
 	LastActivity int64  `json:"lastActivity"`
 }
 
-// Contacts lista os contatos e os grupos da conta.
+// Contacts lists the account's contacts and groups.
 //
-// O número vem sempre resolvido: o WhatsApp manda LID (@lid) para quem
-// não está na agenda, então o mapa LID→PN é consultado antes.
+// The number is always resolved: WhatsApp sends a LID (@lid) for contacts
+// not in the address book, so the LID→PN map is checked first.
 func (w *whatsmeowClient) Contacts(ctx context.Context) ([]ContactEntry, []GroupEntry, error) {
-	// Sem sessão pareada o store ainda não existe: devolve vazio em vez de
-	// estourar um nil pointer no handler HTTP.
+	// Without a paired session, the store does not exist yet; return empty
+	// results instead of triggering a nil-pointer panic in the HTTP handler.
 	if w.client.Store == nil || w.client.Store.Contacts == nil {
 		return []ContactEntry{}, []GroupEntry{}, nil
 	}
@@ -415,7 +415,7 @@ func (w *whatsmeowClient) Contacts(ctx context.Context) ([]ContactEntry, []Group
 		return nil, nil, err
 	}
 
-	// Mapa para deduplicar: número → índice do contato mantido
+	// Map for deduplication: number → index of the retained contact.
 	seenNumbers := make(map[string]int)
 
 	contatos := make([]ContactEntry, 0, len(cs))
@@ -437,7 +437,7 @@ func (w *whatsmeowClient) Contacts(ctx context.Context) ([]ContactEntry, []Group
 			nome = info.FirstName
 		}
 
-		// Deduplicação: se número já foi visto, manter o que tem nome não vazio
+		// Deduplication: if the number has been seen, keep the entry with a non-empty name.
 		if idx, exists := seenNumbers[numero]; exists {
 			if nome != "" && contatos[idx].Nome == "" {
 				contatos[idx].Nome = nome
@@ -454,10 +454,10 @@ func (w *whatsmeowClient) Contacts(ctx context.Context) ([]ContactEntry, []Group
 		seenNumbers[numero] = len(contatos) - 1
 	}
 
-	// Ordenar: LastActivity decrescente; empate → nome em minúsculas crescente
+	// Sort by LastActivity descending; ties by lowercase name ascending.
 	sortRecentContacts(contatos)
 
-	// fora da conexão o IQ de grupos falha; devolve vazio em vez de erro
+	// Group IQ requests fail when disconnected; return empty results instead of an error.
 	var gs []*types.GroupInfo
 	if w.client.IsConnected() {
 		var err error
@@ -482,7 +482,7 @@ func (w *whatsmeowClient) Contacts(ctx context.Context) ([]ContactEntry, []Group
 	return contatos, grupos, nil
 }
 
-// sortRecentContacts ordena contatos por LastActivity (decrescente); empate → nome em minúsculas (crescente).
+// sortRecentContacts sorts contacts by LastActivity descending; ties by lowercase name ascending.
 func sortRecentContacts(cs []ContactEntry) {
 	sort.Slice(cs, func(i, j int) bool {
 		if cs[i].LastActivity != cs[j].LastActivity {
@@ -492,7 +492,7 @@ func sortRecentContacts(cs []ContactEntry) {
 	})
 }
 
-// sortRecentGroups ordena grupos por LastActivity (decrescente); empate → nome em minúsculas (crescente).
+// sortRecentGroups sorts groups by LastActivity descending; ties by lowercase name ascending.
 func sortRecentGroups(gs []GroupEntry) {
 	sort.Slice(gs, func(i, j int) bool {
 		if gs[i].LastActivity != gs[j].LastActivity {
@@ -502,16 +502,16 @@ func sortRecentGroups(gs []GroupEntry) {
 	})
 }
 
-// SendText envia uma mensagem de texto.
+// SendText sends a text message.
 func (w *whatsmeowClient) SendText(ctx context.Context, number string, text string) error {
 	jid := types.JID{User: number, Server: types.DefaultUserServer}
 	_, err := w.client.SendMessage(ctx, jid, &waE2E.Message{Conversation: &text})
 	return err
 }
 
-// Close fecha a sessão.
+// Close closes the session.
 func (w *whatsmeowClient) Close() {
-	// Salva o histórico de atividades antes de fechar
+	// Save activity history before closing.
 	if w.recent != nil {
 		if err := w.recent.SaveIfDirty(); err != nil {
 			log.Printf("wabridge: erro salvando histórico ao fechar: %v", err)
@@ -525,7 +525,7 @@ func (w *whatsmeowClient) Close() {
 	}
 }
 
-// onEvent traduz os eventos do whatsmeow para os da ponte.
+// onEvent translates whatsmeow events into bridge events.
 func (w *whatsmeowClient) onEvent(evt any) {
 	switch e := evt.(type) {
 	case *events.QR:
@@ -542,7 +542,7 @@ func (w *whatsmeowClient) onEvent(evt any) {
 	case *events.LoggedOut:
 		log.Println("wabridge: desconectado")
 	case *events.HistorySync:
-		// Processa o histórico de conversas (chega logo após pareamento)
+		// Process conversation history (arrives shortly after pairing).
 		ctx, cancel := context.WithTimeout(w.ctx, 30*time.Second)
 		conversations := e.Data.GetConversations()
 		for _, c := range conversations {
@@ -558,7 +558,7 @@ func (w *whatsmeowClient) onEvent(evt any) {
 		}
 		cancel()
 		if len(conversations) > 0 {
-			log.Printf("wabridge: history sync %d conversas", len(conversations))
+			log.Printf("wabridge: history sync %d conversations", len(conversations))
 		}
 	case *events.Receipt:
 		for _, id := range e.MessageIDs {
@@ -575,7 +575,7 @@ func (w *whatsmeowClient) onEvent(evt any) {
 			return
 		}
 
-		// Registra atividade antes de processar o áudio
+		// Record activity before processing audio.
 		ctx, cancel := context.WithTimeout(w.ctx, 5*time.Second)
 		w.recent.Touch(w.recentKey(ctx, e.Info.Chat), e.Info.Timestamp.Unix())
 		cancel()
@@ -586,9 +586,9 @@ func (w *whatsmeowClient) onEvent(evt any) {
 		}
 		jid := e.Info.Chat
 
-		// WhatsApp manda o interlocutor como LID (@lid) quando o contato
-		// não está na agenda; o número real só existe no mapa LID→PN.
-		// Sem resolver, a nota de voz caiia no filtro de servidor.
+		// WhatsApp sends the correspondent as a LID (@lid) when the contact
+		// is not in the address book; the real number exists only in the LID→PN map.
+		// Without resolving it, the voice note would be dropped by the server filter.
 		if jid.Server == types.HiddenUserServer {
 			ctx, cancel := context.WithTimeout(w.ctx, 5*time.Second)
 			if pn, err := w.client.Store.LIDs.GetPNForLID(ctx, jid); err == nil {
@@ -597,12 +597,12 @@ func (w *whatsmeowClient) onEvent(evt any) {
 			cancel()
 		}
 
-		// ignora mensagens enviadas pelo próprio usuário
-		// (WABRIDGE_ACCEPT_OWN=1 desativa o filtro para testes)
+		// Ignore messages sent by the user
+		// (WABRIDGE_ACCEPT_OWN=1 disables this filter for testing).
 		if e.Info.IsFromMe && os.Getenv("WABRIDGE_ACCEPT_OWN") == "" {
 			return
 		}
-		// só conversa privada (grupos e newsletters ficam de fora)
+		// Private conversations only (groups and newsletters are excluded).
 		if jid.Server != types.DefaultUserServer {
 			return
 		}
@@ -636,7 +636,7 @@ func (w *whatsmeowClient) onEvent(evt any) {
 	}
 }
 
-// logger é um adaptador simples para o logger do whatsmeow.
+// logger is a simple adapter for the whatsmeow logger.
 type logger struct{}
 
 func newLogger() waLog.Logger { return &logger{} }

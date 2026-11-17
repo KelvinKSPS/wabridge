@@ -10,6 +10,7 @@ object Prefs {
     private const val KEY_MODE = "engine_mode"
     private const val KEY_LANGUAGE = "app_language"
     private const val KEY_DIAG_UNLOCKED = "diagnostics_unlocked"
+    private const val KEY_CALL_HISTORY = "call_history"
     private const val KEY_PHONE = "phone_number"
     private const val KEY_ALLOWED = "allowed_numbers"
     private const val KEY_BT_DEVICE = "bt_device"
@@ -208,4 +209,77 @@ object Prefs {
             .putBoolean(KEY_DIAG_UNLOCKED, value)
             .apply()
     }
+
+    @Synchronized
+    fun callHistory(ctx: Context): List<CallHistoryEntry> {
+        val raw = ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString(KEY_CALL_HISTORY, "[]") ?: "[]"
+        return runCatching {
+            val array = org.json.JSONArray(raw)
+            (0 until array.length()).mapNotNull { index ->
+                val item = array.optJSONObject(index) ?: return@mapNotNull null
+                CallHistoryEntry(
+                    audioId = item.optString("audioId"),
+                    name = item.optString("name"),
+                    number = item.optString("number"),
+                    outcome = item.optString("outcome"),
+                    timestamp = item.optLong("timestamp"),
+                    audioUrl = item.optString("audioUrl"),
+                    durationSec = item.optInt("durationSec"),
+                )
+            }
+        }.getOrDefault(emptyList())
+    }
+
+    @Synchronized
+    fun addCallHistory(ctx: Context, payload: CallPayload, outcome: String) {
+        val entries = callHistory(ctx).filterNot { it.audioId == payload.audioId }.toMutableList()
+        entries.add(0, CallHistoryEntry(
+            audioId = payload.audioId,
+            name = payload.senderName,
+            number = payload.senderNumber,
+            outcome = outcome,
+            timestamp = System.currentTimeMillis(),
+            audioUrl = payload.audioUrl,
+            durationSec = payload.durationSec,
+        ))
+        val array = org.json.JSONArray().apply {
+            entries.take(100).forEach { entry ->
+                put(org.json.JSONObject().apply {
+                    put("audioId", entry.audioId)
+                    put("name", entry.name)
+                    put("number", entry.number)
+                    put("outcome", entry.outcome)
+                    put("timestamp", entry.timestamp)
+                    put("audioUrl", entry.audioUrl)
+                    put("durationSec", entry.durationSec)
+                })
+            }
+        }
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit()
+            .putString(KEY_CALL_HISTORY, array.toString())
+            .apply()
+    }
+
+    @Synchronized
+    fun clearCallHistory(ctx: Context) {
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit()
+            .remove(KEY_CALL_HISTORY)
+            .apply()
+    }
+}
+
+data class CallHistoryEntry(
+    val audioId: String,
+    val name: String,
+    val number: String,
+    val outcome: String,
+    val timestamp: Long,
+    val audioUrl: String,
+    val durationSec: Int,
+)
+
+object CallHistoryOutcome {
+    const val RECEIVED = "received"
+    const val ANSWERED = "answered"
+    const val REJECTED = "rejected"
 }

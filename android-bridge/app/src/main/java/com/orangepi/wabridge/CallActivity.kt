@@ -91,6 +91,9 @@ class CallActivity : Activity() {
             }
         }
         rejectButton.setOnClickListener {
+            CallPayload.fromJson(intent.getStringExtra(EXTRA_PAYLOAD))?.let {
+                Prefs.addCallHistory(this, it, CallHistoryOutcome.REJECTED)
+            }
             stopRing()
             rejectWhenReady()
             finish()
@@ -108,12 +111,7 @@ class CallActivity : Activity() {
         val inicial = nome.trim().take(1).uppercase().ifBlank { "?" }
         findViewById<TextView>(R.id.callerInitial)?.text = inicial
 
-        // A tela de chamada garante que o app está em primeiro plano: é o
-        // momento seguro para pedir o tipo "microphone" do foreground service.
-        // Sem isso, quando a chamada é atendida pelo discador do sistema (o
-        // app fecha a própria tela e vai para background), o Android silencia
-        // o microfone e a resposta sai vazia.
-        BridgeForegroundService.requestMicrophone(this)
+        // The voice session requests microphone access only when recording starts.
 
         // linha de estado: tocando / gravando / há quanto tempo
         handler.post(statusTicker)
@@ -259,6 +257,7 @@ class CallActivity : Activity() {
             this,
             payload,
             onEnded = {
+                Prefs.addCallHistory(this, payload, CallHistoryOutcome.ANSWERED)
                 runOnUiThread {
                     BridgeForegroundService.notifyCallEnded(this)
                     finish()

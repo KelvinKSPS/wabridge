@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Tema principal: Material 3 claro, com a identidade do WhatsApp. -->
+    <!-- Main theme: light Material 3, with WhatsApp identity. -->
     <style name="AppTheme" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="colorPrimary">@color/brand</item>
         <item name="colorOnPrimary">@color/white</item>
@@ -57,7 +57,7 @@
         <item name="colorPrimary">@color/brand</item>
     </style>
 
-    <!-- Tema da tela de chamada: escuro, sem barra, tela cheia. -->
+    <!-- Call-screen theme: dark, no toolbar, full screen. -->
     <style name="CallTheme" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="android:windowBackground">@color/call_bg</item>
         <item name="android:windowFullscreen">true</item>

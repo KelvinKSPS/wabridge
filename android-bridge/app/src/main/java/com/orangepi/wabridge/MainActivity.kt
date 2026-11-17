@@ -13,9 +13,6 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
 import androidx.core.content.ContextCompat
-import java.io.BufferedReader
-import java.io.InputStreamReader
-import java.net.URL
 
 class MainActivity : Activity() {
 
@@ -36,6 +33,7 @@ class MainActivity : Activity() {
     private lateinit var allowedInput: EditText
     private lateinit var toggleServiceButton: Button
     private lateinit var serviceStateText: TextView
+    private lateinit var callHistoryButton: Button
     private lateinit var languageSpinner: android.widget.AutoCompleteTextView
     private lateinit var languageDescText: TextView
     private lateinit var versionText: TextView
@@ -47,8 +45,8 @@ class MainActivity : Activity() {
 
     private val statusReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            // Atualiza o único card de estado no topo.
             if (this@MainActivity::serviceStateText.isInitialized) updateServiceState()
+            if (this@MainActivity::callHistoryButton.isInitialized) updateCallHistoryButton()
         }
     }
 
@@ -73,6 +71,8 @@ class MainActivity : Activity() {
         allowedInput = findViewById(R.id.allowedInput)
         toggleServiceButton = findViewById(R.id.toggleServiceButton)
         serviceStateText = findViewById(R.id.serviceStateText)
+        callHistoryButton = findViewById(R.id.callHistoryButton)
+        callHistoryButton.setOnClickListener { showCallHistory() }
         languageSpinner = findViewById(R.id.languageSpinner)
         languageDescText = findViewById(R.id.languageDesc)
         versionText = findViewById(R.id.versionText)
@@ -86,11 +86,11 @@ class MainActivity : Activity() {
         setupBattery()
         setupVersion()
         updateServiceState()
+        updateCallHistoryButton()
         audioDiagnosticsButton.setOnClickListener { showAudioDiagnostics() }
         saveLogButton.setOnClickListener { saveLog() }
 
-        // No modo embutido o daemon precisa estar no ar antes de qualquer
-        // coisa (gerar código, escanear QR, receber nota de voz).
+        // Start the embedded daemon before pairing, scanning a QR code, or receiving voice notes.
         if (Prefs.mode(this) == Prefs.Engine.EMBUTIDO && !DaemonManager.running) {
             Thread {
                 if (DaemonManager.start(this)) {
@@ -99,14 +99,9 @@ class MainActivity : Activity() {
             }.start()
         }
 
-        // velocidade padrão de reprodução
-        val current = Prefs.speed(this)
-        val speedLabels = PlaybackSpeed.menu.map { PlaybackSpeed.label(it) }
-        setupDropdown(speedSpinner, speedLabels, PlaybackSpeed.menu.indexOfFirst { it == current }) { pos ->
-            Prefs.setSpeed(this@MainActivity, PlaybackSpeed.menu.getOrElse(pos) { 1.0f })
-        }
+        setupSpeedDropdown()
 
-        // delay do áudio até começar a tocar
+        // Delay before audio playback starts
         val currentDelay = Prefs.audioDelayMs(this)
         val delayLabels = Prefs.AUDIO_DELAY_OPTIONS.map { ms ->
             val secs = ms / 1000.0
@@ -116,7 +111,7 @@ class MainActivity : Activity() {
             Prefs.setAudioDelayMs(this@MainActivity, Prefs.AUDIO_DELAY_OPTIONS.getOrElse(pos) { 1000L })
         }
 
-        // Botão único no topo: alterna entre iniciar e parar o serviço.
+        // Single button at the top toggles the service on and off.
         toggleServiceButton.setOnClickListener {
             if (BridgeForegroundService.isRunning(this)) {
                 stopService(Intent(this, BridgeForegroundService::class.java))
@@ -144,6 +139,98 @@ class MainActivity : Activity() {
     override fun onSaveInstanceState(outState: Bundle) {
         diagnosticFolder?.let { outState.putString("diagnosticFolder", it.name) }
         super.onSaveInstanceState(outState)
+    }
+
+    private fun setupSpeedDropdown() {
+        val current = Prefs.speed(this)
+        val labels = PlaybackSpeed.menu.map { PlaybackSpeed.label(it) } + getString(R.string.speed_custom)
+        val selected = PlaybackSpeed.menu.indexOfFirst { it == current }
+        setupDropdown(speedSpinner, labels, if (selected >= 0) selected else labels.lastIndex) { pos ->
+            if (pos == PlaybackSpeed.menu.size) {
+                showCustomSpeedDialog()
+            } else {
+                Prefs.setSpeed(this@MainActivity, PlaybackSpeed.menu[pos])
+            }
+        }
+        if (selected < 0) speedSpinner.setText(PlaybackSpeed.label(current), false)
+    }
+
+    private fun showCustomSpeedDialog() {
+        val input = EditText(this).apply {
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+            setText(Prefs.speed(this@MainActivity).toString())
+            selectAll()
+        }
+        android.app.AlertDialog.Builder(this)
+            .setTitle(R.string.speed_custom_title)
+            .setMessage(R.string.speed_custom_range)
+            .setView(input)
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                val value = input.text.toString().trim().replace(',', '.').toFloatOrNull()
+                if (value == null || !value.isFinite() || value !in PlaybackSpeed.MIN..PlaybackSpeed.MAX) {
+                    android.widget.Toast.makeText(this, R.string.speed_custom_invalid, android.widget.Toast.LENGTH_LONG).show()
+                    setupSpeedDropdown()
+                    return@setPositiveButton
+                }
+                Prefs.setSpeed(this, value)
+                speedSpinner.setText(PlaybackSpeed.label(value), false)
+            }
+            .setNegativeButton(android.R.string.cancel) { _, _ -> setupSpeedDropdown() }
+            .setOnCancelListener { setupSpeedDropdown() }
+            .show()
+    }
+
+    private fun showCallHistory() {
+        val entries = Prefs.callHistory(this)
+        if (entries.isEmpty()) {
+            android.app.AlertDialog.Builder(this)
+                .setTitle(R.string.call_history_title)
+                .setMessage(R.string.call_history_empty)
+                .setPositiveButton(android.R.string.ok, null)
+                .show()
+            return
+        }
+        val labels = entries.map { entry ->
+            val outcome = when (entry.outcome) {
+                CallHistoryOutcome.ANSWERED -> R.string.call_history_answered
+                CallHistoryOutcome.REJECTED -> R.string.call_history_rejected
+                else -> R.string.call_history_received
+            }
+            val whenText = android.text.format.DateUtils.getRelativeTimeSpanString(entry.timestamp)
+            "${getString(outcome)} · ${entry.name} (${entry.number}) · $whenText"
+        }.toTypedArray()
+        android.app.AlertDialog.Builder(this)
+            .setTitle(R.string.call_history_title)
+            .setItems(labels) { _, index ->
+                val entry = entries[index]
+                if (entry.outcome == CallHistoryOutcome.RECEIVED) {
+                    startActivity(CallActivity.intent(this, CallPayload(
+                        audioId = entry.audioId,
+                        senderName = entry.name,
+                        senderNumber = entry.number,
+                        audioUrl = entry.audioUrl,
+                        durationSec = entry.durationSec,
+                    )))
+                }
+            }
+            .setNeutralButton(R.string.call_history_clear) { _, _ ->
+                android.app.AlertDialog.Builder(this)
+                    .setMessage(R.string.call_history_confirm_clear)
+                    .setPositiveButton(R.string.call_history_clear) { _, _ ->
+                        Prefs.clearCallHistory(this)
+                        updateCallHistoryButton()
+                    }
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun updateCallHistoryButton() {
+        val count = Prefs.callHistory(this).size
+        callHistoryButton.text = if (count == 0) getString(R.string.call_history_button_empty)
+        else getString(R.string.call_history_button, count)
     }
 
     private fun showAudioDiagnostics() {
@@ -382,7 +469,6 @@ class MainActivity : Activity() {
         setupAllowedPicker()
         setupBluetooth()
         setupAcceptOwn()
-        setupPending()
         refreshAccountStatus()
     }
 
@@ -447,72 +533,6 @@ class MainActivity : Activity() {
                 }.start()
             }
         }
-    }
-
-    /**
-     * Fila de áudios acumulados: o daemon guarda em /pending e o app
-     * mostra na tela para ouvir e responder depois.
-     */
-    private fun setupPending() {
-        findViewById<Button>(R.id.pendingButton).setOnClickListener {
-            Thread {
-                val lista = runCatching {
-                    val conn = URL(Prefs.engineUrl(this) + "/pending")
-                        .openConnection() as java.net.HttpURLConnection
-                    conn.connectTimeout = 15_000
-                    conn.readTimeout = 20_000
-                    val body = BufferedReader(InputStreamReader(conn.inputStream, Charsets.UTF_8))
-                        .use { it.readText() }
-                    conn.disconnect()
-                    val arr = org.json.JSONArray(body)
-                    (0 until arr.length()).mapNotNull { i ->
-                        val o = arr.optJSONObject(i) ?: return@mapNotNull null
-                        Triple(
-                            o.optString("audioId"),
-                            o.optString("senderNumber"),
-                            o.optString("senderName"),
-                        )
-                    }
-                }.getOrElse { null }
-
-                runOnUiThread {
-                    if (lista == null) {
-                        android.widget.Toast.makeText(
-                            this, R.string.pending_error,
-                            android.widget.Toast.LENGTH_LONG,
-                        ).show()
-                    } else if (lista.isEmpty()) {
-                        android.widget.Toast.makeText(
-                            this, R.string.pending_none,
-                            android.widget.Toast.LENGTH_LONG,
-                        ).show()
-                    } else {
-                        showPendingDialog(lista)
-                    }
-                }
-            }.start()
-        }
-    }
-
-    /** Lista as notas acumuladas; ao tocar, abre a tela de chamada. */
-    private fun showPendingDialog(lista: List<Triple<String, String, String>>) {
-        val titulos = lista.map { (_, numero, nome) ->
-            if (nome.isBlank()) numero else getString(R.string.pending_from, nome, numero)
-        }.toTypedArray()
-        android.app.AlertDialog.Builder(this)
-            .setTitle(R.string.pending_title)
-            .setItems(titulos) { _, which ->
-                val (id, numero, nome) = lista[which]
-                val payload = CallPayload(
-                    audioId = id,
-                    senderName = nome.ifBlank { numero },
-                    senderNumber = numero,
-                    audioUrl = Prefs.engineUrl(this) + "/media/$id.ogg",
-                )
-                startActivity(CallActivity.intent(this, payload))
-            }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
     }
 
     /** Seletor de relógio/fone: só toca se o aparelho escolhido estiver conectado. */

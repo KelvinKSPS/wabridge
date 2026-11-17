@@ -45,6 +45,7 @@ class WatchCallConnection(
             Log.w(TAG, "atendimento fora de ordem (fase ${state.phase})")
             return
         }
+        Prefs.addCallHistory(ctx, payload, CallHistoryOutcome.ANSWERED)
         setActive()
 
         // se a chamada foi atendida pelo discador do sistema, fecha a tela do app
@@ -57,6 +58,7 @@ class WatchCallConnection(
 
     override fun onReject() {
         Log.i(TAG, "rejeitada")
+        if (session == null) Prefs.addCallHistory(ctx, payload, CallHistoryOutcome.REJECTED)
         hangup(DisconnectCause.REJECTED)
     }
 
@@ -80,6 +82,7 @@ class WatchCallConnection(
      * recusado (gravação ainda muito curta).
      */
     fun rejectNow(): Boolean {
+        if (session == null) Prefs.addCallHistory(ctx, payload, CallHistoryOutcome.REJECTED)
         hangup(DisconnectCause.REJECTED)
         return done
     }

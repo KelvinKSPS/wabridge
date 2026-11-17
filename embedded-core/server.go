@@ -18,7 +18,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// PendingCall é uma nota de voz que chegou e ainda não foi respondida.
+// PendingCall is a received voice note that has not been answered yet.
 type PendingCall struct {
 	AudioID      string `json:"audioId"`
 	SenderNumber string `json:"senderNumber"`
@@ -26,8 +26,8 @@ type PendingCall struct {
 	CreatedAt    int64  `json:"createdAt"`
 }
 
-// CallPayload é o evento NEW_VOICE_NOTE enviado ao app (mesmo formato do
-// servidor Node).
+// CallPayload is the NEW_VOICE_NOTE event sent to the app (same format as the
+// Node server).
 type CallPayload struct {
 	Type         string `json:"type"`
 	AudioID      string `json:"audioId"`
@@ -38,7 +38,7 @@ type CallPayload struct {
 	MimeType     string `json:"mimeType"`
 }
 
-// Server é o daemon HTTP/WebSocket local.
+// Server is the local HTTP/WebSocket daemon.
 type Server struct {
 	wa      WhatsApp
 	cfg     *ConfigStore
@@ -54,7 +54,7 @@ type Server struct {
 	upgrader websocket.Upgrader
 }
 
-// NewServer cria o daemon.
+// NewServer creates the daemon.
 func NewServer(wa WhatsApp, cfg *ConfigStore, dir string, port int) *Server {
 	return &Server{
 		wa:      wa,
@@ -71,14 +71,14 @@ func NewServer(wa WhatsApp, cfg *ConfigStore, dir string, port int) *Server {
 	}
 }
 
-// Run sobe o servidor e processa os eventos do WhatsApp.
+// Run starts the server and processes WhatsApp events.
 func (s *Server) Run() error {
 	srv := &http.Server{Addr: fmt.Sprintf("127.0.0.1:%d", s.port), Handler: s.routes()}
 	log.Printf("wabridge: escutando em %s", srv.Addr)
 	return srv.ListenAndServe()
 }
 
-// routes monta o mux de rotas (mesmo contrato do servidor Node).
+// routes builds the route mux (same contract as the Node server).
 func (s *Server) routes() http.Handler {
 	go s.consumeEvents()
 
@@ -100,7 +100,7 @@ func (s *Server) routes() http.Handler {
 }
 
 /* ------------------------------------------------------------------ *
- * Eventos do WhatsApp -> WebSocket
+ * WhatsApp events -> WebSocket
  * ------------------------------------------------------------------ */
 
 func (s *Server) consumeEvents() {
@@ -154,7 +154,7 @@ func (s *Server) broadcast(payload CallPayload) {
 }
 
 /* ------------------------------------------------------------------ *
- * Rotas
+ * Routes
  * ------------------------------------------------------------------ */
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
@@ -175,7 +175,7 @@ func (s *Server) handlePending(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, list)
 }
 
-// handleMedia serve o áudio (e o tom sintético de teste).
+// handleMedia serves audio (and the synthetic test tone).
 func (s *Server) handleMedia(w http.ResponseWriter, r *http.Request) {
 	id := strings.TrimPrefix(r.URL.Path, "/media/")
 	id = strings.TrimSuffix(strings.TrimSuffix(id, ".ogg"), ".wav")
@@ -255,7 +255,7 @@ func (s *Server) handleReplyAudio(w http.ResponseWriter, r *http.Request) {
 		buf = normalized
 		seconds = normalizedSeconds
 	} else if seconds == 0 {
-		// fallback: estima da taxa de bits (M4A/AAC a ~32kbps)
+		// Fallback: estimate from the bitrate (M4A/AAC at ~32 kbps)
 		seconds = uint32(len(buf) * 8 / 32000)
 		if seconds == 0 {
 			seconds = 1
@@ -396,7 +396,7 @@ func (s *Server) handleAllowedNumbers(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{"ok": true, "allowedNumbers": s.cfg.Allowed()})
 }
 
-// handleContacts devolve contatos e grupos para a lista interativa do app.
+// handleContacts returns contacts and groups for the app interactive list.
 func (s *Server) handleContacts(w http.ResponseWriter, r *http.Request) {
 	if s.wa == nil {
 		writeJSON(w, 503, map[string]string{"error": "daemon não pronto"})
@@ -448,7 +448,7 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 }
 
 /* ------------------------------------------------------------------ *
- * Utilidades
+ * Utilities
  * ------------------------------------------------------------------ */
 
 func writeJSON(w http.ResponseWriter, status int, body any) {
@@ -457,7 +457,7 @@ func writeJSON(w http.ResponseWriter, status int, body any) {
 	_ = json.NewEncoder(w).Encode(body)
 }
 
-// dataDir cria (se preciso) o diretório de dados do app.
+// dataDir creates the app data directory if needed.
 func dataDir(dir string) (string, error) {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return "", err

@@ -6,8 +6,8 @@ import (
 	"sync"
 )
 
-// RecentStore guarda, por conversa, o unix (segundos) da última atividade.
-// Chave: número (só dígitos) para contatos; JID completo ("...@g.us") para grupos.
+// RecentStore stores the Unix timestamp (seconds) of the last activity per conversation.
+// Key: number (digits only) for contacts; full JID ("...@g.us") for groups.
 type RecentStore struct {
 	mu    sync.Mutex
 	path  string
@@ -15,30 +15,30 @@ type RecentStore struct {
 	dirty bool
 }
 
-// NewRecentStore lê recent.json se existir; erro de leitura/JSON = mapa vazio.
+// NewRecentStore reads recent.json if present; read/JSON error = empty map.
 func NewRecentStore(dir string) *RecentStore {
 	rs := &RecentStore{
 		path: dir + "/recent.json",
 		m:    make(map[string]int64),
 	}
-	// tenta ler arquivo existente
+	// Try to read the existing file
 	data, err := os.ReadFile(rs.path)
 	if err != nil {
-		// arquivo não existe ou erro de leitura — começa vazio
+		// File does not exist or read error — start empty
 		return rs
 	}
-	// tenta parsear JSON
+	// Try to parse JSON
 	var stored map[string]int64
 	if err := json.Unmarshal(data, &stored); err != nil {
-		// JSON inválido — ignora e começa vazio
+		// Invalid JSON — ignore it and start empty
 		return rs
 	}
 	rs.m = stored
 	return rs
 }
 
-// Touch registra (ou atualiza) a última atividade de uma conversa.
-// Ignora key vazia ou ts <= 0. Guarda o MAIOR ts.
+// Touch records (or updates) the last activity of a conversation.
+// Ignores empty key or ts <= 0. Keeps the LARGEST ts.
 func (r *RecentStore) Touch(key string, ts int64) {
 	if key == "" || ts <= 0 {
 		return
@@ -51,22 +51,22 @@ func (r *RecentStore) Touch(key string, ts int64) {
 	}
 }
 
-// Get devolve o timestamp da última atividade de uma conversa (0 se não existe).
+// Get returns the last activity timestamp of a conversation (0 if none exists).
 func (r *RecentStore) Get(key string) int64 {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.m[key]
 }
 
-// SaveIfDirty grava em recent.json.tmp + os.Rename (atômico), perms 0o600.
-// Só grava se dirty == true.
+// SaveIfDirty writes to recent.json.tmp + os.Rename (atomic), permissions 0o600.
+// Writes only if dirty == true.
 func (r *RecentStore) SaveIfDirty() error {
 	r.mu.Lock()
 	if !r.dirty {
 		r.mu.Unlock()
 		return nil
 	}
-	// cópia para não bloquear enquanto marshala
+	// Copy so we do not block while marshaling
 	m := make(map[string]int64)
 	for k, v := range r.m {
 		m[k] = v
@@ -79,12 +79,12 @@ func (r *RecentStore) SaveIfDirty() error {
 		return err
 	}
 
-	// escreve em .tmp
+	// Write to .tmp
 	tmp := r.path + ".tmp"
 	if err := os.WriteFile(tmp, data, 0o600); err != nil {
 		return err
 	}
 
-	// move atomicamente
+	// Move atomically
 	return os.Rename(tmp, r.path)
 }

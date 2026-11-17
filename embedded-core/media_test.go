@@ -23,7 +23,7 @@ func TestGenerateToneWavFormato(t *testing.T) {
 	if binary.LittleEndian.Uint16(data[34:36]) != 16 {
 		t.Fatal("não é 16 bits")
 	}
-	// tamanho do bloco de dados bate com o arquivo
+	// The data chunk size must match the file size.
 	size := binary.LittleEndian.Uint32(data[40:44])
 	if int(size)+44 != len(data) {
 		t.Fatalf("tamanho dos dados não bate: %d vs %d", size, len(data)-44)
@@ -69,7 +69,7 @@ func TestWavDurationWavVazio(t *testing.T) {
 }
 
 func TestWavDurationCanais(t *testing.T) {
-	// monta um wav estéreo de 1 segundo
+	// Build a 1-second stereo WAV.
 	const rate = 16000
 	const channels = 2
 	const bits = 16

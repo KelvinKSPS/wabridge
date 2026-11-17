@@ -50,8 +50,8 @@ object CallNotifier {
             Intent(context, MainActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
-        // ação de velocidade: fica na notificação de serviço (que está sempre
-        // visível), então dá para mudar a velocidade sem abrir a tela
+        // speed action: it stays in the service notification (which is always
+        // visible), so the speed can be changed without opening the call screen
         val speed = PendingIntent.getBroadcast(
             context,
             4,
@@ -94,7 +94,7 @@ object CallNotifier {
             Intent(context, CallActionReceiver::class.java).setAction(CallActionReceiver.ACTION_REJECT),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
-        // resposta rápida no estilo do WhatsApp: manda o texto e desliga
+        // WhatsApp-style quick reply: sends the text and ends the call
         val quickReply = PendingIntent.getBroadcast(
             context,
             5,

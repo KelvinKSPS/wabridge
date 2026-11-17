@@ -10,10 +10,10 @@ import (
 	"syscall"
 )
 
-// contextTODO é um contexto de fundo para as chamadas da API.
+// contextTODO is a background context for API calls.
 func contextTODO() context.Context { return context.Background() }
 
-// decodeBase64 decodifica base64 (com ou sem prefixo data URI).
+// decodeBase64 decodes base64 (with or without a data URI prefix).
 func decodeBase64(v string) ([]byte, error) {
 	if i := indexOf(v, ","); i >= 0 {
 		v = v[i+1:]

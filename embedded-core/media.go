@@ -5,14 +5,14 @@ import (
 	"math"
 )
 
-// generateToneWav cria um wav PCM 16 kHz mono com um tom (mesma ideia do
-// servidor Node: `server/src/media.ts` → generateToneWav).
+// generateToneWav creates a 16 kHz mono PCM WAV with a tone (same idea as the
+// Node server: `server/src/media.ts` → generateToneWav).
 func generateToneWav(frequency float64, seconds float64) []byte {
 	const sampleRate = 16000
 	samples := int(sampleRate * seconds)
 	data := make([]byte, samples*2)
 	for i := 0; i < samples; i++ {
-		// desce de 0.8 para 0 nos últimos 10%: evita estalo no fim
+		// Fade from 0.8 to 0 over the final 10% to prevent a click at the end
 		fade := 0.8
 		if i > int(float64(samples)*0.9) {
 			fade = 0.8 * (1 - float64(i-int(float64(samples)*0.9))/float64(int(float64(samples)*0.1)))
@@ -42,7 +42,7 @@ func generateToneWav(frequency float64, seconds float64) []byte {
 	return out
 }
 
-// wavDuration devolve a duração de um wav PCM (segundos), 0 se não der.
+// wavDuration returns the duration of a PCM WAV in seconds, or 0 on failure.
 func wavDuration(data []byte) float64 {
 	if len(data) < 44 || string(data[0:4]) != "RIFF" {
 		return 0
