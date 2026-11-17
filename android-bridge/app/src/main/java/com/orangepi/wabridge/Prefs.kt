@@ -20,18 +20,18 @@ object Prefs {
     private const val KEY_ACCEPT_OWN = "accept_own"
     private const val KEY_SAMPLE_RATE = "audio_sample_rate"
 
-    /** Endereço do servidor Node (padrão = IP da rede local). */
+    /** Node server address (default = local network IP). */
     const val DEFAULT_URL = "http://192.168.15.100:8097"
 
-    /** Velocidade padrão de reprodução das notas de voz. */
+    /** Default playback speed for voice notes. */
     val DEFAULT_SPEED = 1.0f
 
-    /** Opções de delay do áudio (em ms). */
+    /** Audio delay options (in ms). */
     val AUDIO_DELAY_OPTIONS = listOf(0L, 500L, 1000L, 2000L, 3000L, 5000L)
     const val DEFAULT_AUDIO_DELAY_MS = 1000L
 
-    /** Taxa de amostragem da gravação. O servidor externo re-encoda com ffmpeg
-     *  a 16000 Hz (libopus); o app grava 48000 Hz. A/B testável por broadcast. */
+    /** Recording sample rate. The external server re-encodes with ffmpeg
+     *  to 16000 Hz (libopus); the app records at 48000 Hz. A/B-testable via broadcast. */
     val DEFAULT_SAMPLE_RATE = 48000
 
     fun audioSampleRate(ctx: Context): Int =
@@ -45,7 +45,7 @@ object Prefs {
             .apply()
     }
 
-    /** Tempo até o áudio começar após atender (em ms). */
+    /** Time until audio starts after answering (in ms). */
     fun audioDelayMs(ctx: Context): Long =
         ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
             .getLong(KEY_AUDIO_DELAY, DEFAULT_AUDIO_DELAY_MS)
@@ -58,10 +58,10 @@ object Prefs {
             .apply()
     }
 
-    /** Como o app fala com o WhatsApp. */
+    /** How the app communicates with WhatsApp. */
     enum class Engine { EMBUTIDO, EXTERNO }
 
-    /** Modo do motor: embutido (daemon no APK) ou servidor externo. */
+    /** Engine mode: embedded (daemon in the APK) or external server. */
     fun mode(ctx: Context): Engine {
         val v = ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
             .getString(KEY_MODE, Engine.EMBUTIDO.name)
@@ -75,11 +75,11 @@ object Prefs {
             .apply()
     }
 
-    /** URL efetiva do motor (o embutido é sempre 127.0.0.1:8097). */
+    /** Effective engine URL (embedded mode always uses 127.0.0.1:8097). */
     fun engineUrl(ctx: Context): String =
         if (mode(ctx) == Engine.EMBUTIDO) DaemonManager.EMBEDDED_URL else url(ctx)
 
-    /** DDI para o pareamento (padrão = 55). */
+    /** Country calling code for pairing (default = 55). */
     fun countryCode(ctx: Context): String =
         ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString(KEY_COUNTRY_CODE, "55") ?: "55"
 
@@ -90,7 +90,7 @@ object Prefs {
             .apply()
     }
 
-    /** Telefone usado no pareamento por código (para não digitar de novo). */
+    /** Phone used for code pairing (so it does not need to be entered again). */
     fun phone(ctx: Context): String =
         ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString(KEY_PHONE, "") ?: ""
 
@@ -101,7 +101,7 @@ object Prefs {
             .apply()
     }
 
-    /** Números permitidos (vazio = todos). */
+    /** Allowed numbers (empty = all). */
     fun allowedNumbers(ctx: Context): List<String> =
         (ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString(KEY_ALLOWED, "") ?: "")
             .split(',', '\n')
@@ -115,15 +115,15 @@ object Prefs {
             .apply()
     }
 
-    /** Endereços dos aparelhos que liberam o toque (vazio = qualquer um). */
+    /** Addresses of devices that allow ringing (empty = any device). */
     fun btDevices(ctx: Context): Set<String> {
         val prefs = ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
-        // Tenta ler KEY_BT_DEVICES (novo); se não existir, tenta migrar de KEY_BT_DEVICE (antigo)
+        // Read KEY_BT_DEVICES (new); if absent, try migrating from KEY_BT_DEVICE (old).
         val csv = prefs.getString(KEY_BT_DEVICES, null)
         if (csv != null) {
             return csv.split(',').map { it.trim() }.filter { it.isNotBlank() }.toSet()
         }
-        // Migração do antigo KEY_BT_DEVICE
+        // Migration from the old KEY_BT_DEVICE.
         val oldDevice = prefs.getString(KEY_BT_DEVICE, "") ?: ""
         return if (oldDevice.isNotBlank()) setOf(oldDevice) else emptySet()
     }
@@ -133,11 +133,11 @@ object Prefs {
         val csv = devices.filter { it.isNotBlank() }.sorted().joinToString(",")
         prefs.edit()
             .putString(KEY_BT_DEVICES, csv)
-            .remove(KEY_BT_DEVICE) // remove a chave antiga
+            .remove(KEY_BT_DEVICE) // remove the old key
             .apply()
     }
 
-    /** Só toca quando o aparelho escolhido está conectado. */
+    /** Ring only when the selected device is connected. */
     fun btOnlyConnected(ctx: Context): Boolean =
         ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean(KEY_BT_ONLY, false)
 
@@ -148,7 +148,7 @@ object Prefs {
             .apply()
     }
 
-    /** Processa áudios enviados pelo próprio usuário (para testes). */
+    /** Process audio sent by the user (for testing). */
     fun acceptOwn(ctx: Context): Boolean =
         ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean(KEY_ACCEPT_OWN, false)
 
@@ -172,7 +172,7 @@ object Prefs {
             .apply()
     }
 
-    /** Velocidade padrão de reprodução (0.5 a 3.0). */
+    /** Default playback speed (0.5 to 3.0). */
     fun speed(ctx: Context): Float =
         ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
             .getFloat(KEY_SPEED, DEFAULT_SPEED)
@@ -185,7 +185,7 @@ object Prefs {
             .apply()
     }
 
-    /** Idioma do app: sistema, português, inglês, espanhol ou mandarim. */
+    /** App language: system, Portuguese, English, Spanish, or Mandarin. */
     fun language(ctx: Context): Language {
         val v = ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
             .getString(KEY_LANGUAGE, Language.SYSTEM.name)
@@ -199,7 +199,7 @@ object Prefs {
             .apply()
     }
 
-    /** Diagnóstico de áudio liberado (5 toques na versão). */
+    /** Audio diagnostics unlocked (5 taps on the version). */
     fun diagnosticsUnlocked(ctx: Context): Boolean =
         ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean(KEY_DIAG_UNLOCKED, false)
 

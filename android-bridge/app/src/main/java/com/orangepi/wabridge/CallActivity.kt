@@ -18,12 +18,12 @@ import android.widget.Button
 import android.widget.TextView
 
 /**
- * Tela de chamada do próprio app.
+ * The app's own call screen.
  *
- * Relógios nem sempre têm o discador do sistema para mostrar a chamada
- * entrante; esta tela garante que sempre exista um jeito de atender e
- * recusar. Se o sistema também mostrar a chamada, as duas telas
- * coexistem — atender por qualquer uma das duas dá no mesmo lugar.
+ * Watches do not always have the system dialer to show incoming calls;
+ * this screen ensures there is always a way to answer or reject. If the
+ * system also shows the call, both screens coexist — answering from either
+ * leads to the same session.
  */
 class CallActivity : Activity() {
 
@@ -49,7 +49,7 @@ class CallActivity : Activity() {
         active = this
         setContentView(R.layout.activity_call)
 
-        // tela de chamada: acorda o relógio e fica por cima da tela de bloqueio
+        // Call screen: wake the watch and show over the lock screen.
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true)
@@ -65,7 +65,7 @@ class CallActivity : Activity() {
         speedButton = findViewById(R.id.speedButton)
 
         callerName.text = payload?.senderName ?: getString(R.string.unknown_caller)
-        // nome, número e duração da nota de voz
+        // Voice note sender name, number, and duration.
         callerNumber.text = if (payload != null && payload.durationSec > 0) {
             "${payload.senderNumber} · ${CallPayload.formatDuration(payload.durationSec)}"
         } else {
@@ -77,7 +77,7 @@ class CallActivity : Activity() {
                 if (hangupNow()) {
                     finish()
                 } else {
-                    // desligar antes da gravação mínima: mostra o aviso
+                    // Hanging up before the minimum recording time shows a warning.
                     statusLine.visibility = android.view.View.VISIBLE
                     statusLine.setText(R.string.status_too_short)
                 }
@@ -85,7 +85,7 @@ class CallActivity : Activity() {
                 answered = true
                 stopRing()
                 answerWhenReady()
-                // depois de atender, o botão vira "Desligar"
+                // After answering, the button becomes "Hang up".
                 answerButton.setText(R.string.hangup)
                 rejectButton.visibility = android.view.View.GONE
             }
@@ -99,25 +99,25 @@ class CallActivity : Activity() {
             finish()
         }
 
-        // botão de velocidade: só faz sentido enquanto o áudio toca
+        // Speed button: only relevant while audio is playing.
         speedButton.setOnClickListener {
             val session = VoiceSession.current ?: return@setOnClickListener
             val next = session.setSpeed(PlaybackSpeed.next(session.speed))
             speedButton.text = getString(R.string.speed_value, PlaybackSpeed.label(next))
         }
 
-        // inicial do contato no avatar
+        // Contact initial in the avatar.
         val nome = payload?.senderName.orEmpty()
         val inicial = nome.trim().take(1).uppercase().ifBlank { "?" }
         findViewById<TextView>(R.id.callerInitial)?.text = inicial
 
         // The voice session requests microphone access only when recording starts.
 
-        // linha de estado: tocando / gravando / há quanto tempo
+        // Status line: playing / recording / elapsed time.
         handler.post(statusTicker)
     }
 
-    /** Toque + vibração da chamada entrante. */
+    /** Incoming call ringtone and vibration. */
     private fun startRing() {
         ringtone = runCatching {
             RingtoneManager.getRingtone(
@@ -173,7 +173,7 @@ class CallActivity : Activity() {
     }
 
     /* ---------------------------------------------------------------- *
-     * Linha de estado: mostra que está gravando (e há quanto tempo)
+     * Status line: shows that recording is in progress (and for how long).
      * ---------------------------------------------------------------- */
 
     private val statusTicker = object : Runnable {
@@ -208,10 +208,9 @@ class CallActivity : Activity() {
     }
 
     /**
-     * A conexão é criada pelo Telecom de forma assíncrona: pode ainda não
-     * existir quando o usuário toca em Atender. Espera um instante; se o
-     * Telecom não estiver disponível (aparelho sem telephony), a própria tela
-     * do app conduz a sessão de voz.
+     * Telecom creates the connection asynchronously, so it may not yet
+     * exist when the user taps Answer. Wait briefly; if Telecom is unavailable
+     * (device without telephony), the app screen itself handles the voice session.
      */
     private fun answerWhenReady() {
         val handler = Handler(Looper.getMainLooper())
@@ -249,7 +248,7 @@ class CallActivity : Activity() {
         handler.post(tryReject)
     }
 
-    /** Sessão de voz fora do Telecom (aparelho sem telephony). */
+    /** Voice session outside Telecom (device without telephony). */
     private fun localSession(): VoiceSession? {
         localSession?.let { return it }
         val payload = CallPayload.fromJson(intent.getStringExtra(EXTRA_PAYLOAD)) ?: return null
@@ -277,8 +276,8 @@ class CallActivity : Activity() {
         stopRing()
         super.onDestroy()
         if (active === this) active = null
-        // se a activity sair sem decisão, a chamada continua (o Telecom
-        // cuida do tempo limite); só escondemos a notificação.
+        // If the Activity exits without a decision, the call continues (Telecom
+        // handles the timeout); only dismiss the notification.
         dismissNotification()
     }
 

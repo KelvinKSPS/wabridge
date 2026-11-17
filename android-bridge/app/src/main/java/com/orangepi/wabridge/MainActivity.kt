@@ -353,14 +353,14 @@ class MainActivity : Activity() {
 
     override fun onStart() {
         super.onStart()
-        // ao voltar para o app, releitura: a permissão de bluetooth pode
-        // ter sido dada agora, e o serviço pode ter caído
+        // When returning to the app, reload: Bluetooth permission may have
+        // just been granted, and the service may have stopped.
         if (this::allowedInput.isInitialized) {
             updateAllowedSummary()
             setupBluetooth()
             ensureBridgeRunning()
         }
-        // Reaplica o idioma (em caso de mudança na tela)
+        // Reapply the language (in case it changed while this screen was open).
         applyLanguage()
         ContextCompat.registerReceiver(
             this,
@@ -383,12 +383,12 @@ class MainActivity : Activity() {
     }
 
     /**
-     * Configura um dropdown (ExposedDropdownMenu) que NÃO filtra ao reabrir.
+     * Configure an ExposedDropdownMenu that does not filter when reopened.
      *
-     * O MaterialAutoCompleteTextView, por ser um AutoComplete, filtra a lista
-     * pelo texto já escrito no campo. Depois de escolher uma opção ("1.5x"),
-     * reabrir mostrava só os itens que casavam com "1.5x" — parecia travado.
-     * Usamos um ArrayAdapter com filtro no-op: a lista inteira sempre aparece.
+     * MaterialAutoCompleteTextView filters the list because it is an AutoComplete.
+     * It filters by the text already in the field. After choosing an option ("1.5x"),
+     * reopening showed only items matching "1.5x" — it looked stuck.
+     * Use an ArrayAdapter with a no-op filter so the full list always appears.
      */
     private fun setupDropdown(
         spinner: android.widget.AutoCompleteTextView,
@@ -425,7 +425,7 @@ class MainActivity : Activity() {
         urlInput.isEnabled = Prefs.mode(this) != Prefs.Engine.EMBUTIDO
     }
 
-    /** Gera o código de 8 dígitos para parear sem QR. */
+    /** Generate the 8-digit code to pair without a QR code. */
     private fun setupPairing() {
         countryCodeInput.setText(Prefs.countryCode(this))
         phoneInput.setText(Prefs.phone(this))
@@ -443,7 +443,7 @@ class MainActivity : Activity() {
             pairButton.isEnabled = false
             pairResultText.text = getString(R.string.pairing)
             Thread {
-                // o daemon tem que estar no ar antes do pedido
+                // The daemon must be running before making the request.
                 if (Prefs.mode(this@MainActivity) == Prefs.Engine.EMBUTIDO &&
                     !DaemonManager.running && !DaemonManager.start(this@MainActivity)
                 ) {
@@ -459,7 +459,7 @@ class MainActivity : Activity() {
                     pairButton.isEnabled = true
                     pairResultText.visibility = android.view.View.VISIBLE
                     pairResultText.text = code ?: getString(R.string.pair_failed)
-                    // Inicia refresh do status da conta a cada 3s por 3min
+                    // Refresh account status every 3 seconds for 3 minutes.
                     if (code != null) scheduleStatusRefresh()
                 }
             }.start()
@@ -472,7 +472,7 @@ class MainActivity : Activity() {
         refreshAccountStatus()
     }
 
-    /** Atualiza o status de autenticação da conta. */
+    /** Update the account authentication status. */
     private fun refreshAccountStatus() {
         Thread {
             val status = PairingClient.status(this)
@@ -490,7 +490,7 @@ class MainActivity : Activity() {
         }.start()
     }
 
-    /** Formata número +55 com 12-13 dígitos como +55 DD NNNNN-NNNN. */
+    /** Format a +55 number with 12–13 digits as +55 DD NNNNN-NNNN. */
     private fun formatPhone(phone: String): String {
         if (!phone.startsWith("55") || phone.length !in 12..13) return "+$phone"
         val parte1 = phone.substring(0, 2)  // 55
@@ -500,7 +500,7 @@ class MainActivity : Activity() {
         return "+$parte1 $parte2 $parte3-$parte4"
     }
 
-    /** Agenda refresh do status a cada 3s por até 3 min. */
+    /** Schedule a status refresh every 3 seconds for up to 3 minutes. */
     private fun scheduleStatusRefresh() {
         var attempts = 0
         val refresh: Runnable = object : Runnable {
@@ -519,13 +519,13 @@ class MainActivity : Activity() {
         refreshStatusHandler.post(refresh)
     }
 
-    /** Checkbox para tocar os próprios áudios (modo de teste). */
+    /** Checkbox to play the user's own audio (test mode). */
     private fun setupAcceptOwn() {
         val check = findViewById<android.widget.CheckBox>(R.id.acceptOwnCheck)
         check.isChecked = Prefs.acceptOwn(this)
         check.setOnCheckedChangeListener { _, v ->
             Prefs.setAcceptOwn(this, v)
-            // reinicia o daemon em background (start() bloqueia até 15s)
+            // Restart the daemon in the background (start() blocks for up to 15s).
             if (Prefs.mode(this) == Prefs.Engine.EMBUTIDO) {
                 Thread {
                     DaemonManager.stop()
@@ -535,14 +535,14 @@ class MainActivity : Activity() {
         }
     }
 
-    /** Seletor de relógio/fone: só toca se o aparelho escolhido estiver conectado. */
+    /** Watch/headset selector: ring only when the selected device is connected. */
     private fun setupBluetooth() {
         val check = findViewById<android.widget.CheckBox>(R.id.btOnlyCheck)
         val button = findViewById<Button>(R.id.btPickButton)
 
         check.isChecked = Prefs.btOnlyConnected(this)
 
-        // sem a permissão (Android 12+) a lista vem vazia; pede na hora
+        // Without permission (Android 12+), the list is empty; request it now.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) !=
             PackageManager.PERMISSION_GRANTED
@@ -603,7 +603,7 @@ class MainActivity : Activity() {
     /** Atualiza o estado do bluetooth de tempos em tempos. */
     private val btTicker = Runnable { updateBtState() }
 
-    /** Atualiza o resumo ao lado do botão "escolher". */
+    /** Update the summary next to the "Choose" button. */
     private fun updateAllowedSummary() {
         val total = Prefs.allowedNumbers(this).size
         findViewById<TextView>(R.id.allowedSummary).text =
@@ -612,8 +612,8 @@ class MainActivity : Activity() {
     }
 
     /**
-     * Lista interativa: abre um seletor com os contatos e grupos da conta.
-     * Só existe no modo embutido (o servidor Node não tem /contacts).
+     * Interactive list: opens a selector with the account's contacts and groups.
+     * Available only in embedded mode (the Node server has no /contacts).
      */
     private fun setupAllowedPicker() {
         val button = findViewById<Button>(R.id.allowedPickButton)
@@ -645,7 +645,7 @@ class MainActivity : Activity() {
         }
     }
 
-    /** Diálogo com busca e multi-escolha (contatos e grupos). */
+    /** Dialog with search and multi-selection (contacts and groups). */
     private fun showAllowedDialog(
         contatos: List<ContactItem>,
         grupos: List<ContactItem>,
@@ -658,7 +658,7 @@ class MainActivity : Activity() {
             return
         }
 
-        // fonte da verdade: valores selecionados (atualizado em cada click)
+        // Source of truth: selected values (updated on each click).
         val selecionados = Prefs.allowedNumbers(this).toMutableSet()
 
         val container = android.widget.LinearLayout(this).apply {
@@ -666,7 +666,7 @@ class MainActivity : Activity() {
             setPadding(0, 0, 0, 0)
         }
 
-        // Abas: contatos e grupos
+        // Tabs: contacts and groups.
         val tabLayout = com.google.android.material.tabs.TabLayout(this).apply {
             layoutParams = android.widget.LinearLayout.LayoutParams(
                 android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
@@ -676,7 +676,7 @@ class MainActivity : Activity() {
         tabLayout.addTab(tabLayout.newTab().setText(getString(R.string.allowed_tab_contacts_n, contatos.size)))
         tabLayout.addTab(tabLayout.newTab().setText(getString(R.string.allowed_tab_groups_n, grupos.size)))
 
-        // Busca
+        // Search.
         val busca = android.widget.EditText(this).apply {
             hint = getString(R.string.allowed_search)
             setSingleLine()
@@ -686,7 +686,7 @@ class MainActivity : Activity() {
             ).apply { setMargins(16, 8, 16, 8) }
         }
 
-        // ListView com altura fixa (400dp)
+        // ListView with fixed height (400dp).
         val lista = android.widget.ListView(this).apply {
             choiceMode = android.widget.ListView.CHOICE_MODE_MULTIPLE
             layoutParams = android.widget.LinearLayout.LayoutParams(
@@ -701,7 +701,7 @@ class MainActivity : Activity() {
         container.addView(busca)
         container.addView(lista)
 
-        // Estado atual da aba
+        // Current tab state.
         var abaAtual = 0
 
         fun rebuild(query: String) {
@@ -727,7 +727,7 @@ class MainActivity : Activity() {
                     android.R.layout.simple_list_item_multiple_choice,
                     listOf(getString(R.string.allowed_empty_tab)),
                 ).apply {
-                    // Desabilita o item vazio
+                    // Disable the empty item.
                     this.getView(0, null, lista)?.isEnabled = false
                 }
                 lista.clearChoices()
@@ -743,7 +743,7 @@ class MainActivity : Activity() {
             }
         }
 
-        // Clique no item → togla em selecionados
+        // Clicking an item toggles its selected state.
         lista.setOnItemClickListener { _, _, pos, _ ->
             val source = if (abaAtual == 0) contatos else grupos
             val filtrados = source.filter { item ->
@@ -758,7 +758,7 @@ class MainActivity : Activity() {
             lista.setItemChecked(pos, item.value in selecionados)
         }
 
-        // Mudança de aba
+        // Tab change.
         tabLayout.addOnTabSelectedListener(object : com.google.android.material.tabs.TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: com.google.android.material.tabs.TabLayout.Tab?) {
                 abaAtual = tab?.position ?: 0
@@ -768,7 +768,7 @@ class MainActivity : Activity() {
             override fun onTabReselected(tab: com.google.android.material.tabs.TabLayout.Tab?) = Unit
         })
 
-        // Texto de busca muda
+        // Search text changed.
         busca.addTextChangedListener(object : android.text.TextWatcher {
             override fun afterTextChanged(s: android.text.Editable?) {
                 rebuild(s?.toString()?.trim()?.lowercase().orEmpty())
@@ -799,10 +799,10 @@ class MainActivity : Activity() {
     }
 
     /**
-     * Garante que o serviço está no ar.
+     * Ensure the service is running.
      *
-     * O Android derruba o serviço de vez em quando; ao abrir o app a gente
-     * confere e sobe de novo, em vez de deixar o usuário sem o relógio.
+     * Android occasionally stops the service; when the app opens, we check
+     * and restart it so the user is not left without the watch connection.
      */
     private fun ensureBridgeRunning() {
         if (Prefs.mode(this) != Prefs.Engine.EMBUTIDO && urlInput.text.isNotBlank()) {
@@ -810,7 +810,7 @@ class MainActivity : Activity() {
         }
     }
 
-    /** Pede a isenção da otimização de bateria (o daemon precisa rodar o dia todo). */
+    /** Request exemption from battery optimization (the daemon must run all day). */
     private fun setupBattery() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
         val pm = getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager ?: return
@@ -832,7 +832,7 @@ class MainActivity : Activity() {
         }
     }
 
-    /** Mostra o estado do motor (e se o daemon está rodando). */
+    /** Show engine status (and whether the daemon is running). */
     private fun refreshEngineStatus() {
         if (Prefs.mode(this) != Prefs.Engine.EMBUTIDO) {
             engineStatusText.text = getString(R.string.mode_external)
@@ -849,9 +849,9 @@ class MainActivity : Activity() {
     }
 
     /**
-     * Configura o seletor de idioma e carrega o idioma salvo.
-     * Suporta: português, inglês, espanhol, mandarim.
-     * Usa idioma do sistema como padrão, cai para inglês se não suportado.
+     * Configure the language selector and load the saved language.
+     * Supports Portuguese, English, Spanish, and Mandarin.
+     * Uses the system language by default, falling back to English if unsupported.
      */
     private fun setupLanguage() {
         val languages = listOf(
@@ -882,8 +882,8 @@ class MainActivity : Activity() {
             val lang = languages.getOrElse(pos) { languages[0] }.first
             if (lang != Prefs.language(this@MainActivity)) {
                 Prefs.setLanguage(this@MainActivity, lang)
-                // Recria a tela: attachBaseContext reaplica o locale e toda a
-                // UI recarrega já no idioma novo.
+                // Recreate the screen: attachBaseContext reapplies the locale and the
+                // entire UI reloads in the new language.
                 recreate()
             }
         }
@@ -891,7 +891,7 @@ class MainActivity : Activity() {
         applyLanguage()
     }
 
-    /** Texto abaixo do seletor dizendo qual idioma está ativo. */
+    /** Text below the selector showing the active language. */
     private fun applyLanguage() {
         val nome = when (Prefs.language(this)) {
             Language.SYSTEM -> getString(R.string.language_english)
@@ -903,7 +903,7 @@ class MainActivity : Activity() {
         languageDescText.text = getString(R.string.language_desc_selected, nome)
     }
 
-    /** Atualiza o estado do serviço no topo (start/stop). */
+    /** Update the service state at the top (start/stop). */
     private fun updateServiceState() {
         val running = BridgeForegroundService.isRunning(this)
         serviceStateText.text = getString(if (running) R.string.service_on else R.string.service_off)
@@ -911,8 +911,8 @@ class MainActivity : Activity() {
     }
 
     /**
-     * Mostra a versão ao lado do título. Cinco toques nela liberam o botão
-     * de diagnóstico de áudio (fica escondido por padrão).
+     * Show the version next to the title. Five taps unlock the
+     * audio diagnostics button (hidden by default).
      */
     private fun setupVersion() {
         val versao = runCatching {
@@ -934,8 +934,8 @@ class MainActivity : Activity() {
     }
 
     /**
-     * Salva o log do app (logcat deste processo) num TXT que o usuário
-     * escolhe onde gravar, via seletor de documentos.
+     * Save the app log (this process's logcat) to a TXT file chosen
+     * by the user through the document picker.
      */
     private fun saveLog() {
         startActivityForResult(

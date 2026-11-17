@@ -28,19 +28,19 @@ import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 
 /**
- * A chamada de voz em si: sobe o canal SCO do relógio, toca o áudio recebido,
- * grava a resposta do microfone e sobe o arquivo ao servidor.
+ * The voice call itself: starts the watch's SCO channel, plays received audio,
+ * records the microphone reply, and uploads the file to the server.
  *
- * Não depende do Telecom — funciona tanto dentro de uma `Connection` quanto
- * sozinha, pela tela do app (relógio sem discador do sistema).
+ * Does not depend on Telecom — works both inside a `Connection` and
+ * on its own through the app screen (watch without a system dialer).
  */
 class VoiceSession(
     private val ctx: Context,
     private val payload: CallPayload,
     private val baseUrl: String = Prefs.engineUrl(ctx),
-    /** Chamado quando a sessão termina (timeout, hangup do usuário...). */
+    /** Called when the session ends (timeout, user hangup, etc.). */
     private val onEnded: (() -> Unit)? = null,
-    /** Chamado quando o usuário tentou desligar antes da gravação mínima. */
+    /** Called when the user tries to hang up before the minimum recording duration. */
     private val onTooShort: ((Long) -> Unit)? = null,
 ) {
 
@@ -59,19 +59,19 @@ class VoiceSession(
     val phase: CallPhase get() = state.phase
     val recording: Boolean get() = recorder != null
 
-    /** true quando a sessão já terminou (não dá mais para gravar). */
+    /** True when the session has ended (recording is no longer possible). */
     val ended: Boolean get() = state.ended
 
-    /** Velocidade de reprodução atual (1.0 = normal). */
+    /** Current playback speed (1.0 = normal). */
     @Volatile
     var speed: Float = 1.0f
         private set
 
     /**
-     * Muda a velocidade de reprodução (0.5 a 3.0).
+     * Change playback speed (0.5 to 3.0).
      *
-     * Vale para a nota de voz que está tocando: dá para ouvir mais rápido
-     * (ou mais devagar) sem perder a chamada.
+     * Applies to the voice note currently playing: listen faster
+     * (or slower) without losing the call.
      */
     fun setSpeed(value: Float): Float {
         val v = PlaybackSpeed.clamp(value)
@@ -87,20 +87,20 @@ class VoiceSession(
         return speed
     }
 
-    /** Momento em que a gravação começou (0 = não está gravando). */
+    /** When recording started (0 = not recording). */
     @Volatile
     private var recordingStartedAt: Long = 0L
 
-    /** Quanto tempo já foi gravado, em ms. */
+    /** Elapsed recording time, in ms. */
     val recordElapsedMs: Long
         get() = if (recordingStartedAt == 0L) 0L else SystemClock.elapsedRealtime() - recordingStartedAt
 
     /* ---------------------------------------------------------------- *
-     * Atender: SCO -> tocar o áudio recebido
+     * Answer: SCO -> play received audio
      * ---------------------------------------------------------------- */
 
     fun answer(): Boolean {
-        // a sessão começa aqui: o evento "chamada entrando" é implícito
+        // The session starts here: the "incoming call" event is implicit.
         if (!state.onSessionAnswer()) {
             Log.w(TAG, "atendimento fora de ordem (fase ${state.phase})")
             return false
@@ -132,12 +132,12 @@ class VoiceSession(
     }
 
     /**
-     * Roteia o microfone para o dispositivo SCO **em uso**.
+     * Routes microphone input to the SCO device currently in use.
      *
-     * `availableCommunicationDevices` lista até os SCO disponíveis, mesmo
-     * desconectados — apontar o microfone para um fone que não está
-     * conectado produz silêncio na gravação. Por isso usamos o dispositivo
-     * de comunicação ativo (ou o estado do SCO).
+     * `availableCommunicationDevices` includes available SCO devices, even
+     * disconnected ones — routing the microphone to a headset that is not
+     * connected results in silent recording. Therefore, use the active
+     * communication device (or the SCO state).
      */
     private fun routeToScoDevice() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
@@ -223,14 +223,14 @@ class VoiceSession(
             return
         }
         state.onPlaybackStarted()
-        // aplica a velocidade padrão antes do start
+        // Apply the default speed before starting playback.
         val v = Prefs.speed(ctx)
         if (v != 1.0f) setSpeed(v)
         if (!mp.isPlaying) mp.start()
     }
 
     /* ---------------------------------------------------------------- *
-     * Reprodução -> gravação
+     * Playback to recording.
      * ---------------------------------------------------------------- */
 
     private fun onPlaybackFinished() {
@@ -240,9 +240,9 @@ class VoiceSession(
         }
         scope.launch {
             delay(PLAYBACK_TO_RECORD_DELAY_MS)
-            // aviso de "fale agora": bipe + vibração (no relógio o toque é
-            // bem mais perceptível que o som — sem isso o usuário desligava
-            // logo depois e mandava 0,4 s de silêncio)
+            // "Speak now" cue: beep + vibration (on the watch, vibration is
+            // much more noticeable than sound — without it, the user would hang up
+            // right afterward and send 0.4 seconds of silence).
             runCatching {
                 val tone = ToneGenerator(AudioManager.STREAM_VOICE_CALL, 100)
                 tone.startTone(ToneGenerator.TONE_PROP_BEEP, 400)
@@ -255,7 +255,7 @@ class VoiceSession(
         }
     }
 
-    /** Vibração curta: "agora é a sua vez de falar". */
+    /** Short vibration: "it's your turn to speak now." */
     private fun vibrateToSpeak() {
         runCatching {
             val vibrator = ctx.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator ?: return
@@ -265,10 +265,10 @@ class VoiceSession(
     }
 
     /**
-     * Pede foco de áudio para a gravação.
+     * Request audio focus for recording.
      *
-     * Sem foco, o sistema pode cortar o microfone quando o app não está na
-     * tela — a resposta saía com 0,4 s de silêncio.
+     * Without focus, the system may cut off the microphone when the app is
+     * not on screen — the reply contained 0.4 seconds of silence.
      */
     private fun requestAudioFocus() {
         runCatching {
@@ -289,10 +289,10 @@ class VoiceSession(
         val useOpus = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
         val ext = if (useOpus) "ogg" else "m4a"
         val file = File(ctx.cacheDir, "reply_${payload.audioId}_${System.currentTimeMillis()}.$ext")
-        // Se há um dispositivo SCO (fone/BT) em uso, a fonte de voz é a que
-        // pega o microfone dele. Sem SCO, o microfone é o do aparelho:
-        // VOICE_COMMUNICATION nesse caso fica muda quando o app está em
-        // background (o sistema corta a "fonte de voz").
+        // If an SCO device (headset/BT) is in use, the voice source captures
+        // its microphone. Without SCO, use the device microphone:
+        // VOICE_COMMUNICATION is silent in this case when the app runs in
+        // the background (the system cuts off the "voice source").
         val scoConnected = runCatching {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 audio.communicationDevice?.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO
@@ -356,15 +356,15 @@ class VoiceSession(
             return
         }
 
-        // Timeout de segurança: 90s de gravação.
+        // Safety timeout: 90 seconds of recording.
         timeoutJob = scope.launch {
             delay(RECORD_TIMEOUT_MS)
             Log.w(TAG, "timeout de gravação; encerrando")
             hangup()
         }
 
-        // Vigia de silêncio: se o microfone não pegar nada (amplitude 0),
-        // o sistema está cortando a fonte. Avisa no log para diagnóstico.
+        // Silence monitor: if the microphone captures nothing (amplitude 0),
+        // the system is cutting off the source. Log this for diagnostics.
         scope.launch {
             var maxAmp = 0
             repeat(6) {
@@ -388,7 +388,7 @@ class VoiceSession(
     fun hangup() {
         val elapsed = recordElapsedMs
         if (!state.onHangup(elapsed)) {
-            // gravação ainda muito curta: desligar agora mandaria silêncio
+            // Recording is still too short: hanging up now would send silence.
             Log.w(TAG, "desligar ignorado: só ${elapsed}ms de gravação")
             onTooShort?.invoke(elapsed)
             return
@@ -415,7 +415,7 @@ class VoiceSession(
         scoReceiver?.let { runCatching { ctx.unregisterReceiver(it) } }
         scoReceiver = null
         audio.mode = AudioManager.MODE_NORMAL
-        // devolve o foco de áudio
+        // Release audio focus.
         runCatching {
             val attrs = AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
@@ -469,7 +469,7 @@ class VoiceSession(
         private const val PLAYBACK_TO_RECORD_DELAY_MS = 300L
         private const val RECORD_TIMEOUT_MS = 90_000L
 
-        /** Sessão de voz em andamento (a tela usa para mostrar o estado). */
+        /** Ongoing voice session (used by the screen to show status). */
         @Volatile
         var current: VoiceSession? = null
             private set

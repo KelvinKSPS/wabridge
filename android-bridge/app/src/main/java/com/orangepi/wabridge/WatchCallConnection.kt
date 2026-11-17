@@ -9,8 +9,8 @@ import android.telecom.TelecomManager
 import android.util.Log
 
 /**
- * Adaptador do Telecom: mostra a chamada como ligação do relógio (com nome e
- * número do contato) e delega o áudio para a [VoiceSession].
+ * Telecom adapter: shows the call as a watch call (with contact name and
+ * number) and delegates audio to [VoiceSession].
  */
 class WatchCallConnection(
     private val ctx: Context,
@@ -48,7 +48,7 @@ class WatchCallConnection(
         Prefs.addCallHistory(ctx, payload, CallHistoryOutcome.ANSWERED)
         setActive()
 
-        // se a chamada foi atendida pelo discador do sistema, fecha a tela do app
+        // If the call was answered in the system dialer, close the app screen.
         android.os.Handler(android.os.Looper.getMainLooper()).post { CallActivity.active?.finish() }
 
         val voice = VoiceSession(ctx, payload, onEnded = { onSessionEnded() })
@@ -71,15 +71,15 @@ class WatchCallConnection(
         hangup(DisconnectCause.CANCELED)
     }
 
-    /** Atender pela tela do próprio app (relógio sem discador do sistema). */
+    /** Answer from the app screen (watch without a system dialer). */
     fun answerNow() {
         onAnswer()
     }
 
     /**
-     * Recusar/encerrar pela tela do próprio app.
-     * @return true se a chamada foi encerrada; false se o desligar foi
-     * recusado (gravação ainda muito curta).
+     * Reject/end the call from the app screen.
+     * @return true if the call ended; false if hangup was
+     * rejected (recording is still too short).
      */
     fun rejectNow(): Boolean {
         if (session == null) Prefs.addCallHistory(ctx, payload, CallHistoryOutcome.REJECTED)
@@ -88,7 +88,7 @@ class WatchCallConnection(
     }
 
     private fun onSessionEnded() {
-        // a sessão acabou (timeout, hangup do usuário...): o Telecom precisa saber
+        // The session ended (timeout, user hangup, etc.); Telecom needs to know.
         if (done) return
         done = true
         runCatching {
@@ -96,15 +96,15 @@ class WatchCallConnection(
             destroy()
         }
         if (current === this) current = null
-        // a próxima nota de voz da fila pode tocar agora
+        // The next queued voice note can play now.
         BridgeForegroundService.notifyCallEnded(ctx)
     }
 
     private fun hangup(cause: Int) {
         val session = this.session
         if (session != null) {
-            // desligar logo depois do bipe mandaria um áudio mudo: a sessão
-            // recusa e a chamada continua viva
+            // Hanging up right after the beep would send silent audio: the session
+            // rejects the hangup and the call stays active.
             session.hangup()
             if (!session.ended) return
             this.session = null
@@ -113,7 +113,7 @@ class WatchCallConnection(
         if (!state.onHangup()) return
         if (current === this) current = null
 
-        // esconde a notificação de chamada
+        // Hide the call notification.
         (ctx.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager)
             ?.cancel(CallNotifier.NOTIFICATION_CALL_ID)
 
@@ -127,7 +127,7 @@ class WatchCallConnection(
     companion object {
         private const val TAG = "WatchCall"
 
-        /** Chamada em andamento, para a tela do app e os botões da notificação. */
+        /** Ongoing call, used by the app screen and notification buttons. */
         @Volatile
         var current: WatchCallConnection? = null
             private set

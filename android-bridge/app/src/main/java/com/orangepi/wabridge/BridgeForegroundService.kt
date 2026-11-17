@@ -84,7 +84,7 @@ class BridgeForegroundService : Service() {
     }
 
     /**
-     * Tipo base do foreground service (sem microfone).
+     * Base foreground-service type without microphone access.
      *
      * `specialUse` exists only on Android 14+; before that, no type is
      * declared here and the service starts with the manifest type.
