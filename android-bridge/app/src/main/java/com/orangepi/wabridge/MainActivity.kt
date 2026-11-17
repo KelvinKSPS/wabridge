@@ -101,7 +101,7 @@ class MainActivity : Activity() {
 
         setupSpeedDropdown()
 
-        // Delay before audio playback starts
+        // Delay before audio playback starts.
         val currentDelay = Prefs.audioDelayMs(this)
         val delayLabels = Prefs.AUDIO_DELAY_OPTIONS.map { ms ->
             val secs = ms / 1000.0
@@ -269,7 +269,7 @@ class MainActivity : Activity() {
         super.onActivityResult(requestCode, resultCode, data)
         if (resultCode != RESULT_OK) return
 
-        // Salvar log: lê o logcat deste processo e grava no arquivo escolhido.
+        // Save log: read this process's logcat and write it to the selected file.
         if (requestCode == 3001) {
             val uri = data?.data ?: return
             Thread {

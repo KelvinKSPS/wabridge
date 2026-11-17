@@ -19,15 +19,15 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 /**
- * Serviço em primeiro plano: mantém o WebSocket com o servidor vivo e
- * transforma cada áudio recebido em uma chamada entrante no Telecom.
+ * Foreground service: keeps the WebSocket connection to the server alive and
+ * turns each received audio message into an incoming Telecom call.
  */
 class BridgeForegroundService : Service() {
 
     override fun attachBaseContext(newBase: Context) {
-        // Mesma envoltura de idioma da Activity: sem isso o serviço usa o
-        // locale do sistema e as notificações saíam em idioma diferente da
-        // tela (o estado do Bluetooth piscava entre idiomas).
+        // Same locale wrapper as the Activity: without it, the service uses the
+        // system locale and notifications appear in a different language from the
+        // screen (Bluetooth status flickered between languages).
         super.attachBaseContext(LocaleHelper.wrap(newBase))
     }
 
@@ -38,7 +38,7 @@ class BridgeForegroundService : Service() {
     /** Uma chamada por vez: as demais notas de voz esperam na fila. */
     private val callQueue = CallQueue()
 
-    /** Último texto mostrado na notificação de serviço. */
+    /** Most recent text shown in the service notification. */
     private var statusText: String = ""
 
     override fun onCreate() {
@@ -46,11 +46,11 @@ class BridgeForegroundService : Service() {
         instance = this
         CallNotifier.ensureChannels(this)
 
-        // No Android 12+ o startForeground é bloqueado se o serviço foi
-        // iniciado em segundo plano (ForegroundServiceStartNotAllowedException).
-        // Antes isso derrubava o serviço — e com ele o WebSocket.
-        // Aqui não pedimos o tipo "microphone": ele só pode ser adicionado
-        // com o app em primeiro plano (quando a chamada chega).
+        // On Android 12+, startForeground is blocked if the service was
+        // started in the background (ForegroundServiceStartNotAllowedException).
+        // Previously this stopped the service — and with it, the WebSocket.
+        // Do not request the "microphone" type here: it can only be added
+        // while the app is in the foreground (when the call arrives).
         try {
             ServiceCompat.startForeground(
                 this,
@@ -64,7 +64,7 @@ class BridgeForegroundService : Service() {
             return
         }
 
-        // nada aqui pode derrubar o serviço: sem ele o WebSocket cai junto
+        // Nothing here can be allowed to stop the service: the WebSocket would stop too.
         runCatching { PhoneAccountHelper.ensureRegistered(this) }
             .onFailure { Log.w(TAG, "registro da conta falhou: ${it.message}") }
         startSocket()
@@ -86,8 +86,8 @@ class BridgeForegroundService : Service() {
     /**
      * Tipo base do foreground service (sem microfone).
      *
-     * `specialUse` só existe no Android 14+; antes disso o tipo não é
-     * declarado e o serviço sobe com o tipo do manifesto.
+     * `specialUse` exists only on Android 14+; before that, no type is
+     * declared here and the service starts with the manifest type.
      */
     private fun baseForegroundType(): Int =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -97,12 +97,12 @@ class BridgeForegroundService : Service() {
         }
 
     /**
-     * Promove o serviço para foreground com o tipo `microphone`.
+     * Promote the service to foreground with the `microphone` type.
      *
-     * Sem isso o Android silencia o microfone sempre que o app não está na
-     * tela (a resposta saía vazia). O tipo só pode ser adicionado aqui —
-     * no `onCreate` o serviço pode ser criado pelo sistema em background, e
-     * o Android 14+ não aceita FGS de microfone nesse caso.
+     * Without this, Android silences the microphone whenever the app is not
+     * on screen (the reply was empty). The type can only be added here —
+     * in `onCreate`, the system may create the service in the background, and
+     * Android 14+ does not allow a microphone FGS in that case.
      */
     private fun promoteToMicrophone() {
         val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -182,7 +182,7 @@ class BridgeForegroundService : Service() {
         }
     }
 
-    /** Chamada de teste: usa o wav sintético do servidor. */
+    /** Test call: uses the server's synthetic WAV. */
     private fun testPayload(): CallPayload? {
         val base = Prefs.engineUrl(this)
         return CallPayload(
@@ -194,12 +194,12 @@ class BridgeForegroundService : Service() {
     }
 
     /**
-     * Toca uma nota de voz. Se já houver uma chamada em andamento, a nota vai
-     * para a fila e toca depois — nada de chamada por cima da outra.
+     * Play a voice note. If a call is already in progress, queue the note
+     * and play it afterward — never overlap calls.
      */
     private fun ringIncoming(payload: CallPayload) {
-        // Se nenhum aparelho escolhido estiver conectado, a nota espera na fila do daemon
-        // (/pending) — o app não toca nem acorda a tela.
+        // If none of the selected devices is connected, the note waits in the daemon queue
+        // (/pending) — the app does not ring or wake the screen.
         if (!watchConnected()) {
             Log.i(TAG, "nenhum aparelho escolhido conectado; nota de voz na fila")
             broadcastStatus("nenhum aparelho conectado — nota na fila")
@@ -224,8 +224,8 @@ class BridgeForegroundService : Service() {
     private fun startRinging(payload: CallPayload) {
         CallPayload.setCurrent(payload)
 
-        // A tela de chamada do app não depende do Telecom: aparece mesmo em
-        // aparelho sem telephony.
+        // The app's call screen does not depend on Telecom: it appears even on
+        // devices without telephony.
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
         try {
             manager?.notify(CallNotifier.NOTIFICATION_CALL_ID, CallNotifier.callNotification(this, payload))
@@ -250,7 +250,7 @@ class BridgeForegroundService : Service() {
         val extras = Bundle().apply {
             putParcelable(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, accountHandle)
             putString(BridgeExtras.PAYLOAD, payload.toJson())
-            // indica que a chamada tem áudio
+            // Indicates that the call has audio.
             putBoolean(BridgeExtras.HAS_AUDIO, true)
         }
 
@@ -262,12 +262,12 @@ class BridgeForegroundService : Service() {
         }
     }
 
-    /** A chamada atual terminou: toca a próxima da fila, se houver. */
+    /** The current call ended; play the next queued call, if any. */
     private fun onCallEnded() {
         val next = callQueue.release()
         if (next == null) {
             Log.i(TAG, "chamada encerrada; fila vazia")
-            // Sem mais chamadas: solta o tipo microfone para o ícone sumir.
+            // No more calls: release the microphone type so its icon disappears.
             demoteFromMicrophone()
             return
         }
