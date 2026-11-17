@@ -279,10 +279,10 @@ class BridgeForegroundService : Service() {
         Log.i(TAG, text)
         statusText = text
         sendBroadcast(Intent(ACTION_STATUS).setPackage(packageName).putExtra(EXTRA_TEXT, text))
-        // A notificação de serviço é obrigatória (foreground), mas não deve
-        // ficar piscando "iniciando/conectando...": mostra sempre o rótulo
-        // estável de serviço ativo. Os estados transitórios ficam só no log
-        // e no broadcast (a tela os ignora).
+        // The service notification is required (foreground), but should not
+        // flicker through "starting/connecting...": always show the stable
+        // active-service label. Transient states appear only in the log
+        // and broadcast (the screen ignores them).
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
         manager.notify(
             CallNotifier.NOTIFICATION_ID,
@@ -290,7 +290,7 @@ class BridgeForegroundService : Service() {
         )
     }
 
-    /** Atualiza a notificação de serviço (usado pelas ações). */
+    /** Update the service notification (used by actions). */
     fun refreshStatus() {
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
         manager.notify(
@@ -307,15 +307,15 @@ class BridgeForegroundService : Service() {
         const val ACTION_NEED_MIC = "com.orangepi.wabridge.NEED_MIC"
         const val EXTRA_TEXT = "text"
 
-        /** Serviço vivo (para avisar que uma chamada terminou). */
+        /** Live service instance (used to notify it that a call ended). */
         @Volatile
         var instance: BridgeForegroundService? = null
             private set
 
-        /** true se o serviço está rodando. */
+        /** True if the service is running. */
         fun isRunning(context: Context): Boolean = instance != null
 
-        /** Sobe o serviço em foreground (usado pelo boot e pelo botão da tela). */
+        /** Start the foreground service (used by boot and the screen button). */
         fun start(context: Context) {
             runCatching {
                 ContextCompat.startForegroundService(
@@ -327,14 +327,14 @@ class BridgeForegroundService : Service() {
             }
         }
 
-        /** Avisa o serviço de que a chamada terminou. */
+        /** Notify the service that the call ended. */
         fun notifyCallEnded(context: Context) {
             val svc = instance
             if (svc != null) {
                 svc.onCallEnded()
                 return
             }
-            // serviço não está no ar: tenta acordar por intent
+            // Service is not running: try to wake it with an intent.
             runCatching {
                 context.startService(
                     Intent(context, BridgeForegroundService::class.java)
@@ -344,10 +344,10 @@ class BridgeForegroundService : Service() {
         }
 
         /**
-         * Garante que o serviço pode usar o microfone.
+         * Ensure the service can use the microphone.
          *
-         * Sem o tipo `microphone` no foreground service, o Android silencia
-         * a gravação quando o app não está na tela — a resposta saía vazia.
+         * Without the `microphone` type on the foreground service, Android silences
+         * recording when the app is not on screen — the reply was empty.
          */
         fun requestMicrophone(context: Context) {
             val svc = instance
