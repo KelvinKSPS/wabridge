@@ -74,13 +74,10 @@ class CallActivity : Activity() {
 
         answerButton.setOnClickListener {
             if (answered) {
-                if (hangupNow()) {
-                    finish()
-                } else {
-                    // Hanging up before the minimum recording time shows a warning.
-                    statusLine.visibility = android.view.View.VISIBLE
-                    statusLine.setText(R.string.status_too_short)
-                }
+                // Hanging up always ends the call now; a too-short recording is
+                // discarded (see onTooShort below) instead of blocking the hangup.
+                hangupNow()
+                finish()
             } else {
                 answered = true
                 stopRing()
@@ -159,17 +156,13 @@ class CallActivity : Activity() {
         vibrator = null
     }
 
-    private fun hangupNow(): Boolean {
+    private fun hangupNow() {
         val call = WatchCallConnection.current
         if (call != null) {
-            return call.rejectNow()
+            call.rejectNow()
+            return
         }
-        val session = localSession
-        if (session != null) {
-            session.hangup()
-            return session.ended
-        }
-        return true
+        localSession?.hangup()
     }
 
     /* ---------------------------------------------------------------- *
@@ -263,9 +256,10 @@ class CallActivity : Activity() {
                 }
             },
             onTooShort = {
+                // The screen may already be finishing (hangup ends the call
+                // immediately now), so a Toast survives where statusLine would not.
                 runOnUiThread {
-                    statusLine.visibility = android.view.View.VISIBLE
-                    statusLine.setText(R.string.status_too_short)
+                    android.widget.Toast.makeText(this, R.string.status_too_short, android.widget.Toast.LENGTH_SHORT).show()
                 }
             },
         ).also { localSession = it }

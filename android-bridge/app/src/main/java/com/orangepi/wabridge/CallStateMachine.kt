@@ -61,18 +61,19 @@ class CallStateMachine(val recordTimeoutMs: Long = DEFAULT_RECORD_TIMEOUT_MS) {
     fun onRecordStarted(): Boolean = transition(CallPhase.RECORDING, CallPhase.RECORDING)
 
     /**
-     * Desligar.
-     *
-     * Durante a gravação só aceita desligar depois de [MIN_RECORDING_MS]: o
-     * usuário desligava logo depois do bipe e mandava um áudio mudo (0,5 s de
-     * silêncio) para o contato.
+     * Desligar. Sempre termina a chamada (idempotente: a segunda chamada
+     * devolve false). Quem chama decide se a gravação é curta demais para
+     * enviar — ver [isTooShort] — e nesse caso descarta o áudio em vez de
+     * recusar o desligar (antes disso deixava a chamada travada).
      */
     fun onHangup(recordElapsedMs: Long = Long.MAX_VALUE): Boolean {
         if (ended) return false
-        if (phase == CallPhase.RECORDING && recordElapsedMs < MIN_RECORDING_MS) return false
         phase = CallPhase.ENDED
         return true
     }
+
+    /** true se [recordElapsedMs] de gravação é curto demais para valer a pena enviar. */
+    fun isTooShort(recordElapsedMs: Long): Boolean = recordElapsedMs < MIN_RECORDING_MS
 
     /** Tempo já decorrido de gravação que dispara o timeout de segurança. */
     fun shouldTimeout(elapsedMs: Long): Boolean = elapsedMs >= recordTimeoutMs

@@ -281,6 +281,25 @@ export function createBridge(deps: BridgeDeps = {}): Bridge {
     res.json({ ok: true, clients: hub.size, pending: pending.size });
   });
 
+  /**
+   * Same contract as the embedded daemon's /config/allowed-numbers: lets the
+   * app push its allowlist to this server so isAllowed() actually filters.
+   * Without this route the app's "who can call" list only lived in the
+   * phone's SharedPreferences and this server kept accepting everyone.
+   */
+  app.get('/config/allowed-numbers', (_req, res) => {
+    res.json({ allowedNumbers: config.allowedNumbers, acceptAll: config.allowedNumbers.length === 0 });
+  });
+
+  app.post('/config/allowed-numbers', (req, res) => {
+    const numbers = Array.isArray(req.body?.allowedNumbers) ? req.body.allowedNumbers : [];
+    config.allowedNumbers = numbers
+      .map((n: unknown) => String(n).replace(/\D/g, ''))
+      .filter(Boolean);
+    console.log(`[config] permitidos atualizados: ${config.allowedNumbers.join(', ') || '(todos)'}`);
+    res.json({ ok: true, allowedNumbers: config.allowedNumbers });
+  });
+
   app.get('/pending', (_req, res) => {
     res.json([...pending.values()]);
   });

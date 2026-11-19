@@ -23,6 +23,8 @@
     <string name="speed_custom_invalid">Enter a valid number from 0.25 to 4.</string>
     <string name="audio_delay_label">time until audio starts</string>
     <string name="audio_delay_hint">count from answer. With 0s audio waits only for the watch to open the voice channel.</string>
+    <string name="beep_delay_label">time until speak beep</string>
+    <string name="beep_delay_hint">count from when the received audio ends. More time lets you get ready before the beep.</string>
     <string name="status_label">status</string>
     <string name="start">start</string>
     <string name="stop">stop</string>
@@ -85,6 +87,11 @@
     <string name="call_history_rejected">rejected</string>
     <string name="call_history_clear">clear history</string>
     <string name="call_history_confirm_clear">Clear all audio history?</string>
+    <string name="history_play">play</string>
+    <string name="history_pause">pause</string>
+    <string name="history_play_error">couldn\'t play this audio</string>
+    <string name="history_transfer_to_watch">transfer to watch</string>
+    <string name="history_transferred">transferred to watch</string>
     <string name="pending_label">received voice notes</string>
     <string name="pending_title">voice notes in queue</string>
     <string name="pending_none">no notes in queue</string>

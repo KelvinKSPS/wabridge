@@ -78,6 +78,10 @@ class BridgeForegroundService : Service() {
             }
             ACTION_CALL_ENDED -> onCallEnded()
             ACTION_NEED_MIC -> promoteToMicrophone()
+            ACTION_RING_PAYLOAD -> {
+                val payload = CallPayload.fromJson(intent.getStringExtra(BridgeExtras.PAYLOAD))
+                if (payload != null) ringIncoming(payload)
+            }
         }
         startSocket()
         return START_STICKY
@@ -162,6 +166,11 @@ class BridgeForegroundService : Service() {
                 return
             }
         }
+        // The daemon/server starts with no allowlist of its own; push the one
+        // saved in the app so it does not silently accept everyone until the
+        // user happens to re-save the list from the screen.
+        val numbers = Prefs.allowedNumbers(this)
+        Thread { PairingClient.syncAllowedNumbers(this, numbers) }.start()
         ws = WsManager(
             urlProvider = { Prefs.engineUrl(this) },
             onEvent = { json -> onServerEvent(json) },
@@ -305,7 +314,21 @@ class BridgeForegroundService : Service() {
         const val ACTION_TEST_CALL = "com.orangepi.wabridge.TEST_CALL"
         const val ACTION_CALL_ENDED = "com.orangepi.wabridge.CALL_ENDED"
         const val ACTION_NEED_MIC = "com.orangepi.wabridge.NEED_MIC"
+        const val ACTION_RING_PAYLOAD = "com.orangepi.wabridge.RING_PAYLOAD"
         const val EXTRA_TEXT = "text"
+
+        /**
+         * Rings a specific payload on the watch (used by the "transfer to watch"
+         * button in the audio-history player). Goes through the same queue as a
+         * normal incoming note, so it never overlaps an active call.
+         */
+        fun ringPayload(context: Context, payload: CallPayload) {
+            context.startService(
+                Intent(context, BridgeForegroundService::class.java)
+                    .setAction(ACTION_RING_PAYLOAD)
+                    .putExtra(BridgeExtras.PAYLOAD, payload.toJson()),
+            )
+        }
 
         /** Live service instance (used to notify it that a call ended). */
         @Volatile

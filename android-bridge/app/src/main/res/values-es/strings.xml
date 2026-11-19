@@ -23,6 +23,8 @@
     <string name="speed_custom_invalid">Introduce un número válido entre 0,25 y 4.</string>
     <string name="audio_delay_label">tiempo hasta que empiece el audio</string>
     <string name="audio_delay_hint">cuenta desde la respuesta. Con 0s el audio espera solo a que el reloj abra el canal de voz.</string>
+    <string name="beep_delay_label">tiempo hasta el bip para hablar</string>
+    <string name="beep_delay_hint">cuenta desde que termina el audio recibido. Más tiempo te permite prepararte antes del bip.</string>
     <string name="status_label">estado</string>
     <string name="start">iniciar</string>
     <string name="stop">detener</string>
@@ -85,6 +87,11 @@
     <string name="call_history_rejected">rechazado</string>
     <string name="call_history_clear">borrar historial</string>
     <string name="call_history_confirm_clear">¿Borrar todo el historial de audio?</string>
+    <string name="history_play">reproducir</string>
+    <string name="history_pause">pausar</string>
+    <string name="history_play_error">no se pudo reproducir este audio</string>
+    <string name="history_transfer_to_watch">transferir al reloj</string>
+    <string name="history_transferred">transferido al reloj</string>
     <string name="pending_label">notas de voz recibidas</string>
     <string name="pending_title">notas de voz en cola</string>
     <string name="pending_none">no hay notas en cola</string>

@@ -239,7 +239,9 @@ class VoiceSession(
             return
         }
         scope.launch {
-            delay(PLAYBACK_TO_RECORD_DELAY_MS)
+            // Configurable delay before the "speak now" beep. The user may need
+            // more time to realize playback ended before the recording starts.
+            delay(Prefs.beepDelayMs(ctx))
             // "Speak now" cue: beep + vibration (on the watch, vibration is
             // much more noticeable than sound — without it, the user would hang up
             // right afterward and send 0.4 seconds of silence).
@@ -387,12 +389,12 @@ class VoiceSession(
 
     fun hangup() {
         val elapsed = recordElapsedMs
+        val wasRecording = recorder != null
         if (!state.onHangup(elapsed)) {
-            // Recording is still too short: hanging up now would send silence.
-            Log.w(TAG, "desligar ignorado: só ${elapsed}ms de gravação")
-            onTooShort?.invoke(elapsed)
+            // Already ended; a second hangup (e.g. double tap) is a no-op.
             return
         }
+        val tooShort = wasRecording && state.isTooShort(elapsed)
         timeoutJob?.cancel()
         recordingStartedAt = 0L
 
@@ -429,7 +431,12 @@ class VoiceSession(
             )
         }
 
-        if (file != null && file.length() > 0) {
+        if (tooShort) {
+            // Recording too short to be useful: discard it instead of sending near-silence.
+            Log.w(TAG, "gravação de ${elapsed}ms descartada (abaixo do mínimo de ${CallStateMachine.MIN_RECORDING_MS}ms)")
+            runCatching { file?.delete() }
+            onTooShort?.invoke(elapsed)
+        } else if (file != null && file.length() > 0) {
             upload(file, durationSec, stopError?.toString())
         } else {
             Log.i(TAG, "sem gravação para enviar")
@@ -466,7 +473,6 @@ class VoiceSession(
     companion object {
         private const val TAG = "VoiceSession"
         private const val SCO_TIMEOUT_MS = 3_000L
-        private const val PLAYBACK_TO_RECORD_DELAY_MS = 300L
         private const val RECORD_TIMEOUT_MS = 90_000L
 
         /** Ongoing voice session (used by the screen to show status). */

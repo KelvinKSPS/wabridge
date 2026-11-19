@@ -18,7 +18,11 @@ object LocaleHelper {
         val lang = Prefs.language(context)
         val locale = localeFor(lang) ?: return context // SYSTEM: não força nada
 
-        Locale.setDefault(locale)
+        // Do not call Locale.setDefault() here: it is a process-global mutation.
+        // Each component (MainActivity, CallActivity, BridgeForegroundService)
+        // wraps its own Context independently; setting the JVM-wide default
+        // caused a race where the last component to (re)create would silently
+        // override the language the others were already using.
         val config = Configuration(context.resources.configuration)
         config.setLocale(locale)
         return context.createConfigurationContext(config)

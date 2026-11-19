@@ -103,10 +103,9 @@ class WatchCallConnection(
     private fun hangup(cause: Int) {
         val session = this.session
         if (session != null) {
-            // Hanging up right after the beep would send silent audio: the session
-            // rejects the hangup and the call stays active.
+            // Hanging up always ends the session now; if the recording was too
+            // short, VoiceSession discards it instead of blocking the hangup.
             session.hangup()
-            if (!session.ended) return
             this.session = null
         }
 

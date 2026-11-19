@@ -23,6 +23,8 @@
     <string name="speed_custom_invalid">请输入 0.25 到 4 之间的有效数值。</string>
     <string name="audio_delay_label">音频开始前的延迟</string>
     <string name="audio_delay_hint">从接听开始计时。设为0秒时，音频仅等待手表打开语音通道。</string>
+    <string name="beep_delay_label">提示音等待时间</string>
+    <string name="beep_delay_hint">从收到的语音播放完毕开始计时。时间越长，您有更多时间准备说话。</string>
     <string name="status_label">状态</string>
     <string name="start">启动</string>
     <string name="stop">停止</string>
@@ -85,6 +87,11 @@
     <string name="call_history_rejected">已拒绝</string>
     <string name="call_history_clear">清除记录</string>
     <string name="call_history_confirm_clear">清除所有音频记录？</string>
+    <string name="history_play">播放</string>
+    <string name="history_pause">暂停</string>
+    <string name="history_play_error">无法播放此音频</string>
+    <string name="history_transfer_to_watch">转移到手表</string>
+    <string name="history_transferred">已转移到手表</string>
     <string name="pending_label">已接收语音消息</string>
     <string name="pending_title">语音消息队列</string>
     <string name="pending_none">队列中无消息</string>

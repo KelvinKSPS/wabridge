@@ -91,6 +91,36 @@ object PairingClient {
         }
     }
 
+    /**
+     * Pushes the allowed-sender list to the engine's filter (POST /config/allowed-numbers).
+     *
+     * The engine (embedded daemon or external server) is what actually decides whether
+     * an incoming audio message rings the watch; without this call the list saved in
+     * the app only lives in SharedPreferences and the engine keeps accepting everyone.
+     * An empty list means "accept all" (acceptAll=true), same rule used everywhere else.
+     */
+    fun syncAllowedNumbers(context: Context, numbers: List<String>): Boolean =
+        runCatching {
+            val url = URL(Prefs.engineUrl(context) + "/config/allowed-numbers")
+            val conn = url.openConnection() as HttpURLConnection
+            conn.requestMethod = "POST"
+            conn.connectTimeout = 10_000
+            conn.readTimeout = 10_000
+            conn.doOutput = true
+            conn.setRequestProperty("Content-Type", "application/json")
+            val body = org.json.JSONObject()
+                .put("allowedNumbers", org.json.JSONArray(numbers))
+                .put("acceptAll", numbers.isEmpty())
+                .toString()
+            conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+            val ok = conn.responseCode in 200..299
+            conn.disconnect()
+            ok
+        }.getOrElse {
+            android.util.Log.w("WabridgeAllowed", "sync allowed-numbers: ${it.message}")
+            false
+        }
+
     private fun readAll(input: java.io.InputStream): String =
         BufferedReader(InputStreamReader(input, Charsets.UTF_8)).use { it.readText() }
 }

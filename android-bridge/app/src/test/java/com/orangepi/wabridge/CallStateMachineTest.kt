@@ -85,20 +85,24 @@ class CallStateMachineTest {
     }
 
     @Test
-    fun `desligar durante gravacao curta e recusado`() {
+    fun `desligar durante gravacao curta termina a chamada mesmo assim`() {
         val m = CallStateMachine()
         m.onSessionAnswer()
         m.onPlaybackStarted()
         m.onPlaybackFinished()
         m.onRecordStarted()
 
-        // 300 ms de gravação: ainda abaixo do mínimo, desligar é recusado
-        assertFalse(m.onHangup(300))
-        assertEquals(CallPhase.RECORDING, m.phase)
-
-        // depois do mínimo, desliga
-        assertTrue(m.onHangup(CallStateMachine.MIN_RECORDING_MS))
+        // 300 ms de gravação: abaixo do mínimo, mas desligar não trava a chamada
+        // (quem chama decide, via isTooShort, se descarta o áudio)
+        assertTrue(m.onHangup(300))
         assertEquals(CallPhase.ENDED, m.phase)
+    }
+
+    @Test
+    fun `isTooShort reflete o minimo de gravacao`() {
+        val m = CallStateMachine()
+        assertTrue(m.isTooShort(CallStateMachine.MIN_RECORDING_MS - 1))
+        assertFalse(m.isTooShort(CallStateMachine.MIN_RECORDING_MS))
     }
 
     @Test

@@ -7,6 +7,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.media.AudioAttributes
+import android.media.MediaPlayer
 import android.os.Build
 import android.os.Bundle
 import android.widget.Button
@@ -23,6 +25,7 @@ class MainActivity : Activity() {
     private lateinit var urlInput: EditText
     private lateinit var speedSpinner: android.widget.AutoCompleteTextView
     private lateinit var audioDelaySpinner: android.widget.AutoCompleteTextView
+    private lateinit var beepDelaySpinner: android.widget.AutoCompleteTextView
     private lateinit var modeSpinner: android.widget.AutoCompleteTextView
     private lateinit var engineStatusText: TextView
     private lateinit var accountStatusText: TextView
@@ -61,6 +64,7 @@ class MainActivity : Activity() {
         urlInput = findViewById(R.id.urlInput)
         speedSpinner = findViewById(R.id.speedSpinner)
         audioDelaySpinner = findViewById(R.id.audioDelaySpinner)
+        beepDelaySpinner = findViewById(R.id.beepDelaySpinner)
         modeSpinner = findViewById(R.id.modeSpinner)
         engineStatusText = findViewById(R.id.engineStatusText)
         accountStatusText = findViewById(R.id.accountStatusText)
@@ -111,6 +115,16 @@ class MainActivity : Activity() {
             Prefs.setAudioDelayMs(this@MainActivity, Prefs.AUDIO_DELAY_OPTIONS.getOrElse(pos) { 1000L })
         }
 
+        // Delay before the "speak now" beep, counted from when the note finishes playing.
+        val currentBeepDelay = Prefs.beepDelayMs(this)
+        val beepDelayLabels = Prefs.BEEP_DELAY_OPTIONS.map { ms ->
+            val secs = ms / 1000.0
+            if (secs == secs.toLong().toDouble()) "${secs.toLong()} s" else "$secs s"
+        }
+        setupDropdown(beepDelaySpinner, beepDelayLabels, Prefs.BEEP_DELAY_OPTIONS.indexOfFirst { it == currentBeepDelay }) { pos ->
+            Prefs.setBeepDelayMs(this@MainActivity, Prefs.BEEP_DELAY_OPTIONS.getOrElse(pos) { Prefs.DEFAULT_BEEP_DELAY_MS })
+        }
+
         // Single button at the top toggles the service on and off.
         toggleServiceButton.setOnClickListener {
             if (BridgeForegroundService.isRunning(this)) {
@@ -118,6 +132,7 @@ class MainActivity : Activity() {
             } else {
                 Prefs.setUrl(this, urlInput.text.toString())
                 Prefs.setAllowedNumbers(this, allowedInput.text.toString())
+                syncAllowedNumbers()
                 requestMissingPermissions()
                 startBridge()
                 refreshEngineStatus()
@@ -204,13 +219,7 @@ class MainActivity : Activity() {
             .setItems(labels) { _, index ->
                 val entry = entries[index]
                 if (entry.outcome == CallHistoryOutcome.RECEIVED) {
-                    startActivity(CallActivity.intent(this, CallPayload(
-                        audioId = entry.audioId,
-                        senderName = entry.name,
-                        senderNumber = entry.number,
-                        audioUrl = entry.audioUrl,
-                        durationSec = entry.durationSec,
-                    )))
+                    showHistoryAudioDialog(entry)
                 }
             }
             .setNeutralButton(R.string.call_history_clear) { _, _ ->
@@ -231,6 +240,137 @@ class MainActivity : Activity() {
         val count = Prefs.callHistory(this).size
         callHistoryButton.text = if (count == 0) getString(R.string.call_history_button_empty)
         else getString(R.string.call_history_button, count)
+    }
+
+    /**
+     * Lets the user listen to a received note on the phone itself — useful
+     * when the watch is out of reach — with play/pause and speed control,
+     * plus a button to ring it on the watch instead (same flow as a live call).
+     */
+    private fun showHistoryAudioDialog(entry: CallHistoryEntry) {
+        var player: MediaPlayer? = null
+        var speed = Prefs.speed(this)
+
+        val playButton = Button(this).apply {
+            text = getString(R.string.history_play)
+        }
+        val speedButton = Button(this).apply {
+            text = getString(R.string.speed_value, PlaybackSpeed.label(speed))
+        }
+        val transferButton = Button(this).apply {
+            text = getString(R.string.history_transfer_to_watch)
+        }
+        val container = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(48, 24, 48, 8)
+            addView(TextView(this@MainActivity).apply {
+                text = "${entry.name} (${entry.number})"
+                textSize = 16f
+            })
+            addView(playButton)
+            addView(speedButton)
+            addView(transferButton)
+        }
+
+        fun releasePlayer() {
+            runCatching { player?.stop() }
+            player?.release()
+            player = null
+        }
+
+        fun applySpeed() {
+            val p = player ?: return
+            runCatching {
+                p.playbackParams = (p.playbackParams ?: android.media.PlaybackParams()).setSpeed(speed)
+            }
+        }
+
+        var preparing = false
+
+        playButton.setOnClickListener {
+            if (preparing) return@setOnClickListener // still loading; ignore extra taps
+            val current = player
+            if (current != null) {
+                if (current.isPlaying) {
+                    current.pause()
+                    playButton.text = getString(R.string.history_play)
+                } else {
+                    current.start()
+                    playButton.text = getString(R.string.history_pause)
+                }
+                return@setOnClickListener
+            }
+            preparing = true
+            runCatching {
+                val mp = MediaPlayer()
+                mp.setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .build()
+                )
+                mp.setDataSource(entry.audioUrl)
+                mp.setOnPreparedListener {
+                    // The dialog may have been dismissed (and the player released)
+                    // while loading; a stale callback must not touch it or the UI.
+                    if (player !== mp) return@setOnPreparedListener
+                    preparing = false
+                    applySpeed()
+                    it.start()
+                    playButton.text = getString(R.string.history_pause)
+                }
+                mp.setOnCompletionListener {
+                    if (player !== mp) return@setOnCompletionListener
+                    playButton.text = getString(R.string.history_play)
+                }
+                mp.setOnErrorListener { _, _, _ ->
+                    if (player === mp) {
+                        preparing = false
+                        playButton.text = getString(R.string.history_play)
+                        player = null
+                        android.widget.Toast.makeText(this, R.string.history_play_error, android.widget.Toast.LENGTH_LONG).show()
+                    }
+                    true
+                }
+                player = mp
+                mp.prepareAsync()
+            }.onFailure {
+                preparing = false
+                player = null
+                android.widget.Toast.makeText(this, R.string.history_play_error, android.widget.Toast.LENGTH_LONG).show()
+            }
+        }
+
+        speedButton.setOnClickListener {
+            speed = PlaybackSpeed.next(speed)
+            speedButton.text = getString(R.string.speed_value, PlaybackSpeed.label(speed))
+            applySpeed()
+        }
+
+        val dialog = android.app.AlertDialog.Builder(this)
+            .setTitle(R.string.call_history_title)
+            .setView(container)
+            .setNegativeButton(android.R.string.cancel, null)
+            .setOnDismissListener { releasePlayer() }
+            .create()
+
+        transferButton.setOnClickListener {
+            releasePlayer()
+            BridgeForegroundService.ringPayload(
+                this,
+                CallPayload(
+                    audioId = entry.audioId,
+                    senderName = entry.name,
+                    senderNumber = entry.number,
+                    audioUrl = entry.audioUrl,
+                    durationSec = entry.durationSec,
+                ),
+            )
+            android.widget.Toast.makeText(this, R.string.history_transferred, android.widget.Toast.LENGTH_SHORT).show()
+            dialog.dismiss()
+        }
+
+        dialog.show()
     }
 
     private fun showAudioDiagnostics() {
@@ -612,6 +752,23 @@ class MainActivity : Activity() {
     }
 
     /**
+     * Pushes the saved allowlist to the running engine.
+     *
+     * Saving the list locally (SharedPreferences) is not enough: the engine
+     * (embedded daemon or external server) is what filters incoming audio,
+     * and it only learns about the list through this HTTP call. Called after
+     * every edit and once the daemon is confirmed running, so the filter is
+     * never silently stuck on "accept everyone".
+     */
+    private fun syncAllowedNumbers() {
+        val numbers = Prefs.allowedNumbers(this)
+        Thread {
+            val ok = PairingClient.syncAllowedNumbers(this, numbers)
+            if (!ok) android.util.Log.w("WabridgeAllowed", "falha ao sincronizar lista de permitidos com o motor")
+        }.start()
+    }
+
+    /**
      * Interactive list: opens a selector with the account's contacts and groups.
      * Available only in embedded mode (the Node server has no /contacts).
      */
@@ -785,6 +942,7 @@ class MainActivity : Activity() {
                 Prefs.setAllowedNumbers(this, listaSalva.joinToString(", "))
                 allowedInput.setText(listaSalva.joinToString(", "))
                 updateAllowedSummary()
+                syncAllowedNumbers()
             }
             .setNeutralButton(android.R.string.cancel, null)
             .create()
