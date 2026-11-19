@@ -16,6 +16,8 @@ class CallActionReceiver : BroadcastReceiver() {
             ACTION_REJECT -> WatchCallConnection.current?.rejectNow()
             ACTION_SPEED -> cycleSpeed(context)
             ACTION_QUICK_REPLY -> quickReply(context)
+            ACTION_DISMISS -> dismissQuiet(context, intent)
+            ACTION_PLAY_QUIET -> playQuiet(context, intent)
         }
     }
 
@@ -48,10 +50,33 @@ class CallActionReceiver : BroadcastReceiver() {
         WatchCallConnection.current?.rejectNow()
     }
 
+    /** User dismissed a quiet note notification without playing it. */
+    private fun dismissQuiet(context: Context, intent: Intent) {
+        val payload = CallPayload.fromJson(intent.getStringExtra(BridgeExtras.PAYLOAD)) ?: return
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
+        manager?.cancel(CallNotifier.quietNotificationId(payload))
+        Prefs.addCallHistory(context, payload, CallHistoryOutcome.REJECTED)
+        BridgeForegroundService.endQuietCall(context, payload.audioId)
+    }
+
+    /** Play a quiet note: launch the call screen which will auto-answer. */
+    private fun playQuiet(context: Context, intent: Intent) {
+        val payload = CallPayload.fromJson(intent.getStringExtra(BridgeExtras.PAYLOAD)) ?: return
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
+        manager?.cancel(CallNotifier.quietNotificationId(payload))
+        try {
+            context.startActivity(CallActivity.intent(context, payload, autoAnswer = true))
+        } catch (e: Exception) {
+            android.util.Log.w("CallActionReceiver", "falha ao abrir chamada: ${e.message}")
+        }
+    }
+
     companion object {
         const val ACTION_ANSWER = "com.orangepi.wabridge.ANSWER"
         const val ACTION_REJECT = "com.orangepi.wabridge.REJECT"
         const val ACTION_SPEED = "com.orangepi.wabridge.SPEED"
         const val ACTION_QUICK_REPLY = "com.orangepi.wabridge.QUICK_REPLY"
+        const val ACTION_DISMISS = "com.orangepi.wabridge.DISMISS"
+        const val ACTION_PLAY_QUIET = "com.orangepi.wabridge.PLAY_QUIET"
     }
 }

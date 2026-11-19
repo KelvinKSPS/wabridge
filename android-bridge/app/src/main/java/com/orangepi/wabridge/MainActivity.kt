@@ -609,6 +609,7 @@ class MainActivity : Activity() {
         setupAllowedPicker()
         setupBluetooth()
         setupAcceptOwn()
+        setupQuietNotifications()
         refreshAccountStatus()
     }
 
@@ -672,6 +673,15 @@ class MainActivity : Activity() {
                     DaemonManager.start(this)
                 }.start()
             }
+        }
+    }
+
+    /** Quiet mode: show a plain notification with a Play button instead of ringing. */
+    private fun setupQuietNotifications() {
+        val check = findViewById<android.widget.CheckBox>(R.id.quietNotificationsCheck)
+        check.isChecked = Prefs.quietNotifications(this)
+        check.setOnCheckedChangeListener { _, v ->
+            Prefs.setQuietNotifications(this, v)
         }
     }
 

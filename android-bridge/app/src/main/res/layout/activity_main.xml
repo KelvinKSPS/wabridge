@@ -414,6 +414,24 @@
             android:layout_marginTop="8dp"
             android:text="@string/accept_own_label" />
 
+        <!-- ===== Quiet notification mode ===== -->
+        <CheckBox
+            android:id="@+id/quietNotificationsCheck"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/quiet_notifications_label" />
+
+        <TextView
+            android:id="@+id/quietNotificationsHint"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="32dp"
+            android:layout_marginBottom="4dp"
+            android:text="@string/quiet_notifications_hint"
+            android:textColor="@color/on_surface_variant"
+            android:textSize="12sp" />
+
         <!-- ===== Actions ===== -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/testCallButton"

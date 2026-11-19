@@ -19,6 +19,7 @@ object Prefs {
     private const val KEY_BT_ONLY = "bt_only_connected"
     private const val KEY_COUNTRY_CODE = "country_code"
     private const val KEY_ACCEPT_OWN = "accept_own"
+    private const val KEY_QUIET_NOTIFICATIONS = "quiet_notifications"
     private const val KEY_SAMPLE_RATE = "audio_sample_rate"
 
     /** Node server address (default = local network IP). */
@@ -174,6 +175,21 @@ object Prefs {
         ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(KEY_ACCEPT_OWN, value)
+            .apply()
+    }
+
+    /**
+     * Quiet mode: incoming notes show as a plain notification (one buzz, like
+     * an SMS) with a Play action instead of ringing like a phone call and
+     * opening the call screen automatically.
+     */
+    fun quietNotifications(ctx: Context): Boolean =
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean(KEY_QUIET_NOTIFICATIONS, false)
+
+    fun setQuietNotifications(ctx: Context, value: Boolean) {
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_QUIET_NOTIFICATIONS, value)
             .apply()
     }
 

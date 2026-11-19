@@ -80,7 +80,7 @@ class BridgeForegroundService : Service() {
             ACTION_NEED_MIC -> promoteToMicrophone()
             ACTION_RING_PAYLOAD -> {
                 val payload = CallPayload.fromJson(intent.getStringExtra(BridgeExtras.PAYLOAD))
-                if (payload != null) ringIncoming(payload)
+                if (payload != null) ringIncoming(payload, forceRing = true)
             }
         }
         startSocket()
@@ -205,13 +205,22 @@ class BridgeForegroundService : Service() {
     /**
      * Play a voice note. If a call is already in progress, queue the note
      * and play it afterward — never overlap calls.
+     *
+     * [forceRing] skips quiet-notification mode and always rings as a call
+     * (used by "transfer to watch" from history, which is an explicit user action).
      */
-    private fun ringIncoming(payload: CallPayload) {
+    private fun ringIncoming(payload: CallPayload, forceRing: Boolean = false) {
         // If none of the selected devices is connected, the note waits in the daemon queue
         // (/pending) — the app does not ring or wake the screen.
         if (!watchConnected()) {
             Log.i(TAG, "nenhum aparelho escolhido conectado; nota de voz na fila")
             broadcastStatus("nenhum aparelho conectado — nota na fila")
+            return
+        }
+        if (!forceRing && Prefs.quietNotifications(this)) {
+            // Each note is an independent notification (no global "in call" queue)
+            // so several arrivals can be shown at once and played one by one.
+            showQuietNote(payload)
             return
         }
         if (!callQueue.offer(payload)) {
@@ -220,6 +229,17 @@ class BridgeForegroundService : Service() {
             return
         }
         startRinging(payload)
+    }
+
+    /** Posts a single quiet notification for one incoming note. */
+    private fun showQuietNote(payload: CallPayload) {
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
+        try {
+            manager.notify(CallNotifier.quietNotificationId(payload), CallNotifier.quietNotification(this, payload))
+            Log.i(TAG, "notificação quieta: ${payload.senderName}")
+        } catch (e: Exception) {
+            Log.w(TAG, "falha ao postar notificação quieta: ${e.message}")
+        }
     }
 
     /** true se o gate de bluetooth libera o toque. */
@@ -284,6 +304,15 @@ class BridgeForegroundService : Service() {
         startRinging(next)
     }
 
+    /** Dismissed or finished a quiet note without going through the call queue. */
+    fun endQuietCall(audioId: String) {
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+        // Best-effort: cancel by the same hash scheme used to post it.
+        val pseudo = CallPayload(audioId = audioId, senderName = "", senderNumber = "", audioUrl = "")
+        manager?.cancel(CallNotifier.quietNotificationId(pseudo))
+        Log.i(TAG, "nota quieta encerrada: $audioId")
+    }
+
     private fun broadcastStatus(text: String) {
         Log.i(TAG, text)
         statusText = text
@@ -328,6 +357,18 @@ class BridgeForegroundService : Service() {
                     .setAction(ACTION_RING_PAYLOAD)
                     .putExtra(BridgeExtras.PAYLOAD, payload.toJson()),
             )
+        }
+
+        /** Ends a quiet note (dismissed from its notification). */
+        fun endQuietCall(context: Context, audioId: String) {
+            val svc = instance
+            if (svc != null) {
+                svc.endQuietCall(audioId)
+            } else {
+                val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
+                val pseudo = CallPayload(audioId = audioId, senderName = "", senderNumber = "", audioUrl = "")
+                manager?.cancel(CallNotifier.quietNotificationId(pseudo))
+            }
         }
 
         /** Live service instance (used to notify it that a call ended). */

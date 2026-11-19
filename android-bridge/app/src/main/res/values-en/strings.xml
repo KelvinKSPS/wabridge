@@ -120,6 +120,9 @@
     <string name="quick_reply">I can\'t answer the phone right now.</string>
     <string name="quick_reply_busy">I can\'t answer the phone right now.</string>
     <string name="action_quick_reply">respond by text</string>
+    <string name="action_play">play</string>
+    <string name="action_dismiss">dismiss</string>
+    <string name="quiet_busy">another audio is still playing</string>
 
     <!-- Notifications -->
     <string name="service_notification_active">WhatsApp connected on your watch</string>
@@ -127,6 +130,9 @@
     <string name="notification_channel_desc">Keeps WhatsApp bridge active</string>
     <string name="channel_name">Voice call</string>
     <string name="channel_call_name">Voice call</string>
+    <string name="channel_quiet_name">Received audios</string>
+    <string name="quiet_notifications_label">Quiet notification with play button</string>
+    <string name="quiet_notifications_hint">when an audio arrives, buzz once and show “play” instead of opening the call screen</string>
     <string name="accept_own_label">Play my own audios (test mode)</string>
 
     <!-- Languages -->

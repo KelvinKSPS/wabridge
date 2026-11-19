@@ -120,6 +120,9 @@
     <string name="quick_reply">我目前无法接听电话。</string>
     <string name="quick_reply_busy">我目前无法接听电话。</string>
     <string name="action_quick_reply">短信回复</string>
+    <string name="action_play">播放</string>
+    <string name="action_dismiss">忽略</string>
+    <string name="quiet_busy">另一段音频仍在播放中</string>
 
     <!-- Notifications -->
     <string name="service_notification_active">WhatsApp 已连接到手表</string>
@@ -127,6 +130,9 @@
     <string name="notification_channel_desc">保持WhatsApp桥接运行</string>
     <string name="channel_name">语音通话</string>
     <string name="channel_call_name">语音通话</string>
+    <string name="channel_quiet_name">收到的音频</string>
+    <string name="quiet_notifications_label">静默通知并显示播放按钮</string>
+    <string name="quiet_notifications_hint">收到音频时轻微提醒一次并显示“播放”，而不是直接打开通话界面</string>
     <string name="accept_own_label">播放我自己的音频（测试模式）</string>
 
     <!-- Languages -->

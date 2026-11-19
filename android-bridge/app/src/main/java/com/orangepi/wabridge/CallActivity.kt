@@ -57,6 +57,7 @@ class CallActivity : Activity() {
         }
 
         val payload = CallPayload.fromJson(intent.getStringExtra(EXTRA_PAYLOAD))
+        val autoAnswer = intent.getBooleanExtra(EXTRA_AUTO_ANSWER, false)
         callerName = findViewById(R.id.callerName)
         callerNumber = findViewById(R.id.callerNumber)
         statusLine = findViewById(R.id.statusLine)
@@ -112,6 +113,27 @@ class CallActivity : Activity() {
 
         // Status line: playing / recording / elapsed time.
         handler.post(statusTicker)
+
+        // Dismiss the quiet notification for this note (if any) as soon as we open.
+        payload?.let {
+            (getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager)
+                ?.cancel(CallNotifier.quietNotificationId(it))
+        }
+
+        if (autoAnswer) {
+            // Quiet-notification "Play": skip the manual answer tap.
+            // Avoid the 2s wait for a Telecom connection that was never created.
+            if (VoiceSession.current?.ended == false) {
+                android.widget.Toast.makeText(this, R.string.quiet_busy, android.widget.Toast.LENGTH_SHORT).show()
+                finish()
+                return
+            }
+            answered = true
+            stopRing()
+            answerButton.setText(R.string.hangup)
+            rejectButton.visibility = android.view.View.GONE
+            localSession()?.answer()
+        }
     }
 
     /** Incoming call ringtone and vibration. */
@@ -277,20 +299,27 @@ class CallActivity : Activity() {
 
     private fun dismissNotification() {
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
-        manager.cancel(CallNotifier.NOTIFICATION_ID)
+        // Dismiss the fixed-ID call notification and also the per-note quiet one
+        // (no-op for IDs that are not posted).
+        manager.cancel(CallNotifier.NOTIFICATION_CALL_ID)
+        CallPayload.fromJson(intent.getStringExtra(EXTRA_PAYLOAD))?.let {
+            manager.cancel(CallNotifier.quietNotificationId(it))
+        }
     }
 
     companion object {
         const val EXTRA_PAYLOAD = "com.orangepi.wabridge.CALL_PAYLOAD"
+        const val EXTRA_AUTO_ANSWER = "com.orangepi.wabridge.AUTO_ANSWER"
 
         /** Tela de chamada aberta no momento (usada para fechar ao atender). */
         @Volatile
         var active: CallActivity? = null
             private set
 
-        fun intent(context: Context, payload: CallPayload): Intent =
+        fun intent(context: Context, payload: CallPayload, autoAnswer: Boolean = false): Intent =
             Intent(context, CallActivity::class.java)
                 .putExtra(EXTRA_PAYLOAD, payload.toJson())
+                .putExtra(EXTRA_AUTO_ANSWER, autoAnswer)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
     }
 }
