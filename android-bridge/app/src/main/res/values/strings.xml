@@ -133,6 +133,7 @@
     <string name="channel_call_name">Chamada de voz</string>
     <string name="channel_quiet_name">Áudios recebidos</string>
     <string name="channel_quiet_msg_name">Áudios recebidos (mensagem)</string>
+    <string name="channel_quiet_evt_name">Áudios recebidos (evento)</string>
     <string name="quiet_notifications_label">Notificação discreta com botão de tocar</string>
     <string name="quiet_notifications_hint">quando chegar um áudio, avisa com um toque leve e mostra “tocar” em vez de abrir a chamada</string>
     <string name="accept_own_label">Tocar meus próprios áudios (modo teste)</string>

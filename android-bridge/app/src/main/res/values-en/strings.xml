@@ -133,6 +133,7 @@
     <string name="channel_call_name">Voice call</string>
     <string name="channel_quiet_name">Received audios</string>
     <string name="channel_quiet_msg_name">Received audios (message)</string>
+    <string name="channel_quiet_evt_name">Received audios (event)</string>
     <string name="quiet_notifications_label">Quiet notification with play button</string>
     <string name="quiet_notifications_hint">when an audio arrives, buzz once and show “play” instead of opening the call screen</string>
     <string name="accept_own_label">Play my own audios (test mode)</string>

@@ -23,6 +23,8 @@ object CallNotifier {
     const val CHANNEL_QUIET = "wabridge_quiet"
     /** New channel for quiet/message-style notifications (v2) so existing installs pick up new behavior. */
     const val CHANNEL_QUIET_MSG = "wabridge_quiet_msg"
+    /** Event/calendar-style channel (v3) to maximize action visibility on watch bridges (e.g. Huawei). */
+    const val CHANNEL_QUIET_EVT = "wabridge_quiet_evt"
     const val KEY_PLAY_REPLY = "play_reply"
     const val NOTIFICATION_ID = 42
     const val NOTIFICATION_CALL_ID = 43
@@ -64,6 +66,17 @@ object CallNotifier {
                 NotificationChannel(
                     CHANNEL_QUIET_MSG,
                     context.getString(R.string.channel_quiet_msg_name),
+                    NotificationManager.IMPORTANCE_DEFAULT,
+                )
+            )
+        }
+        // v3: event/calendar-style channel — some watch bridges (Huawei) render action buttons
+        // for calendar/event notifications but not for generic/message ones.
+        if (manager.getNotificationChannel(CHANNEL_QUIET_EVT) == null) {
+            manager.createNotificationChannel(
+                NotificationChannel(
+                    CHANNEL_QUIET_EVT,
+                    context.getString(R.string.channel_quiet_evt_name),
                     NotificationManager.IMPORTANCE_DEFAULT,
                 )
             )
@@ -162,9 +175,11 @@ object CallNotifier {
     }
 
     /**
-     * Quiet notification for a single incoming note: emulates a messaging/SMS
-     * conversation so watch bridges that ignore generic actions (e.g. Huawei)
-     * can still surface a "Play" reply-style action. Each note gets its own ID.
+     * Quiet notification for a single incoming note. Uses an event/calendar-like
+     * presentation so watch bridges that render actions for calendar notifications
+     * (e.g. Huawei, showing Soneca/Fechar) can surface Play/Dismiss buttons.
+     * Also includes a RemoteInput reply-style "Play" action as an extra path for
+     * bridges that expose SMS quick-reply chips. Each note gets its own ID.
      */
     fun quietNotification(context: Context, payload: CallPayload): Notification {
         val req = quietRequestCode(payload)
@@ -213,30 +228,32 @@ object CallNotifier {
             .build()
 
         val senderName = payload.displayName.ifBlank { payload.senderNumber }
-        val sender = Person.Builder().setName(senderName).build()
-        val me = Person.Builder().setName(context.getString(R.string.app_name)).build()
         val body = if (payload.durationSec > 0) {
             "🎤 ${context.getString(R.string.incoming_call)} · ${CallPayload.formatDuration(payload.durationSec)}"
         } else {
             "🎤 ${context.getString(R.string.incoming_call)}"
         }
 
-        return NotificationCompat.Builder(context, CHANNEL_QUIET_MSG)
+        return NotificationCompat.Builder(context, CHANNEL_QUIET_EVT)
             .setSmallIcon(android.R.drawable.ic_menu_call)
             .setContentTitle(senderName)
             .setContentText(body)
-            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .setCategory(NotificationCompat.CATEGORY_EVENT)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setWhen(System.currentTimeMillis())
+            .setShowWhen(true)
             .setAutoCancel(true)
             .setContentIntent(playIntent)
             .setDeleteIntent(dismiss)
-            .setStyle(
-                NotificationCompat.MessagingStyle(me)
-                    .setConversationTitle(senderName)
-                    .addMessage(body, System.currentTimeMillis(), sender),
+            .addAction(
+                NotificationCompat.Action.Builder(
+                    android.R.drawable.ic_media_play,
+                    context.getString(R.string.action_play),
+                    playIntent,
+                ).build(),
             )
-            .addAction(playReplyAction)
             .addAction(
                 NotificationCompat.Action.Builder(
                     android.R.drawable.ic_menu_close_clear_cancel,
@@ -244,6 +261,7 @@ object CallNotifier {
                     dismiss,
                 ).build(),
             )
+            .addAction(playReplyAction)
             .build()
     }
 
