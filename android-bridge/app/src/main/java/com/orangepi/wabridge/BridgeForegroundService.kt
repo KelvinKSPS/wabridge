@@ -236,6 +236,7 @@ class BridgeForegroundService : Service() {
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
         try {
             manager.notify(CallNotifier.quietNotificationId(payload), CallNotifier.quietNotification(this, payload))
+            QuietMedia.offer(this, payload)
             Log.i(TAG, "notificação quieta: ${payload.senderName}")
         } catch (e: Exception) {
             Log.w(TAG, "falha ao postar notificação quieta: ${e.message}")
