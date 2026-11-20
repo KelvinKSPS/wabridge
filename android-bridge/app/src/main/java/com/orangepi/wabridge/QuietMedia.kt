@@ -2,6 +2,9 @@ package com.orangepi.wabridge
 
 import android.app.NotificationManager
 import android.content.Context
+import android.media.AudioAttributes
+import android.media.AudioFormat
+import android.media.AudioTrack
 import android.media.MediaMetadata
 import android.media.session.MediaSession
 import android.media.session.PlaybackState
@@ -37,9 +40,50 @@ object QuietMedia {
                 .putLong(MediaMetadata.METADATA_KEY_DURATION, payload.durationSec * 1000L)
                 .build(),
         )
-        setState(PlaybackState.STATE_PAUSED)
         s.isActive = true
+        claimMediaControl()
     }
+
+    /**
+     * Android routes media controls to the app that most recently played real
+     * audio, so play a short silent clip to become that app, then show "paused".
+     */
+    private fun claimMediaControl() {
+        setState(PlaybackState.STATE_PLAYING)
+        val silence = ByteArray(SILENCE_BYTES)
+        val track = runCatching {
+            AudioTrack.Builder()
+                .setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                        .build(),
+                )
+                .setAudioFormat(
+                    AudioFormat.Builder()
+                        .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                        .setSampleRate(SILENCE_RATE)
+                        .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                        .build(),
+                )
+                .setTransferMode(AudioTrack.MODE_STATIC)
+                .setBufferSizeInBytes(silence.size)
+                .build()
+                .also {
+                    it.write(silence, 0, silence.size)
+                    it.play()
+                }
+        }.getOrNull()
+        main.postDelayed({
+            runCatching { track?.stop() }
+            track?.release()
+            if (voice == null && pending != null) setState(PlaybackState.STATE_PAUSED)
+        }, SILENCE_MS)
+    }
+
+    private const val SILENCE_RATE = 8000
+    private const val SILENCE_MS = 1500L
+    private const val SILENCE_BYTES = (SILENCE_RATE * 2 * SILENCE_MS / 1000).toInt()
 
     private fun play(app: Context) {
         if (VoiceSession.current?.ended == false) return
