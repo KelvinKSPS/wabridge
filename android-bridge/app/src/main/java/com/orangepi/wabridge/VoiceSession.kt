@@ -22,6 +22,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -423,7 +424,9 @@ class VoiceSession(
             return
         }
         val tooShort = wasRecording && state.isTooShort(elapsed, Prefs.minReplyMs(ctx))
-        timeoutJob?.cancel()
+        // Stop everything still queued (beep, start of recording, timeout):
+        // otherwise a hangup before the beep left the phone recording afterwards.
+        scope.coroutineContext.cancelChildren()
         recordingStartedAt = 0L
 
         runCatching { player?.stop() }

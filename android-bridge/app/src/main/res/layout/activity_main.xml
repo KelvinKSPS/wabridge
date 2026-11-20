@@ -436,11 +436,29 @@
             android:layout_marginTop="8dp"
             android:text="@string/quiet_notifications_label" />
 
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/integrationLayout"
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="32dp"
+            android:layout_marginTop="4dp"
+            android:hint="@string/integration_device_label">
+
+            <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                android:id="@+id/integrationSpinner"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:editable="false"
+                android:inputType="none" />
+        </com.google.android.material.textfield.TextInputLayout>
+
         <TextView
             android:id="@+id/quietNotificationsHint"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginStart="32dp"
+            android:layout_marginTop="4dp"
             android:layout_marginBottom="4dp"
             android:text="@string/quiet_notifications_hint"
             android:textColor="@color/on_surface_variant"

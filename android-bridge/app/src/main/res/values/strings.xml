@@ -135,8 +135,10 @@
     <string name="channel_quiet_name">Áudios recebidos</string>
     <string name="channel_quiet_msg_name">Áudios recebidos (mensagem)</string>
     <string name="channel_quiet_evt_name">Áudios recebidos (evento)</string>
-    <string name="quiet_notifications_label">Notificação discreta com botão de tocar</string>
-    <string name="quiet_notifications_hint">quando chegar um áudio, avisa com um toque leve e mostra “tocar” em vez de abrir a chamada</string>
+    <string name="quiet_notifications_label">Integração personalizada</string>
+    <string name="quiet_notifications_hint">Quando chega um áudio, o telefone não toca: a nota aparece no card de música do relógio (Controlar música do telefone). Toque em play: a chamada toca no relógio. Atenda no relógio para ouvir o áudio e, depois do bipe, grave a resposta. Desligue para enviar.</string>
+    <string name="integration_device_label">Aparelho</string>
+    <string name="integration_huawei">Huawei (HarmonyOS)</string>
     <string name="accept_own_label">Tocar meus próprios áudios (modo teste)</string>
 
     <!-- Languages -->

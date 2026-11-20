@@ -135,8 +135,10 @@
     <string name="channel_quiet_name">收到的音频</string>
     <string name="channel_quiet_msg_name">收到的音频（消息）</string>
     <string name="channel_quiet_evt_name">收到的音频（事件）</string>
-    <string name="quiet_notifications_label">静默通知并显示播放按钮</string>
-    <string name="quiet_notifications_hint">收到音频时轻微提醒一次并显示“播放”，而不是直接打开通话界面</string>
+    <string name="quiet_notifications_label">自定义集成</string>
+    <string name="quiet_notifications_hint">收到音频时手机不会响铃：语音会出现在手表的音乐卡片（控制手机音乐）中。点击播放后，手表会来电响铃。在手表上接听即可收听音频，听到提示音后录制回复，挂断即发送。</string>
+    <string name="integration_device_label">设备</string>
+    <string name="integration_huawei">华为（HarmonyOS）</string>
     <string name="accept_own_label">播放我自己的音频（测试模式）</string>
 
     <!-- Languages -->

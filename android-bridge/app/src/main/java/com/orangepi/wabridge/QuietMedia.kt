@@ -10,6 +10,7 @@ import android.media.session.MediaSession
 import android.media.session.PlaybackState
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 
 /**
  * Exposes the pending quiet note as a media session, so anything that controls
@@ -41,6 +42,7 @@ object QuietMedia {
                 .build(),
         )
         s.isActive = true
+        Log.i(TAG, "nota oferecida no card de mídia: ${payload.senderName}")
         claimMediaControl()
     }
 
@@ -81,6 +83,7 @@ object QuietMedia {
         }, SILENCE_MS)
     }
 
+    private const val TAG = "QuietMedia"
     private const val SILENCE_RATE = 8000
     private const val SILENCE_MS = 1500L
     private const val SILENCE_BYTES = (SILENCE_RATE * 2 * SILENCE_MS / 1000).toInt()
@@ -88,6 +91,7 @@ object QuietMedia {
     private fun play(app: Context) {
         if (viaCall || VoiceSession.current?.ended == false) return
         val payload = pending ?: return
+        Log.i(TAG, "play recebido do card de mídia")
         (app.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager)
             ?.cancel(CallNotifier.quietNotificationId(payload))
         // Prefer a call (answered on the watch) so audio goes through the watch;

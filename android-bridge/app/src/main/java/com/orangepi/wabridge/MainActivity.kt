@@ -688,12 +688,29 @@ class MainActivity : Activity() {
         }
     }
 
-    /** Quiet mode: show a plain notification with a Play button instead of ringing. */
+    /**
+     * Custom integration: instead of ringing, offer the note through a
+     * device-specific flow. Huawei is the only one so far, so the choice is
+     * not stored — the checkbox alone turns it on.
+     */
     private fun setupQuietNotifications() {
         val check = findViewById<android.widget.CheckBox>(R.id.quietNotificationsCheck)
+        val layout = findViewById<View>(R.id.integrationLayout)
+        val hint = findViewById<View>(R.id.quietNotificationsHint)
+        setupDropdown(
+            findViewById(R.id.integrationSpinner),
+            listOf(getString(R.string.integration_huawei)),
+            0,
+        ) { }
+        fun show(on: Boolean) {
+            layout.visibility = if (on) android.view.View.VISIBLE else android.view.View.GONE
+            hint.visibility = if (on) android.view.View.VISIBLE else android.view.View.GONE
+        }
         check.isChecked = Prefs.quietNotifications(this)
+        show(check.isChecked)
         check.setOnCheckedChangeListener { _, v ->
             Prefs.setQuietNotifications(this, v)
+            show(v)
         }
     }
 

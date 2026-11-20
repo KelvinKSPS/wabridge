@@ -135,8 +135,10 @@
     <string name="channel_quiet_name">Received audios</string>
     <string name="channel_quiet_msg_name">Received audios (message)</string>
     <string name="channel_quiet_evt_name">Received audios (event)</string>
-    <string name="quiet_notifications_label">Quiet notification with play button</string>
-    <string name="quiet_notifications_hint">when an audio arrives, buzz once and show “play” instead of opening the call screen</string>
+    <string name="quiet_notifications_label">Custom integration</string>
+    <string name="quiet_notifications_hint">When an audio arrives the phone does not ring: the note shows up on the watch music card (Control phone music). Tap play: the call rings on the watch. Answer on the watch to hear the audio and, after the beep, record your reply. Hang up to send it.</string>
+    <string name="integration_device_label">Device</string>
+    <string name="integration_huawei">Huawei (HarmonyOS)</string>
     <string name="accept_own_label">Play my own audios (test mode)</string>
 
     <!-- Languages -->

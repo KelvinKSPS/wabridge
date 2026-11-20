@@ -135,8 +135,10 @@
     <string name="channel_quiet_name">Audios recibidos</string>
     <string name="channel_quiet_msg_name">Audios recibidos (mensaje)</string>
     <string name="channel_quiet_evt_name">Audios recibidos (evento)</string>
-    <string name="quiet_notifications_label">Notificación discreta con botón de reproducir</string>
-    <string name="quiet_notifications_hint">al llegar un audio, vibra una vez y muestra “reproducir” en vez de abrir la llamada</string>
+    <string name="quiet_notifications_label">Integración personalizada</string>
+    <string name="quiet_notifications_hint">Cuando llega un audio, el teléfono no suena: la nota aparece en la tarjeta de música del reloj (Controlar música del teléfono). Toca reproducir: la llamada suena en el reloj. Contesta en el reloj para oír el audio y, tras el pitido, graba tu respuesta. Cuelga para enviarla.</string>
+    <string name="integration_device_label">Dispositivo</string>
+    <string name="integration_huawei">Huawei (HarmonyOS)</string>
     <string name="accept_own_label">Reproducir mis propios audios (modo prueba)</string>
 
     <!-- Languages -->
