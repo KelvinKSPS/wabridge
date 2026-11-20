@@ -211,8 +211,8 @@ class CallActivity : Activity() {
                 speedButton.visibility = android.view.View.GONE
                 val elapsed = session.recordElapsedMs
                 statusLine.visibility = android.view.View.VISIBLE
-                if (elapsed < CallStateMachine.MIN_RECORDING_MS) {
-                    val wait = ((CallStateMachine.MIN_RECORDING_MS - elapsed + 999) / 1000).toInt()
+                if (elapsed < Prefs.minReplyMs(this@CallActivity)) {
+                    val wait = ((Prefs.minReplyMs(this@CallActivity) - elapsed + 999) / 1000).toInt()
                     statusLine.setText(getString(R.string.status_wait, wait))
                 } else {
                     statusLine.setText(getString(R.string.status_recorded, (elapsed / 1000).toInt()))

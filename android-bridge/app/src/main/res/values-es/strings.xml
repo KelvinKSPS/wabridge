@@ -24,6 +24,7 @@
     <string name="audio_delay_label">tiempo hasta que empiece el audio</string>
     <string name="audio_delay_hint">cuenta desde la respuesta. Con 0s el audio espera solo a que el reloj abra el canal de voz.</string>
     <string name="beep_delay_label">tiempo hasta el bip para hablar</string>
+    <string name="min_reply_label">ignorar respuestas de menos de</string>
     <string name="beep_delay_hint">cuenta desde que termina el audio recibido. Más tiempo te permite prepararte antes del bip.</string>
     <string name="status_label">estado</string>
     <string name="start">iniciar</string>

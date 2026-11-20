@@ -32,8 +32,7 @@ class BridgeConnectionService : ConnectionService() {
         val connection = WatchCallConnection(this, payload)
         if (request.extras?.getBoolean(BridgeExtras.AUTO_ANSWER) == true) {
             // Started from the media card: the user already chose to listen.
-            android.os.Handler(android.os.Looper.getMainLooper())
-                .postDelayed({ connection.answerNow() }, 300)
+            connection.answerWhenWatchReady()
         }
         return connection
     }

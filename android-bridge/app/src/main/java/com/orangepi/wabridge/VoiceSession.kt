@@ -410,7 +410,7 @@ class VoiceSession(
             // Already ended; a second hangup (e.g. double tap) is a no-op.
             return
         }
-        val tooShort = wasRecording && state.isTooShort(elapsed)
+        val tooShort = wasRecording && state.isTooShort(elapsed, Prefs.minReplyMs(ctx))
         timeoutJob?.cancel()
         recordingStartedAt = 0L
 
@@ -450,7 +450,7 @@ class VoiceSession(
 
         if (tooShort) {
             // Recording too short to be useful: discard it instead of sending near-silence.
-            Log.w(TAG, "gravação de ${elapsed}ms descartada (abaixo do mínimo de ${CallStateMachine.MIN_RECORDING_MS}ms)")
+            Log.w(TAG, "gravação de ${elapsed}ms descartada (abaixo do mínimo de ${Prefs.minReplyMs(ctx)}ms)")
             runCatching { file?.delete() }
             onTooShort?.invoke(elapsed)
         } else if (file != null && file.length() > 0) {

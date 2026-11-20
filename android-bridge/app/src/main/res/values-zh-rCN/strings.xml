@@ -24,6 +24,7 @@
     <string name="audio_delay_label">音频开始前的延迟</string>
     <string name="audio_delay_hint">从接听开始计时。设为0秒时，音频仅等待手表打开语音通道。</string>
     <string name="beep_delay_label">提示音等待时间</string>
+    <string name="min_reply_label">忽略短于此时长的回复</string>
     <string name="beep_delay_hint">从收到的语音播放完毕开始计时。时间越长，您有更多时间准备说话。</string>
     <string name="status_label">状态</string>
     <string name="start">启动</string>

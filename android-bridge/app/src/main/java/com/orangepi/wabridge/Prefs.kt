@@ -8,6 +8,7 @@ object Prefs {
     private const val KEY_SPEED = "playback_speed"
     private const val KEY_AUDIO_DELAY = "audio_delay_ms"
     private const val KEY_BEEP_DELAY = "beep_delay_ms"
+    private const val KEY_MIN_REPLY = "min_reply_ms"
     private const val KEY_MODE = "engine_mode"
     private const val KEY_LANGUAGE = "app_language"
     private const val KEY_DIAG_UNLOCKED = "diagnostics_unlocked"
@@ -36,9 +37,24 @@ object Prefs {
     val BEEP_DELAY_OPTIONS = listOf(300L, 500L, 1000L, 1500L, 2000L, 3000L)
     const val DEFAULT_BEEP_DELAY_MS = 300L
 
+    /** Recorded replies shorter than this are discarded instead of sent (in ms). */
+    val MIN_REPLY_OPTIONS = listOf(500L, 1000L, 2000L, 3000L, 5000L)
+
     /** Recording sample rate. The external server re-encodes with ffmpeg
      *  to 16000 Hz (libopus); the app records at 48000 Hz. A/B-testable via broadcast. */
     val DEFAULT_SAMPLE_RATE = 48000
+
+    fun minReplyMs(ctx: Context): Long =
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .getLong(KEY_MIN_REPLY, CallStateMachine.MIN_RECORDING_MS)
+            .coerceIn(CallStateMachine.MIN_RECORDING_MS, 10_000L)
+
+    fun setMinReplyMs(ctx: Context, value: Long) {
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .edit()
+            .putLong(KEY_MIN_REPLY, value.coerceIn(CallStateMachine.MIN_RECORDING_MS, 10_000L))
+            .apply()
+    }
 
     fun audioSampleRate(ctx: Context): Int =
         ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)

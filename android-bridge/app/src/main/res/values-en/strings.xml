@@ -24,6 +24,7 @@
     <string name="audio_delay_label">time until audio starts</string>
     <string name="audio_delay_hint">count from answer. With 0s audio waits only for the watch to open the voice channel.</string>
     <string name="beep_delay_label">time until speak beep</string>
+    <string name="min_reply_label">ignore replies shorter than</string>
     <string name="beep_delay_hint">count from when the received audio ends. More time lets you get ready before the beep.</string>
     <string name="status_label">status</string>
     <string name="start">start</string>

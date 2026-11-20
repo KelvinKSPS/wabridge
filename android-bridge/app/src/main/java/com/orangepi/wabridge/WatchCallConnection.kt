@@ -3,6 +3,13 @@ package com.orangepi.wabridge
 import android.app.NotificationManager
 import android.content.Context
 import android.net.Uri
+import android.media.AudioDeviceInfo
+import android.media.AudioManager
+import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
+import android.telecom.CallAudioState
 import android.telecom.Connection
 import android.telecom.DisconnectCause
 import android.telecom.TelecomManager
@@ -77,6 +84,35 @@ class WatchCallConnection(
     }
 
     /**
+     * Answers on its own once the watch can take the call audio. Answering
+     * right away keeps the call on the phone: the watch needs a moment to
+     * learn about the call before Bluetooth becomes an available route.
+     */
+    fun answerWhenWatchReady() {
+        val handler = Handler(Looper.getMainLooper())
+        val startedAt = SystemClock.elapsedRealtime()
+        handler.post(object : Runnable {
+            override fun run() {
+                if (done || session != null) return
+                val waited = SystemClock.elapsedRealtime() - startedAt
+                val route = (callAudioState?.supportedRouteMask ?: 0) and CallAudioState.ROUTE_BLUETOOTH != 0
+                val headset = BluetoothHelper.headsetConnected(ctx)
+                val sco = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                    (ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager)
+                        .availableCommunicationDevices.any { it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO }
+                val ready = route || headset || sco
+                if (!ready && waited < AUTO_ANSWER_MAX_WAIT_MS) {
+                    handler.postDelayed(this, 200)
+                    return
+                }
+                Log.i(TAG, "atendendo sozinho após ${waited}ms (rota=$route headset=$headset sco=$sco)")
+                if (ready) setAudioRoute(CallAudioState.ROUTE_BLUETOOTH)
+                onAnswer()
+            }
+        })
+    }
+
+    /**
      * Reject/end the call from the app screen.
      * @return true if the call ended; false if hangup was
      * rejected (recording is still too short).
@@ -124,6 +160,7 @@ class WatchCallConnection(
     }
 
     companion object {
+        private const val AUTO_ANSWER_MAX_WAIT_MS = 4000L
         private const val TAG = "WatchCall"
 
         /** Ongoing call, used by the app screen and notification buttons. */

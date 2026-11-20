@@ -73,7 +73,7 @@ class CallStateMachine(val recordTimeoutMs: Long = DEFAULT_RECORD_TIMEOUT_MS) {
     }
 
     /** true se [recordElapsedMs] de gravação é curto demais para valer a pena enviar. */
-    fun isTooShort(recordElapsedMs: Long): Boolean = recordElapsedMs < MIN_RECORDING_MS
+    fun isTooShort(recordElapsedMs: Long, minMs: Long = MIN_RECORDING_MS): Boolean = recordElapsedMs < minMs
 
     /** Tempo já decorrido de gravação que dispara o timeout de segurança. */
     fun shouldTimeout(elapsedMs: Long): Boolean = elapsedMs >= recordTimeoutMs

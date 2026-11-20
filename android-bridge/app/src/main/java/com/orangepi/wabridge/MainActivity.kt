@@ -26,6 +26,7 @@ class MainActivity : Activity() {
     private lateinit var speedSpinner: android.widget.AutoCompleteTextView
     private lateinit var audioDelaySpinner: android.widget.AutoCompleteTextView
     private lateinit var beepDelaySpinner: android.widget.AutoCompleteTextView
+    private lateinit var minReplySpinner: android.widget.AutoCompleteTextView
     private lateinit var modeSpinner: android.widget.AutoCompleteTextView
     private lateinit var engineStatusText: TextView
     private lateinit var accountStatusText: TextView
@@ -65,6 +66,7 @@ class MainActivity : Activity() {
         speedSpinner = findViewById(R.id.speedSpinner)
         audioDelaySpinner = findViewById(R.id.audioDelaySpinner)
         beepDelaySpinner = findViewById(R.id.beepDelaySpinner)
+        minReplySpinner = findViewById(R.id.minReplySpinner)
         modeSpinner = findViewById(R.id.modeSpinner)
         engineStatusText = findViewById(R.id.engineStatusText)
         accountStatusText = findViewById(R.id.accountStatusText)
@@ -123,6 +125,16 @@ class MainActivity : Activity() {
         }
         setupDropdown(beepDelaySpinner, beepDelayLabels, Prefs.BEEP_DELAY_OPTIONS.indexOfFirst { it == currentBeepDelay }) { pos ->
             Prefs.setBeepDelayMs(this@MainActivity, Prefs.BEEP_DELAY_OPTIONS.getOrElse(pos) { Prefs.DEFAULT_BEEP_DELAY_MS })
+        }
+
+        // Replies shorter than this are discarded instead of sent.
+        val currentMinReply = Prefs.minReplyMs(this)
+        val minReplyLabels = Prefs.MIN_REPLY_OPTIONS.map { ms ->
+            val secs = ms / 1000.0
+            if (secs == secs.toLong().toDouble()) "${secs.toLong()} s" else "$secs s"
+        }
+        setupDropdown(minReplySpinner, minReplyLabels, Prefs.MIN_REPLY_OPTIONS.indexOfFirst { it == currentMinReply }) { pos ->
+            Prefs.setMinReplyMs(this@MainActivity, Prefs.MIN_REPLY_OPTIONS.getOrElse(pos) { CallStateMachine.MIN_RECORDING_MS })
         }
 
         // Single button at the top toggles the service on and off.

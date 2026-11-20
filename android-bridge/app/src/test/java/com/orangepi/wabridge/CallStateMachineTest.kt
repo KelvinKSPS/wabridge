@@ -106,6 +106,13 @@ class CallStateMachineTest {
     }
 
     @Test
+    fun `isTooShort uses the configured minimum`() {
+        val m = CallStateMachine()
+        assertTrue(m.isTooShort(1500, minMs = 2000))
+        assertFalse(m.isTooShort(2000, minMs = 2000))
+    }
+
+    @Test
     fun `desligar antes de gravar sempre passa`() {
         val m = CallStateMachine()
         m.onIncoming()
