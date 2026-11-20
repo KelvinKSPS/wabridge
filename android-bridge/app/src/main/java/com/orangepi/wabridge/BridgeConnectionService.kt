@@ -30,10 +30,6 @@ class BridgeConnectionService : ConnectionService() {
         }
         Log.i(TAG, "criando chamada de ${payload.senderName} (${payload.senderNumber})")
         val connection = WatchCallConnection(this, payload)
-        if (request.extras?.getBoolean(BridgeExtras.AUTO_ANSWER) == true) {
-            // Started from the media card: the user already chose to listen.
-            connection.answerWhenWatchReady()
-        }
         return connection
     }
 

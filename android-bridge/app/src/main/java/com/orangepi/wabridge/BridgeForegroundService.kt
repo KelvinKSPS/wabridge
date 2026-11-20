@@ -293,11 +293,12 @@ class BridgeForegroundService : Service() {
     }
 
     /**
-     * Starts a call that is answered right away, without ringing UI. The watch
-     * only opens its voice channel inside a call, so this is how a note started
-     * from the media card plays and records on the watch.
+     * Starts a call for a note chosen on the media card, without the phone's
+     * ringing UI. The watch only keeps call audio when the call is answered on
+     * the watch itself (it drops the link when the phone answers), so the call
+     * rings there and the user picks it up.
      */
-    fun startAnsweredCall(payload: CallPayload): Boolean {
+    fun startCardCall(payload: CallPayload): Boolean {
         val telecom = getSystemService(Context.TELECOM_SERVICE) as? TelecomManager ?: return false
         if (!callQueue.offer(payload)) return false
         CallPayload.setCurrent(payload)
@@ -306,7 +307,6 @@ class BridgeForegroundService : Service() {
             putParcelable(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, handle)
             putString(BridgeExtras.PAYLOAD, payload.toJson())
             putBoolean(BridgeExtras.HAS_AUDIO, true)
-            putBoolean(BridgeExtras.AUTO_ANSWER, true)
         }
         val ok = runCatching { telecom.addNewIncomingCall(handle, extras) }
             .onFailure { Log.e(TAG, "addNewIncomingCall falhou: ${it.message}") }

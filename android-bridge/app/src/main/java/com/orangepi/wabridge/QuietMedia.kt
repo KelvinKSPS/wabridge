@@ -90,10 +90,10 @@ object QuietMedia {
         val payload = pending ?: return
         (app.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager)
             ?.cancel(CallNotifier.quietNotificationId(payload))
-        // Prefer an already-answered call so audio goes through the watch;
+        // Prefer a call (answered on the watch) so audio goes through the watch;
         // without the service, fall back to a direct session on the phone.
         val service = BridgeForegroundService.instance
-        if (service?.startAnsweredCall(payload) == true) {
+        if (service?.startCardCall(payload) == true) {
             viaCall = true
             main.postDelayed({
                 // Telecom never created the call: do not stay stuck in "playing".
