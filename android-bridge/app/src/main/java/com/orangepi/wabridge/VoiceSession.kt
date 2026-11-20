@@ -147,10 +147,22 @@ class VoiceSession(
                 audio.setCommunicationDevice(current)
                 Log.i(TAG, "dispositivo de comunicação: ${current.productName}")
             } else {
-                Log.i(
-                    TAG,
-                    "sem SCO em uso (atual=${current?.productName}); microfone fica no aparelho",
-                )
+                // Without a Telecom call nothing routes audio to the watch, so pick
+                // a Bluetooth SCO device ourselves — only one that is really
+                // connected, since routing to a disconnected one records silence.
+                val sco = audio.availableCommunicationDevices.firstOrNull {
+                    it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO &&
+                        BluetoothHelper.isConnected(ctx, it.address)
+                }
+                if (sco != null) {
+                    val ok = audio.setCommunicationDevice(sco)
+                    Log.i(TAG, "roteando para ${sco.productName} (ok=$ok)")
+                } else {
+                    Log.i(
+                        TAG,
+                        "sem SCO em uso (atual=${current?.productName}); microfone fica no aparelho",
+                    )
+                }
             }
         }
     }
@@ -412,6 +424,7 @@ class VoiceSession(
 
         runCatching {
             audio.stopBluetoothSco()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) audio.clearCommunicationDevice()
             audio.isBluetoothScoOn = false
         }
         scoReceiver?.let { runCatching { ctx.unregisterReceiver(it) } }
