@@ -60,7 +60,7 @@ class WatchCallConnection(
         // If the call was answered in the system dialer, close the app screen.
         android.os.Handler(android.os.Looper.getMainLooper()).post { CallActivity.active?.finish() }
 
-        val voice = VoiceSession(ctx, payload, onEnded = { onSessionEnded() })
+        val voice = VoiceSession(ctx, payload, onEnded = { onSessionEnded() }, telecomCall = true)
         session = voice
         voice.answer()
     }
@@ -88,6 +88,7 @@ class WatchCallConnection(
         state ?: return
         val canBluetooth = state.supportedRouteMask and CallAudioState.ROUTE_BLUETOOTH != 0
         Log.i(TAG, "rota de áudio: ${CallAudioState.audioRouteToString(state.route)} (bluetooth disponível=$canBluetooth)")
+        if (state.route == CallAudioState.ROUTE_BLUETOOTH) session?.onBluetoothRouted()
         if (preferBluetooth && !done && canBluetooth &&
             state.route != CallAudioState.ROUTE_BLUETOOTH && routeRetries < 3
         ) {

@@ -42,6 +42,12 @@ class VoiceSession(
     private val onEnded: (() -> Unit)? = null,
     /** Called when the user tries to hang up before the minimum recording duration. */
     private val onTooShort: ((Long) -> Unit)? = null,
+    /**
+     * Inside a Telecom call the system owns the audio mode and the Bluetooth
+     * link; asking for SCO ourselves competes with it and the watch audio
+     * drops right after connecting.
+     */
+    private val telecomCall: Boolean = false,
 ) {
 
     private val audio: AudioManager = ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -108,13 +114,14 @@ class VoiceSession(
         Log.i(TAG, "sessão de voz iniciada: ${payload.senderName}")
         current = this
 
-        audio.mode = AudioManager.MODE_IN_COMMUNICATION
-        audio.isSpeakerphoneOn = false
-        routeToScoDevice()
-
         registerScoReceiver()
-        audio.startBluetoothSco()
-        audio.isBluetoothScoOn = true
+        if (!telecomCall) {
+            audio.mode = AudioManager.MODE_IN_COMMUNICATION
+            audio.isSpeakerphoneOn = false
+            routeToScoDevice()
+            audio.startBluetoothSco()
+            audio.isBluetoothScoOn = true
+        }
 
         val answeredAt = SystemClock.elapsedRealtime()
         val delayMs = Prefs.audioDelayMs(ctx)
@@ -129,6 +136,11 @@ class VoiceSession(
             playbackGate.complete(Unit)
         }
         return true
+    }
+
+    /** Telecom reports the call audio on Bluetooth: playback can start. */
+    fun onBluetoothRouted() {
+        scoConnected.complete(true)
     }
 
     /**
@@ -426,14 +438,14 @@ class VoiceSession(
         recorder = null
         BridgeForegroundService.releaseMicrophone(ctx)
 
-        runCatching {
+        if (!telecomCall) runCatching {
             audio.stopBluetoothSco()
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) audio.clearCommunicationDevice()
             audio.isBluetoothScoOn = false
         }
         scoReceiver?.let { runCatching { ctx.unregisterReceiver(it) } }
         scoReceiver = null
-        audio.mode = AudioManager.MODE_NORMAL
+        if (!telecomCall) audio.mode = AudioManager.MODE_NORMAL
         // Release audio focus.
         runCatching {
             val attrs = AudioAttributes.Builder()
