@@ -695,8 +695,8 @@ class MainActivity : Activity() {
      */
     private fun setupQuietNotifications() {
         val check = findViewById<android.widget.CheckBox>(R.id.quietNotificationsCheck)
-        val layout = findViewById<View>(R.id.integrationLayout)
-        val hint = findViewById<View>(R.id.quietNotificationsHint)
+        val layout = findViewById<android.view.View>(R.id.integrationLayout)
+        val hint = findViewById<android.view.View>(R.id.quietNotificationsHint)
         setupDropdown(
             findViewById(R.id.integrationSpinner),
             listOf(getString(R.string.integration_huawei)),
