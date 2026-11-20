@@ -54,6 +54,8 @@ class WatchCallConnection(
         }
         Prefs.addCallHistory(ctx, payload, CallHistoryOutcome.ANSWERED)
         setActive()
+        // A route requested while still ringing may be dropped; ask again now.
+        if (preferBluetooth) setAudioRoute(CallAudioState.ROUTE_BLUETOOTH)
 
         // If the call was answered in the system dialer, close the app screen.
         android.os.Handler(android.os.Looper.getMainLooper()).post { CallActivity.active?.finish() }
@@ -76,6 +78,22 @@ class WatchCallConnection(
 
     override fun onAbort() {
         hangup(DisconnectCause.CANCELED)
+    }
+
+    /** Auto-answered calls are not picked up on the watch, so Android may keep audio on the phone. */
+    private var preferBluetooth = false
+    private var routeRetries = 0
+
+    override fun onCallAudioStateChanged(state: CallAudioState?) {
+        state ?: return
+        val canBluetooth = state.supportedRouteMask and CallAudioState.ROUTE_BLUETOOTH != 0
+        Log.i(TAG, "rota de áudio: ${CallAudioState.audioRouteToString(state.route)} (bluetooth disponível=$canBluetooth)")
+        if (preferBluetooth && !done && canBluetooth &&
+            state.route != CallAudioState.ROUTE_BLUETOOTH && routeRetries < 3
+        ) {
+            routeRetries++
+            setAudioRoute(CallAudioState.ROUTE_BLUETOOTH)
+        }
     }
 
     /** Answer from the app screen (watch without a system dialer). */
@@ -106,6 +124,7 @@ class WatchCallConnection(
                     return
                 }
                 Log.i(TAG, "atendendo sozinho após ${waited}ms (rota=$route headset=$headset sco=$sco)")
+                preferBluetooth = ready
                 if (ready) setAudioRoute(CallAudioState.ROUTE_BLUETOOTH)
                 onAnswer()
             }
