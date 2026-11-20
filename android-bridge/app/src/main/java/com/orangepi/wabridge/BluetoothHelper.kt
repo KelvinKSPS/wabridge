@@ -49,6 +49,13 @@ object BluetoothHelper {
         }
     }
 
+    /** true when some device is connected on the hands-free (call audio) profile. */
+    @SuppressLint("MissingPermission")
+    fun headsetConnected(context: Context): Boolean = runCatching {
+        adapter(context)?.getProfileConnectionState(BluetoothProfile.HEADSET) ==
+            BluetoothProfile.STATE_CONNECTED
+    }.getOrDefault(false)
+
     @SuppressLint("MissingPermission")
     private fun connected(manager: BluetoothManager, profile: Int, address: String): Boolean =
         manager.getConnectedDevices(profile)?.any { it.address == address } == true

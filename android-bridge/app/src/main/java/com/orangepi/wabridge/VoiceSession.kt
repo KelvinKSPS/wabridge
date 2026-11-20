@@ -150,9 +150,13 @@ class VoiceSession(
                 // Without a Telecom call nothing routes audio to the watch, so pick
                 // a Bluetooth SCO device ourselves — only one that is really
                 // connected, since routing to a disconnected one records silence.
-                val sco = audio.availableCommunicationDevices.firstOrNull {
-                    it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO &&
-                        BluetoothHelper.isConnected(ctx, it.address)
+                // Android hides the real MAC from normal apps, so the device cannot
+                // be matched by address; ask the headset profile instead.
+                val available = audio.availableCommunicationDevices
+                val headset = BluetoothHelper.headsetConnected(ctx)
+                Log.i(TAG, "saídas: ${available.map { "${it.type}:${it.productName}" }} (headset=$headset)")
+                val sco = available.firstOrNull {
+                    it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO && headset
                 }
                 if (sco != null) {
                     val ok = audio.setCommunicationDevice(sco)
