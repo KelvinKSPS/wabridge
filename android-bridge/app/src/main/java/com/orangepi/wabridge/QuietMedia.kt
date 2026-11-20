@@ -77,7 +77,7 @@ object QuietMedia {
         main.postDelayed({
             runCatching { track?.stop() }
             track?.release()
-            if (voice == null && pending != null) setState(PlaybackState.STATE_PAUSED)
+            if (voice == null && !viaCall && pending != null) setState(PlaybackState.STATE_PAUSED)
         }, SILENCE_MS)
     }
 
@@ -86,23 +86,42 @@ object QuietMedia {
     private const val SILENCE_BYTES = (SILENCE_RATE * 2 * SILENCE_MS / 1000).toInt()
 
     private fun play(app: Context) {
-        if (VoiceSession.current?.ended == false) return
+        if (viaCall || VoiceSession.current?.ended == false) return
         val payload = pending ?: return
-        val ctx = BridgeForegroundService.instance ?: app
         (app.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager)
             ?.cancel(CallNotifier.quietNotificationId(payload))
-        Prefs.addCallHistory(app, payload, CallHistoryOutcome.ANSWERED)
-        val started = VoiceSession(ctx, payload, onEnded = { main.post { finished() } })
-        voice = started
-        started.answer()
+        // Prefer an already-answered call so audio goes through the watch;
+        // without the service, fall back to a direct session on the phone.
+        val service = BridgeForegroundService.instance
+        if (service?.startAnsweredCall(payload) == true) {
+            viaCall = true
+            main.postDelayed({
+                // Telecom never created the call: do not stay stuck in "playing".
+                if (viaCall && WatchCallConnection.current == null && VoiceSession.current == null) {
+                    BridgeForegroundService.notifyCallEnded(app)
+                }
+            }, CALL_SETUP_TIMEOUT_MS)
+        } else {
+            Prefs.addCallHistory(app, payload, CallHistoryOutcome.ANSWERED)
+            val started = VoiceSession(service ?: app, payload, onEnded = { main.post { finished() } })
+            voice = started
+            started.answer()
+        }
         setState(PlaybackState.STATE_PLAYING)
     }
 
     private fun stop() {
-        voice?.hangup()
+        if (viaCall) WatchCallConnection.current?.rejectNow() else voice?.hangup()
     }
 
+    /** Called by the service whenever a call ends. */
+    fun callEnded() = main.post { if (viaCall) finished() }
+
+    private const val CALL_SETUP_TIMEOUT_MS = 5000L
+    private var viaCall = false
+
     private fun finished() {
+        viaCall = false
         voice = null
         pending = null
         setState(PlaybackState.STATE_STOPPED)

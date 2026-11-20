@@ -4,4 +4,5 @@ package com.orangepi.wabridge
 object BridgeExtras {
     const val PAYLOAD = "com.orangepi.wabridge.PAYLOAD"
     const val HAS_AUDIO = "com.orangepi.wabridge.HAS_AUDIO"
+    const val AUTO_ANSWER = "com.orangepi.wabridge.AUTO_ANSWER"
 }

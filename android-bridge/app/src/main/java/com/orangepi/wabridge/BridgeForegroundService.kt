@@ -292,8 +292,32 @@ class BridgeForegroundService : Service() {
         }
     }
 
+    /**
+     * Starts a call that is answered right away, without ringing UI. The watch
+     * only opens its voice channel inside a call, so this is how a note started
+     * from the media card plays and records on the watch.
+     */
+    fun startAnsweredCall(payload: CallPayload): Boolean {
+        val telecom = getSystemService(Context.TELECOM_SERVICE) as? TelecomManager ?: return false
+        if (!callQueue.offer(payload)) return false
+        CallPayload.setCurrent(payload)
+        val handle = PhoneAccountHelper.handle(this)
+        val extras = Bundle().apply {
+            putParcelable(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, handle)
+            putString(BridgeExtras.PAYLOAD, payload.toJson())
+            putBoolean(BridgeExtras.HAS_AUDIO, true)
+            putBoolean(BridgeExtras.AUTO_ANSWER, true)
+        }
+        val ok = runCatching { telecom.addNewIncomingCall(handle, extras) }
+            .onFailure { Log.e(TAG, "addNewIncomingCall falhou: ${it.message}") }
+            .isSuccess
+        if (!ok) callQueue.release()
+        return ok
+    }
+
     /** The current call ended; play the next queued call, if any. */
     private fun onCallEnded() {
+        QuietMedia.callEnded()
         val next = callQueue.release()
         if (next == null) {
             Log.i(TAG, "chamada encerrada; fila vazia")

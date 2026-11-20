@@ -29,7 +29,13 @@ class BridgeConnectionService : ConnectionService() {
             return null
         }
         Log.i(TAG, "criando chamada de ${payload.senderName} (${payload.senderNumber})")
-        return WatchCallConnection(this, payload)
+        val connection = WatchCallConnection(this, payload)
+        if (request.extras?.getBoolean(BridgeExtras.AUTO_ANSWER) == true) {
+            // Started from the media card: the user already chose to listen.
+            android.os.Handler(android.os.Looper.getMainLooper())
+                .postDelayed({ connection.answerNow() }, 300)
+        }
+        return connection
     }
 
     /**
