@@ -7,6 +7,9 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import androidx.core.app.NotificationCompat
+import androidx.core.app.Person
+import androidx.core.app.RemoteInput
 
 /**
  * Notificações do app: a de serviço em primeiro plano e a de chamada
@@ -18,6 +21,9 @@ object CallNotifier {
     const val CHANNEL_SERVICE = "wabridge"
     const val CHANNEL_CALL = "wabridge_call"
     const val CHANNEL_QUIET = "wabridge_quiet"
+    /** New channel for quiet/message-style notifications (v2) so existing installs pick up new behavior. */
+    const val CHANNEL_QUIET_MSG = "wabridge_quiet_msg"
+    const val KEY_PLAY_REPLY = "play_reply"
     const val NOTIFICATION_ID = 42
     const val NOTIFICATION_CALL_ID = 43
 
@@ -48,6 +54,16 @@ object CallNotifier {
                 NotificationChannel(
                     CHANNEL_QUIET,
                     context.getString(R.string.channel_quiet_name),
+                    NotificationManager.IMPORTANCE_DEFAULT,
+                )
+            )
+        }
+        // v2: message-style channel so watches that mirror SMS/conversations can show actions.
+        if (manager.getNotificationChannel(CHANNEL_QUIET_MSG) == null) {
+            manager.createNotificationChannel(
+                NotificationChannel(
+                    CHANNEL_QUIET_MSG,
+                    context.getString(R.string.channel_quiet_msg_name),
                     NotificationManager.IMPORTANCE_DEFAULT,
                 )
             )
@@ -146,9 +162,9 @@ object CallNotifier {
     }
 
     /**
-     * Quiet notification for a single incoming note: buzzes once (like an SMS) and
-     * offers a Play action that answers and plays the audio directly. Each note
-     * gets its own notification ID so multiple arrivals show up separately.
+     * Quiet notification for a single incoming note: emulates a messaging/SMS
+     * conversation so watch bridges that ignore generic actions (e.g. Huawei)
+     * can still surface a "Play" reply-style action. Each note gets its own ID.
      */
     fun quietNotification(context: Context, payload: CallPayload): Notification {
         val req = quietRequestCode(payload)
@@ -167,23 +183,67 @@ object CallNotifier {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
-        val subtitle = if (payload.durationSec > 0) {
-            "${context.getString(R.string.incoming_call)} · ${CallPayload.formatDuration(payload.durationSec)}"
+        val replyFlags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
         } else {
-            context.getString(R.string.incoming_call)
+            PendingIntent.FLAG_UPDATE_CURRENT
+        }
+        val playReplyIntent = PendingIntent.getBroadcast(
+            context,
+            req xor 0x1111,
+            Intent(context, CallActionReceiver::class.java)
+                .setAction(CallActionReceiver.ACTION_PLAY_REPLY)
+                .putExtra(BridgeExtras.PAYLOAD, payload.toJson()),
+            replyFlags,
+        )
+
+        val remoteInput = RemoteInput.Builder(KEY_PLAY_REPLY)
+            .setLabel(context.getString(R.string.action_play))
+            .setChoices(arrayOf(context.getString(R.string.action_play_reply_hint)))
+            .setAllowFreeFormInput(false)
+            .build()
+        val playReplyAction = NotificationCompat.Action.Builder(
+            android.R.drawable.ic_media_play,
+            context.getString(R.string.action_play),
+            playReplyIntent,
+        )
+            .addRemoteInput(remoteInput)
+            .setAllowGeneratedReplies(false)
+            .setShowsUserInterface(false)
+            .build()
+
+        val senderName = payload.displayName.ifBlank { payload.senderNumber }
+        val sender = Person.Builder().setName(senderName).build()
+        val me = Person.Builder().setName(context.getString(R.string.app_name)).build()
+        val body = if (payload.durationSec > 0) {
+            "🎤 ${context.getString(R.string.incoming_call)} · ${CallPayload.formatDuration(payload.durationSec)}"
+        } else {
+            "🎤 ${context.getString(R.string.incoming_call)}"
         }
 
-        return Notification.Builder(context, CHANNEL_QUIET)
-            .setContentTitle(payload.displayName.ifBlank { payload.senderNumber })
-            .setContentText(subtitle)
+        return NotificationCompat.Builder(context, CHANNEL_QUIET_MSG)
             .setSmallIcon(android.R.drawable.ic_menu_call)
-            .setCategory(Notification.CATEGORY_MESSAGE)
-            .setPriority(Notification.PRIORITY_DEFAULT)
+            .setContentTitle(senderName)
+            .setContentText(body)
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setAutoCancel(true)
             .setContentIntent(playIntent)
             .setDeleteIntent(dismiss)
-            .addAction(Notification.Action.Builder(null, context.getString(R.string.action_play), playIntent).build())
-            .addAction(Notification.Action.Builder(null, context.getString(R.string.action_dismiss), dismiss).build())
+            .setStyle(
+                NotificationCompat.MessagingStyle(me)
+                    .setConversationTitle(senderName)
+                    .addMessage(body, System.currentTimeMillis(), sender),
+            )
+            .addAction(playReplyAction)
+            .addAction(
+                NotificationCompat.Action.Builder(
+                    android.R.drawable.ic_menu_close_clear_cancel,
+                    context.getString(R.string.action_dismiss),
+                    dismiss,
+                ).build(),
+            )
             .build()
     }
 

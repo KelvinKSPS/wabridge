@@ -121,6 +121,7 @@
     <string name="quick_reply_busy">No puedo atender la llamada en este momento.</string>
     <string name="action_quick_reply">responder por texto</string>
     <string name="action_play">reproducir</string>
+    <string name="action_play_reply_hint">toca para escuchar</string>
     <string name="action_dismiss">ignorar</string>
     <string name="quiet_busy">otro audio todavía se está reproduciendo</string>
 
@@ -131,6 +132,7 @@
     <string name="channel_name">Llamada de voz</string>
     <string name="channel_call_name">Llamada de voz</string>
     <string name="channel_quiet_name">Audios recibidos</string>
+    <string name="channel_quiet_msg_name">Audios recibidos (mensaje)</string>
     <string name="quiet_notifications_label">Notificación discreta con botón de reproducir</string>
     <string name="quiet_notifications_hint">al llegar un audio, vibra una vez y muestra “reproducir” en vez de abrir la llamada</string>
     <string name="accept_own_label">Reproducir mis propios audios (modo prueba)</string>

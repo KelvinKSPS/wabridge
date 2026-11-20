@@ -1,8 +1,10 @@
 package com.orangepi.wabridge
 
+import android.app.RemoteInput
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 
 /**
  * Botões das notificações: "Atender", "Recusar", "Velocidade" e a resposta
@@ -17,7 +19,7 @@ class CallActionReceiver : BroadcastReceiver() {
             ACTION_SPEED -> cycleSpeed(context)
             ACTION_QUICK_REPLY -> quickReply(context)
             ACTION_DISMISS -> dismissQuiet(context, intent)
-            ACTION_PLAY_QUIET -> playQuiet(context, intent)
+            ACTION_PLAY_QUIET, ACTION_PLAY_REPLY -> playQuiet(context, intent)
         }
     }
 
@@ -62,12 +64,17 @@ class CallActionReceiver : BroadcastReceiver() {
     /** Play a quiet note: launch the call screen which will auto-answer. */
     private fun playQuiet(context: Context, intent: Intent) {
         val payload = CallPayload.fromJson(intent.getStringExtra(BridgeExtras.PAYLOAD)) ?: return
+        // RemoteInput (reply-style action used for watch bridges that only show
+        // "quick reply" buttons): the text is irrelevant, the tap means "play".
+        RemoteInput.getResultsFromIntent(intent)?.let { results ->
+            Log.i("CallActionReceiver", "play via remote reply: ${results.getCharSequence(CallNotifier.KEY_PLAY_REPLY)}")
+        }
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
         manager?.cancel(CallNotifier.quietNotificationId(payload))
         try {
             context.startActivity(CallActivity.intent(context, payload, autoAnswer = true))
         } catch (e: Exception) {
-            android.util.Log.w("CallActionReceiver", "falha ao abrir chamada: ${e.message}")
+            Log.w("CallActionReceiver", "falha ao abrir chamada: ${e.message}")
         }
     }
 
@@ -78,5 +85,7 @@ class CallActionReceiver : BroadcastReceiver() {
         const val ACTION_QUICK_REPLY = "com.orangepi.wabridge.QUICK_REPLY"
         const val ACTION_DISMISS = "com.orangepi.wabridge.DISMISS"
         const val ACTION_PLAY_QUIET = "com.orangepi.wabridge.PLAY_QUIET"
+        /** RemoteInput/reply-style "Play" action for watch bridges (e.g. Huawei). */
+        const val ACTION_PLAY_REPLY = "com.orangepi.wabridge.PLAY_REPLY"
     }
 }

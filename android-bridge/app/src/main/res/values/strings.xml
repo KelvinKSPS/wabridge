@@ -121,6 +121,7 @@
     <string name="quick_reply_busy">Não posso atender o telefone no momento.</string>
     <string name="action_quick_reply">responder por texto</string>
     <string name="action_play">tocar</string>
+    <string name="action_play_reply_hint">toque para ouvir</string>
     <string name="action_dismiss">ignorar</string>
     <string name="quiet_busy">outro áudio ainda está tocando</string>
 
@@ -131,6 +132,7 @@
     <string name="channel_name">Chamada de voz</string>
     <string name="channel_call_name">Chamada de voz</string>
     <string name="channel_quiet_name">Áudios recebidos</string>
+    <string name="channel_quiet_msg_name">Áudios recebidos (mensagem)</string>
     <string name="quiet_notifications_label">Notificação discreta com botão de tocar</string>
     <string name="quiet_notifications_hint">quando chegar um áudio, avisa com um toque leve e mostra “tocar” em vez de abrir a chamada</string>
     <string name="accept_own_label">Tocar meus próprios áudios (modo teste)</string>
