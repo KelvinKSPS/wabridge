@@ -83,6 +83,7 @@ The app processes WhatsApp account credentials and audio locally or through the 
 
 Wabridge is a personal project built to solve a problem many watches have. If it saves you time and you want to help keep it going, you can support the work:
 
+- **Ko-fi:** https://ko-fi.com/kspss
 - **USDT** (EVM address, same on Ethereum and other EVM networks; send on the network you choose): `0xA8515Bd402e9d7655dA09d60A10aA1E1d42de591`
 
 Donations are optional and never unlock features. Contributions of code, testing on new watches and bug reports help just as much.
