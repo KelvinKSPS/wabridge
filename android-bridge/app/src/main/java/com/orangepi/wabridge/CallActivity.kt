@@ -40,7 +40,7 @@ class CallActivity : Activity() {
     private var localSession: VoiceSession? = null
     private var answered = false
     private val handler = Handler(Looper.getMainLooper())
-    /** Toque da chamada entrante (para ao atender ou desligar). */
+    /** Ringtone for the incoming call (stops when answered or hung up). */
     private var ringtone: Ringtone? = null
     private var vibrator: Vibrator? = null
 
@@ -311,7 +311,7 @@ class CallActivity : Activity() {
         const val EXTRA_PAYLOAD = "com.orangepi.wabridge.CALL_PAYLOAD"
         const val EXTRA_AUTO_ANSWER = "com.orangepi.wabridge.AUTO_ANSWER"
 
-        /** Tela de chamada aberta no momento (usada para fechar ao atender). */
+        /** Call screen currently open (used to close it when answered). */
         @Volatile
         var active: CallActivity? = null
             private set

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Gera o keystore de release do app e escreve o keystore.properties.
+# Generates the app's release keystore and writes keystore.properties.
 #
-#   ./scripts/make-keystore.sh [senha] [caminho/do.jks]
+#   ./scripts/make-keystore.sh [password] [path/to/file.jks]
 #
-# O script é idempotente: se o .jks já existir, não sobrescreve.
+# The script is idempotent: if the .jks already exists, it does not overwrite it.
 set -euo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

@@ -13,7 +13,7 @@ import type { CallPayload, PendingCall } from './types';
 
 export interface BridgeDeps {
   evolution?: EvolutionClient;
-  /** URL pública usada para montar o audioUrl (padrão: PUBLIC_HOST ou IP local). */
+  /** Public URL used to build the audioUrl (default: PUBLIC_HOST or local IP). */
   publicBaseUrl?: () => string;
 }
 
@@ -27,16 +27,16 @@ export interface Bridge {
 export function createBridge(deps: BridgeDeps = {}): Bridge {
   const evolution = deps.evolution ?? new EvolutionClient();
   const pending = new Map<string, PendingCall>();
-  /** Último QR code de pareamento recebido da Evolution (v2 manda por webhook). */
+  /** Last pairing QR code received from Evolution (v2 sends it via webhook). */
   let lastQr: { base64?: string; ref?: string; pairingCode?: string; at: number } | null = null;
-  /** Estado da conexão da instância ('connecting', 'open', 'close'...). */
+  /** Connection state of the instance ('connecting', 'open', 'close'...). */
   let instanceState = '';
-  /** Última vez que buscamos o QR direto na Evolution (reinicia a instância). */
+  /** Last time we fetched the QR directly from Evolution (restarts the instance). */
   let lastQrFetchAt = 0;
 
   const app = express();
-  // a Evolution v2 manda o webhook bem grande (mensagem + mídia + perfil):
-  // com 4 mb a ponte respondia 413 e o evento era perdido.
+  // Evolution v2 sends a very large webhook (message + media + profile):
+  // at 4 MB the bridge answered 413 and the event was lost.
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
@@ -49,13 +49,13 @@ export function createBridge(deps: BridgeDeps = {}): Bridge {
   });
 
   /* ------------------------------------------------------------------ *
-   * Webhook do WhatsApp
+   * WhatsApp webhook
    * ------------------------------------------------------------------ */
 
-  // A Evolution v2 anexa o evento ao caminho do webhook
-  // (ex.: /webhook/whatsapp/messages-upsert), então as duas formas valem.
+  // Evolution v2 appends the event to the webhook path
+  // (e.g. /webhook/whatsapp/messages-upsert), so both forms work.
   app.post(['/webhook/whatsapp', '/webhook/whatsapp/:event'], (req, res) => {
-    // ack imediato; o processamento é assíncrono para não travar o Evolution.
+    // immediate ack; processing is async so Evolution is not blocked.
     res.status(200).json({ ok: true });
     const event = String(req.params.event ?? '');
     const kb = Math.round(Number(req.headers['content-length'] ?? 0) / 1024);
@@ -136,12 +136,12 @@ export function createBridge(deps: BridgeDeps = {}): Bridge {
   }
 
   /**
-   * QR atualizado.
+   * Updated QR.
    *
-   * A Evolution renova o QR sozinha (~30 s) e avisa por webhook — é esse
-   * caminho que usamos. Só buscamos o QR direto nela se o webhook ficar
-   * mudo por mais de 2 minutos, porque pedir o QR **reinicia a instância** e
-   * um QR invalidado faz o WhatsApp responder "não foi possível conectar".
+   * Evolution renews the QR on its own (~30 s) and notifies via webhook: this is
+   * the path we use. We only fetch the QR directly from Evolution if the webhook stays
+   * silent for more than 2 minutes, because asking for the QR **restarts the instance** and
+   * an invalidated QR makes WhatsApp reply "could not connect".
    */
   async function freshQr(): Promise<typeof lastQr> {
     const age = lastQr ? Date.now() - lastQr.at : Infinity;
@@ -159,11 +159,11 @@ export function createBridge(deps: BridgeDeps = {}): Bridge {
   }
 
   /* ------------------------------------------------------------------ *
-   * Mídia em cache
+   * Media cache
    * ------------------------------------------------------------------ */
 
-  /** Tom sintético em PCM 16 kHz mono: teste de chamada sem WhatsApp.
-   *  Fica antes de /media/:audioId para não ser capturado pelo parâmetro. */
+  /** Synthetic tone in PCM 16 kHz mono: call test without WhatsApp.
+   *  Kept before /media/:audioId so it is not captured by the parameter. */
   app.get('/media/test.wav', async (_req, res) => {
     const file = mediaPath('test.wav');
     try {
@@ -191,7 +191,7 @@ export function createBridge(deps: BridgeDeps = {}): Bridge {
   });
 
   /* ------------------------------------------------------------------ *
-   * Resposta de áudio (multipart) -> WhatsApp
+   * Audio reply (multipart) -> WhatsApp
    * ------------------------------------------------------------------ */
 
   const upload = multer({
@@ -242,7 +242,7 @@ export function createBridge(deps: BridgeDeps = {}): Bridge {
   });
 
   /* ------------------------------------------------------------------ *
-   * Resposta rápida (texto) -> WhatsApp
+   * Quick reply (text) -> WhatsApp
    * ------------------------------------------------------------------ */
 
   app.post('/reply/text', async (req, res) => {
@@ -274,7 +274,7 @@ export function createBridge(deps: BridgeDeps = {}): Bridge {
   });
 
   /* ------------------------------------------------------------------ *
-   * Infra
+   * Infrastructure
    * ------------------------------------------------------------------ */
 
   app.get('/health', (_req, res) => {
@@ -357,14 +357,14 @@ export function createBridge(deps: BridgeDeps = {}): Bridge {
   return { app, server, hub, pending };
 }
 
-/** Procura o QR code (base64) em qualquer nível do payload da Evolution. */
+/** Finds the QR code (base64) at any level of the Evolution payload. */
 function pickQrcode(body: any): { base64?: string; ref?: string; pairingCode?: string } | null {
   const seen = new Set<any>();
   const walk = (obj: any): { base64?: string; ref?: string; pairingCode?: string } | null => {
     if (!obj || typeof obj !== 'object' || seen.has(obj)) return null;
     seen.add(obj);
     if (typeof obj.base64 === 'string' && obj.base64.length > 0) {
-      // pode vir como data URI: data:image/png;base64,XXXX
+      // it may come as a data URI: data:image/png;base64,XXXX
       const comma = obj.base64.indexOf(',');
       const b64 = comma >= 0 ? obj.base64.slice(comma + 1) : obj.base64;
       const code = obj.pairingCode ?? obj.pairing_code;

@@ -126,7 +126,7 @@ class VoiceSession(
 
         val answeredAt = SystemClock.elapsedRealtime()
         val delayMs = Prefs.audioDelayMs(ctx)
-        preparePlayback()               // baixa e prepara o áudio JÁ, em paralelo à espera
+        preparePlayback()               // downloads and prepares the audio NOW, in parallel with the wait
 
         scope.launch {
             val ok = withTimeoutOrNull(SCO_TIMEOUT_MS) { scoConnected.await() } ?: false
@@ -413,7 +413,7 @@ class VoiceSession(
     }
 
     /* ---------------------------------------------------------------- *
-     * Desligar -> envia a resposta
+     * Hang up -> sends the reply
      * ---------------------------------------------------------------- */
 
     fun hangup() {

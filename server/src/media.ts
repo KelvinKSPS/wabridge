@@ -6,7 +6,7 @@ import { config } from './config';
 ffmpeg.setFfmpegPath(config.ffmpegPath);
 
 /**
- * Converte para PCM 16kHz mono — formato aceito pelo Bluetooth SCO do Android.
+ * Converts to PCM 16kHz mono, the format accepted by Android's Bluetooth SCO.
  */
 export function toWav16k(input: string, output: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -22,7 +22,7 @@ export function toWav16k(input: string, output: string): Promise<string> {
 }
 
 /**
- * Duração do áudio em segundos (arredondada). 0 se não der para medir.
+ * Audio duration in seconds (rounded). 0 if it cannot be measured.
  */
 export function probeDuration(input: string): Promise<number> {
   return new Promise((resolve) => {
@@ -38,7 +38,7 @@ export function probeDuration(input: string): Promise<number> {
 }
 
 /**
- * Converte a gravação do relógio (m4a/wav) em Opus (.ogg) para envio como nota de voz.
+ * Converts the watch recording (m4a/wav) to Opus (.ogg) to send as a voice note.
  */
 export function toOggOpus(input: string, output: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -55,9 +55,9 @@ export function toOggOpus(input: string, output: string): Promise<string> {
 }
 
 /**
- * Gera um wav de teste (tom) no formato exigido pelo SCO.
- * Escrito direto em Node — sem depender do ffmpeg — para o tom de teste
- * da chamada no relógio.
+ * Generates a test wav (tone) in the format required by SCO.
+ * Written directly in Node, without depending on ffmpeg, for the call's test
+ * tone on the watch.
  */
 export function generateToneWav(output: string, frequency = 440, seconds = 2): string {
   const sampleRate = 16000;
@@ -76,7 +76,7 @@ export function generateToneWav(output: string, frequency = 440, seconds = 2): s
   header.writeUInt32LE(36 + data.length, 4);
   header.write('WAVE', 8, 'ascii');
   header.write('fmt ', 12, 'ascii');
-  header.writeUInt32LE(16, 16); // tamanho do bloco fmt
+  header.writeUInt32LE(16, 16); // fmt block size
   header.writeUInt16LE(1, 20); // PCM
   header.writeUInt16LE(1, 22); // mono
   header.writeUInt32LE(sampleRate, 24);
@@ -99,7 +99,7 @@ export function mediaPath(fileName: string): string {
   return path.join(config.mediaDir, fileName);
 }
 
-/** Remove o arquivo depois do TTL (não segura o event loop). */
+/** Removes the file after the TTL (does not hold the event loop). */
 export function scheduleCleanup(fileName: string, ttlMs = config.mediaTtlMs): void {
   const t = setTimeout(() => {
     fs.promises.unlink(mediaPath(fileName)).catch(() => undefined);

@@ -4,7 +4,7 @@ export interface CallPayload {
   senderName: string;
   senderNumber: string;
   audioUrl: string;
-  /** Duração da nota de voz em segundos (0 = desconhecido). */
+  /** Duration of the voice note in seconds (0 = unknown). */
   durationSec: number;
 }
 
@@ -15,7 +15,7 @@ export interface PendingCall {
   createdAt: number;
 }
 
-/** Evento de WhatsApp normalizado (independente da versão do Evolution API). */
+/** Normalized WhatsApp event (independent of the Evolution API version). */
 export interface IncomingAudio {
   messageId: string;
   fromMe: boolean;
@@ -23,12 +23,12 @@ export interface IncomingAudio {
   pushName: string;
   audioUrl: string;
   mimetype: string;
-  /** jid original (usado para detectar grupo). */
+  /** original jid (used to detect groups). */
   remoteJid: string;
   /**
-   * Mensagem crua como a Evolution entregou (formato v2).
-   * A v2 não expõe link público do áudio: ele é baixado passando a mensagem
-   * inteira para `getBase64FromMediaMessage`.
+   * Raw message as Evolution delivered it (v2 format).
+   * v2 does not expose a public link for the audio: it is downloaded by passing the
+   * whole message to `getBase64FromMediaMessage`.
    */
   message?: any;
 }

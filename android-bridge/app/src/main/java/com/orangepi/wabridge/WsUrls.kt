@@ -1,6 +1,6 @@
 package com.orangepi.wabridge
 
-/** Converte a URL do servidor (http) nas URLs usadas pelo app. */
+/** Converts the server URL (http) into the URLs used by the app. */
 object WsUrls {
 
     /** http://host:port -> ws://host:port/ws */

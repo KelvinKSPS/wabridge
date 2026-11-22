@@ -35,7 +35,7 @@ class BridgeForegroundService : Service() {
     private val scope = CoroutineScope(job + Dispatchers.Default)
     private var ws: WsManager? = null
 
-    /** Uma chamada por vez: as demais notas de voz esperam na fila. */
+    /** One call at a time: other voice notes wait in the queue. */
     private val callQueue = CallQueue()
 
     /** Most recent text shown in the service notification. */
@@ -159,7 +159,7 @@ class BridgeForegroundService : Service() {
             broadcastStatus(statusText)
             return
         }
-        // No modo embutido o daemon mora no APK: sobe ele antes de conectar.
+        // In embedded mode the daemon lives inside the APK: start it before connecting.
         if (Prefs.mode(this) == Prefs.Engine.EMBUTIDO) {
             if (!DaemonManager.start(this)) {
                 broadcastStatus("daemon não disponível neste APK")
@@ -243,7 +243,7 @@ class BridgeForegroundService : Service() {
         }
     }
 
-    /** true se o gate de bluetooth libera o toque. */
+    /** true if the Bluetooth gate allows ringing. */
     private fun watchConnected(): Boolean {
         if (!Prefs.btOnlyConnected(this)) return true
         val addrs = Prefs.btDevices(this)

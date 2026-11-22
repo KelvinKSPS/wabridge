@@ -1,4 +1,4 @@
-// Teste ponta a ponta da ponte (sem WhatsApp real).
+// End-to-end test of the bridge (without real WhatsApp).
 //   1) node test/mock-evolution.js 8081
 //   2) PORT=8097 EVOLUTION_API_URL=http://127.0.0.1:8081 node dist/index.js
 //   3) node test/e2e.js
@@ -79,7 +79,7 @@ function postFile(p, filePath, fields) {
 
   await new Promise((r) => ws.on('open', r));
 
-  // Payload no formato da Evolution v2: data é uma lista e o evento vai na URL.
+  // Payload in the Evolution v2 format: data is a list and the event goes in the URL.
   const wh = await postJson('/webhook/whatsapp/messages-upsert', {
     event: 'messages.upsert',
     instance: 'wabridge',

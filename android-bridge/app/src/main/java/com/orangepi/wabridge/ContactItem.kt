@@ -1,10 +1,10 @@
 package com.orangepi.wabridge
 
-/** Um item da lista de quem pode ligar (contato ou grupo). */
+/** An item in the list of who can call (contact or group). */
 data class ContactItem(
     val name: String,
-    /** número (contato) ou JID (grupo) */
+    /** number (contact) or JID (group) */
     val value: String,
-    /** timestamp unix em segundos da última atividade (0 se não existe) */
+    /** unix timestamp in seconds of the last activity (0 if none) */
     val lastActivity: Long = 0L,
 )

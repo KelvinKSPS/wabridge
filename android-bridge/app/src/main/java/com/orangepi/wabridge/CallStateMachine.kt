@@ -1,39 +1,39 @@
 package com.orangepi.wabridge
 
 /**
- * Fases da chamada simulada. A máquina é a fonte de verdade: o
- * [WatchCallConnection] só age quando a transição é válida.
+ * Phases of the simulated call. The machine is the source of truth: the
+ * [WatchCallConnection] only acts when the transition is valid.
  */
 enum class CallPhase {
-    /** Nada happening: aguardando o evento do servidor. */
+    /** Nothing happening: waiting for the server event. */
     IDLE,
 
-    /** Chamada tocando no relógio, aguardando o usuário atender. */
+    /** Call ringing on the watch, waiting for the user to answer. */
     INCOMING,
 
-    /** Atendida, SCO subindo. */
+    /** Answered, SCO coming up. */
     ANSWERED,
 
-    /** Tocando o áudio recebido. */
+    /** Playing the received audio. */
     PLAYING,
 
-    /** Gravando a resposta. */
+    /** Recording the reply. */
     RECORDING,
 
-    /** Encerrada (puxa o envio do áudio). */
+    /** Ended (triggers sending the audio). */
     ENDED,
 }
 
 /**
- * Máquina de estados pura (sem dependência do Android) para poder ser testada
- * em JVM.
+ * Pure state machine (no Android dependency) so it can be tested
+ * on the JVM.
  */
 class CallStateMachine(val recordTimeoutMs: Long = DEFAULT_RECORD_TIMEOUT_MS) {
 
     var phase: CallPhase = CallPhase.IDLE
         private set
 
-    /** true quando a chamada já foi encerrada (evita envio duplicado). */
+    /** true when the call has already ended (avoids duplicate sending). */
     val ended: Boolean get() = phase == CallPhase.ENDED
 
     fun onIncoming(): Boolean = transition(CallPhase.IDLE, CallPhase.INCOMING)
@@ -41,8 +41,8 @@ class CallStateMachine(val recordTimeoutMs: Long = DEFAULT_RECORD_TIMEOUT_MS) {
     fun onAnswer(): Boolean = transition(CallPhase.INCOMING, CallPhase.ANSWERED)
 
     /**
-     * Atender uma sessão que não passou pelo fluxo de chamada do Telecom
-     * (tela do app em aparelho sem telephony): o "chamada entrando" é implícito.
+     * Answers a session that did not go through the Telecom call flow
+     * (app screen on a device without telephony): the "incoming call" is implicit.
      */
     fun onSessionAnswer(): Boolean {
         onIncoming()
@@ -51,7 +51,7 @@ class CallStateMachine(val recordTimeoutMs: Long = DEFAULT_RECORD_TIMEOUT_MS) {
 
     fun onPlaybackStarted(): Boolean = transition(CallPhase.ANSWERED, CallPhase.PLAYING)
 
-    /** Vale tanto para o fim normal da reprodução quanto para erro na Preparação. */
+    /** Applies both to the normal end of playback and to an error during Preparation. */
     fun onPlaybackFinished(): Boolean {
         if (phase != CallPhase.ANSWERED && phase != CallPhase.PLAYING) return false
         phase = CallPhase.RECORDING
@@ -61,10 +61,10 @@ class CallStateMachine(val recordTimeoutMs: Long = DEFAULT_RECORD_TIMEOUT_MS) {
     fun onRecordStarted(): Boolean = transition(CallPhase.RECORDING, CallPhase.RECORDING)
 
     /**
-     * Desligar. Sempre termina a chamada (idempotente: a segunda chamada
-     * devolve false). Quem chama decide se a gravação é curta demais para
-     * enviar — ver [isTooShort] — e nesse caso descarta o áudio em vez de
-     * recusar o desligar (antes disso deixava a chamada travada).
+     * Hang up. Always ends the call (idempotent: the second call
+     * returns false). The caller decides whether the recording is too short to
+     * send (see [isTooShort]); in that case it discards the audio instead of
+     * refusing the hangup (before this, the call got stuck).
      */
     fun onHangup(recordElapsedMs: Long = Long.MAX_VALUE): Boolean {
         if (ended) return false
@@ -72,10 +72,10 @@ class CallStateMachine(val recordTimeoutMs: Long = DEFAULT_RECORD_TIMEOUT_MS) {
         return true
     }
 
-    /** true se [recordElapsedMs] de gravação é curto demais para valer a pena enviar. */
+    /** true if the [recordElapsedMs] of recording is too short to be worth sending. */
     fun isTooShort(recordElapsedMs: Long, minMs: Long = MIN_RECORDING_MS): Boolean = recordElapsedMs < minMs
 
-    /** Tempo já decorrido de gravação que dispara o timeout de segurança. */
+    /** Elapsed recording time that triggers the safety timeout. */
     fun shouldTimeout(elapsedMs: Long): Boolean = elapsedMs >= recordTimeoutMs
 
     private fun transition(from: CallPhase, to: CallPhase): Boolean {
@@ -87,7 +87,7 @@ class CallStateMachine(val recordTimeoutMs: Long = DEFAULT_RECORD_TIMEOUT_MS) {
     companion object {
         const val DEFAULT_RECORD_TIMEOUT_MS = 90_000L
 
-        /** Gravação mínima antes de permitir desligar (evita resposta muda). */
+        /** Minimum recording before hangup is allowed (avoids a silent reply). */
         const val MIN_RECORDING_MS = 500L
     }
 }

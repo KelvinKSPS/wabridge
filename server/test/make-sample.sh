@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Gera test/sample.ogg (áudio de teste) usando ffmpeg.
+# Generates test/sample.ogg (test audio) using ffmpeg.
 set -euo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ffmpeg -hide_banner -loglevel error -y \

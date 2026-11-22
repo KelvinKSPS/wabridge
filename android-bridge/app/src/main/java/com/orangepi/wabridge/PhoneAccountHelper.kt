@@ -8,8 +8,8 @@ import android.telecom.TelecomManager
 import android.util.Log
 
 /**
- * Conta telefônica autogerenciada (self-managed) usada pelo Telecom para
- * exibir a chamada como se fosse uma ligação normal do relógio.
+ * Self-managed phone account used by Telecom to
+ * display the call as if it were a normal watch call.
  */
 object PhoneAccountHelper {
     private const val TAG = "PhoneAccount"
@@ -19,12 +19,12 @@ object PhoneAccountHelper {
         PhoneAccountHandle(ComponentName(context, BridgeConnectionService::class.java), PHONE_ACCOUNT_ID)
 
     /**
-     * Registra a conta self-managed.
+     * Registers the self-managed account.
      *
-     * Não consulta `getSelfManagedPhoneAccounts()` de propósito: essa chamada
-     * exige a permissão READ_PHONE_STATE e estourava com SecurityException —
-     * derrubando o serviço em primeiro plano (e com ele o WebSocket).
-     * Registrar de novo é inofensivo: o Telecom aceita a conta repetida.
+     * Deliberately does not query `getSelfManagedPhoneAccounts()`: that call
+     * requires the READ_PHONE_STATE permission and threw SecurityException,
+     * bringing down the foreground service (and with it the WebSocket).
+     * Registering again is harmless: Telecom accepts the repeated account.
      */
     fun ensureRegistered(context: Context): Boolean {
         val telecom = context.getSystemService(Context.TELECOM_SERVICE) as? TelecomManager
@@ -45,7 +45,7 @@ object PhoneAccountHelper {
             Log.i(TAG, "PhoneAccount registrada")
             true
         } catch (e: Exception) {
-            // já registrada é o caso normal ao reabrir o app
+            // already registered is the normal case when reopening the app
             Log.w(TAG, "registro da PhoneAccount: ${e.message}")
             true
         }

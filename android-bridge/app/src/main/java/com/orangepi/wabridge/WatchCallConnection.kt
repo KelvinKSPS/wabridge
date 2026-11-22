@@ -37,7 +37,7 @@ class WatchCallConnection(
     }
 
     /* ---------------------------------------------------------------- *
-     * Estados do Telecom
+     * Telecom states
      * ---------------------------------------------------------------- */
 
     override fun onAnswer() {

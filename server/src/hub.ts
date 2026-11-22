@@ -3,8 +3,8 @@ import type { Server } from 'node:http';
 import type { CallPayload } from './types';
 
 /**
- * Hub de WebSocket: mantém os relógios (apps Android) conectados e
- * distribui os eventos de áudio recebido.
+ * WebSocket hub: keeps the watches (Android apps) connected and
+ * distributes the received audio events.
  */
 export class Hub {
   private wss: WebSocketServer;
@@ -18,7 +18,7 @@ export class Hub {
       ws.on('close', () => this.clients.delete(ws));
       ws.on('error', () => this.clients.delete(ws));
       ws.on('message', (raw) => {
-        // PING/PONG manual do app
+        // Manual PING/PONG from the app
         if (raw.toString().trim() === 'ping') ws.send('pong');
       });
     });
@@ -35,13 +35,13 @@ export class Hub {
     }
   }
 
-  /** Encerra o hub (usado no shutdown e nos testes). */
+  /** Shuts down the hub (used on shutdown and in tests). */
   close(): void {
     for (const ws of this.clients) {
       try {
         ws.close(1001, 'bye');
       } catch {
-        /* ignora */
+        /* ignored */
       }
     }
     this.clients.clear();

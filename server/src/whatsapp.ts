@@ -4,7 +4,7 @@ function asObject(v: unknown): any {
   return v && typeof v === 'object' ? v : null;
 }
 
-/** Procura a chave `key` do formato messages.upsert em qualquer nível do payload. */
+/** Finds the `key` of the messages.upsert format at any level of the payload. */
 export function findKey(obj: any): any {
   if (!obj) return null;
   if (obj.key && typeof obj.key === 'object') return obj.key;
@@ -19,11 +19,11 @@ export function findKey(obj: any): any {
 }
 
 /**
- * Procura o áudio em qualquer formato aceito pela Evolution API:
- * `message.audio`, `message.audioMessage` ou `document` (PTT com mime de áudio).
+ * Finds the audio in any format accepted by the Evolution API:
+ * `message.audio`, `message.audioMessage` or `document` (PTT with an audio mime type).
  *
- * Na v2 não existe link público: o áudio vem dentro da mensagem e é baixado
- * pela Evolution a partir dela. Nesse caso `url` volta vazio.
+ * In v2 there is no public link: the audio comes inside the message and is downloaded
+ * by Evolution from it. In that case `url` comes back empty.
  */
 export function findAudio(obj: any): { url: string; mimetype: string } | null {
   if (!obj || typeof obj !== 'object') return null;
@@ -42,7 +42,7 @@ export function findAudio(obj: any): { url: string; mimetype: string } | null {
     if (key === 'document' && !mimetype.startsWith('audio/')) continue;
     const url = v.url ?? v.link ?? v.mediaUrl ?? v.downloadUrl;
     if (typeof url === 'string' && url) return { url, mimetype: mimetype || 'audio/ogg' };
-    // v2: áudio sem link — a mensagem inteira é usada para baixar.
+    // v2: audio without a link; the whole message is used to download it.
     if (key !== 'document') return { url: '', mimetype: mimetype || 'audio/ogg' };
   }
   for (const v of Object.values(obj)) {
@@ -53,8 +53,8 @@ export function findAudio(obj: any): { url: string; mimetype: string } | null {
 }
 
 /**
- * Procura o elemento de mensagem da Evolution (v2): objeto com `key` e
- * `message`. É ele que a API v2 exige para devolver o áudio em base64.
+ * Finds the Evolution message element (v2): object with `key` and
+ * `message`. The v2 API requires it to return the audio as base64.
  */
 export function findMessageElement(obj: any): any | null {
   if (!obj || typeof obj !== 'object') return null;
@@ -75,7 +75,7 @@ export function findMessageElement(obj: any): any | null {
   return null;
 }
 
-/** Normaliza o payload do webhook em um evento de áudio. */
+/** Normalizes the webhook payload into an audio event. */
 export function normalize(body: any): IncomingAudio | null {
   const data = body?.data ?? body ?? {};
   const key = findKey(body) ?? {};
@@ -103,18 +103,18 @@ export function normalize(body: any): IncomingAudio | null {
   };
 }
 
-/** true se o jid pertence a um grupo. */
+/** true if the jid belongs to a group. */
 export function isGroup(jid: string): boolean {
   return jid.endsWith('@g.us');
 }
 
 /**
- * true se o jid é uma conversa privada (pessoa).
- * Tudo que não for isso é ignorado pela ponte:
- * - `@g.us` grupo
- * - `@newsletter` canal do WhatsApp
- * - `@broadcast` transmissão
- * - `@lid` identidade privacy (não é número de telefone)
+ * true if the jid is a private conversation (a person).
+ * Anything else is ignored by the bridge:
+ * - `@g.us` group
+ * - `@newsletter` WhatsApp channel
+ * - `@broadcast` broadcast
+ * - `@lid` privacy identity (not a phone number)
  */
 export function isPrivateChat(jid: string): boolean {
   return jid.endsWith('@s.whatsapp.net') || jid.endsWith('@c.us');

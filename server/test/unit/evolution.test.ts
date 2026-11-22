@@ -9,7 +9,7 @@ interface Call {
   apiKey?: string;
 }
 
-/** Evolution falsa: responde conforme o mapa `routes` (caminho -> resposta). */
+/** Fake Evolution: responds according to the `routes` map (path -> response). */
 function fakeEvolution(routes: Record<string, { status: number; json?: any }>) {
   const calls: Call[] = [];
   const server = http.createServer((req, res) => {

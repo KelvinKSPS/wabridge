@@ -7,16 +7,16 @@ import android.bluetooth.BluetoothProfile
 import android.content.Context
 
 /**
- * Relógios e fones pareados, para o gate "só ligar com o relógio conectado".
+ * Paired watches and headphones, for the "only ring when the watch is connected" gate.
  *
- * Sem a permissão BLUETOOTH_CONNECT (Android 12+) tudo devolve vazio/falso —
- * o app nunca trava por causa disso.
+ * Without the BLUETOOTH_CONNECT permission (Android 12+) everything returns empty/false,
+ * so the app never crashes because of it.
  */
 object BluetoothHelper {
 
     data class Device(val name: String, val address: String)
 
-    /** Aparelhos pareados, em ordem alfabética. */
+    /** Paired devices, in alphabetical order. */
     @SuppressLint("MissingPermission")
     fun paired(context: Context): List<Device> {
         val adapter = adapter(context) ?: return emptyList()
@@ -29,18 +29,18 @@ object BluetoothHelper {
         }.getOrElse { emptyList() }
     }
 
-    /** true se o aparelho está conectado (tenta API oculta primeiro, depois perfis conhecidos). */
+    /** true if the device is connected (tries the hidden API first, then known profiles). */
     @SuppressLint("MissingPermission")
     fun isConnected(context: Context, address: String): Boolean {
         val manager = manager(context) ?: return false
         val adapter = adapter(context) ?: return false
         val device = runCatching { adapter.getRemoteDevice(address) }.getOrNull() ?: return false
         return runCatching {
-            // API oculta disponível desde API 11 — funciona com perfis proprietários (relógios)
+            // Hidden API available since API 11, works with proprietary profiles (watches)
             val m = device.javaClass.getMethod("isConnected")
             m.invoke(device) as? Boolean == true
         }.getOrElse {
-            // fallback: perfis padrão
+            // fallback: standard profiles
             runCatching {
                 connected(manager, BluetoothProfile.HEADSET, address) ||
                     connected(manager, BluetoothProfile.A2DP, address) ||

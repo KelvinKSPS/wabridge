@@ -64,7 +64,7 @@ class CallStateMachineTest {
         val m = CallStateMachine()
         m.onIncoming()
         m.onAnswer()
-        // nunca entrou em PLAYING
+        // never entered PLAYING
         assertTrue(m.onPlaybackFinished())
         assertEquals(CallPhase.RECORDING, m.phase)
     }
@@ -92,8 +92,8 @@ class CallStateMachineTest {
         m.onPlaybackFinished()
         m.onRecordStarted()
 
-        // 300 ms de gravação: abaixo do mínimo, mas desligar não trava a chamada
-        // (quem chama decide, via isTooShort, se descarta o áudio)
+        // 300 ms of recording: below the minimum, but hanging up does not block the call
+        // (the caller decides, via isTooShort, whether to discard the audio)
         assertTrue(m.onHangup(300))
         assertEquals(CallPhase.ENDED, m.phase)
     }

@@ -1,86 +1,89 @@
-# android-bridge — app do relógio (Kotlin)
+# android-bridge: the watch app (Kotlin)
 
-App que transforma o áudio de voz do WhatsApp em uma **chamada telefônica**
-no relógio, usando `android.telecom.ConnectionService` com conta
-autogerenciada (self-managed).
+Android app that turns a WhatsApp voice note into a **phone-style call** on the
+watch. It uses `android.telecom.ConnectionService` with a self-managed phone
+account, plays the note over Bluetooth call audio, records the reply, and
+uploads it to the engine.
 
 ## Build
 
 ```bash
-export ANDROID_HOME=/home/orangepi/android-sdk   # ou edite local.properties
+export ANDROID_HOME=/path/to/android-sdk   # or set sdk.dir in local.properties
 ./gradlew assembleDebug        # app/build/outputs/apk/debug/app-debug.apk
-./gradlew installDebug         # com o relógio conectado por adb
+./gradlew installDebug         # with the watch connected over adb
+./gradlew testDebugUnitTest    # JVM unit tests
 ```
 
-Requisitos: JDK 17, Android SDK (compileSdk 35), AGP 8.6.0, Kotlin 1.9.25.
+Requirements: JDK 17, Android SDK (compileSdk 35), AGP 8.6.0, Kotlin 1.9.25.
 
-> **ARM64**: o `aapt2` do SDK é binário x86-64. Nesta board (ARM) o build usa
-> um wrapper com `qemu-user`:
-> `bash scripts/setup-x86-aapt2.sh` (monta o sysroot x86 em
-> `~/.local/share/wabridge-x86root`, cria `~/.local/bin/aapt2` e registra o
-> `android.aapt2FromMavenOverride` no `~/.gradle/gradle.properties`).
-> O override fica na config da máquina, e não no repositório — assim o mesmo
-> projeto compila no Windows sem o wrapper.
+> **ARM64 boards**: the SDK's `aapt2` is x86-64. On ARM the build needs a
+> wrapper that runs it under `qemu-user`:
+> `bash scripts/setup-x86-aapt2.sh`. It creates the x86 sysroot under
+> `~/.local/share/wabridge-x86root`, installs `~/.local/bin/aapt2`, and registers
+> `android.aapt2FromMavenOverride` in `~/.gradle/gradle.properties`. The override
+> lives in the machine config, not in the repository, so the project still builds
+> on Windows without it.
 
-## Como funciona
+Release APKs are built by CI. See [CONTRIBUTING.md](../CONTRIBUTING.md#releases).
 
-| Classe | Papel |
+## How it works
+
+| Class | Role |
 |---|---|
-| `BridgeForegroundService` | FGS: mantém o WebSocket vivo e registra a `PhoneAccount` self-managed. |
-| `BridgeConnectionService` | `ConnectionService`: o Telecom cria a chamada a partir do evento. |
-| `WatchCallConnection` | adaptador do Telecom: nome/número do contato e delegação para a sessão. |
-| `VoiceSession` | a chamada de voz em si: SCO → tocar → gravar → enviar (independe do Telecom). |
-| `CallActivity` | tela de chamada do app (Atender/Recusar/Desligar), para relógio sem discador. |
-| `CallNotifier` | notificação de serviço e de chamada (full screen intent + botões). |
-| `WsManager` | WebSocket (OkHttp) com reconexão automática. |
+| `BridgeForegroundService` | Foreground service: keeps the WebSocket alive, registers the `PhoneAccount`, decides ring vs. quiet mode. |
+| `BridgeConnectionService` | `ConnectionService`: Telecom creates the call for each incoming note. |
+| `WatchCallConnection` | Telecom adapter: contact name and number, audio route, hangup. |
+| `VoiceSession` | The voice exchange itself: play the note, beep, record, upload. Works without Telecom. |
+| `QuietMedia` | Quiet mode: exposes the pending note as a `MediaSession` so the watch music card can start it. |
+| `CallActivity` | The app's own call screen (answer / reject / hang up), for watches without a system dialer. |
+| `CallNotifier` | Service and call notifications. |
+| `WsManager` | WebSocket (OkHttp) with automatic reconnection. |
 | `Uploader` | `POST /reply/audio` (multipart). |
-| `PhoneAccountHelper` | registro da conta telefônica (sem `READ_PHONE_STATE`). |
-| `CallStateMachine` | máquina de estados pura, coberta por testes. |
+| `PhoneAccountHelper` | Registers the self-managed phone account (no `READ_PHONE_STATE`). |
+| `CallStateMachine` | Pure state machine, covered by unit tests. |
 
-### Fluxo
+### Flow
 
-1. `NEW_VOICE_NOTE` chega no WebSocket → notificação de chamada + tela do app
-   (`CallActivity`) + `telecom.addNewIncomingCall()`.
-2. A tela mostra **nome e número do contato** (no Telecom: `setCallerDisplayName`
-   + `setAddress`, `PRESENTATION_ALLOWED`).
-3. Ao atender: `setActive()`, `MODE_IN_COMMUNICATION`, `startBluetoothSco()`;
-   aguarda `SCO_AUDIO_STATE_CONNECTED` + 800 ms e toca o wav com
-   `USAGE_VOICE_COMMUNICATION`.
-4. Fim da reprodução → 300 ms → tom curto (`TONE_PROP_BEEP`) →
-   `MediaRecorder` (`VOICE_COMMUNICATION`, AAC, 16 kHz, 32 kbps) no cache.
-5. Desligar (`onDisconnect`/`onReject`/botão **Desligar**) → para tudo, restaura
-   `MODE_NORMAL`, `setDisconnected(LOCAL)`, `destroy()` e envia o arquivo ao
-   servidor.
-6. Timeout de segurança: 90 s de gravação → desligamento automático.
+1. A `NEW_VOICE_NOTE` arrives on the WebSocket.
+2. **Ring mode (default):** a call notification and the app's call screen open,
+   and `addNewIncomingCall()` asks Telecom to ring the watch. The screen shows
+   the contact name and number.
+3. **Quiet mode:** no ringing. A quiet notification is posted and the note is
+   offered on the watch music card. Pressing play starts a self-managed call
+   that is answered on the watch (see the Huawei note in the root README).
+4. On answer, `VoiceSession` plays the downloaded WAV. It waits for the Bluetooth
+   SCO link (up to 3 s) and the configured delay, then plays a beep and vibrates.
+5. The app records the reply with `MediaRecorder` (Opus in OGG on Android 10+).
+   A safety timeout stops recording after 90 s.
+6. Hanging up stops playback and recording, ends the call, and uploads the file
+   to the engine. Replies shorter than the configured minimum are discarded.
 
-> O `VoiceSession` não depende do Telecom: se o aparelho não tiver telephony,
-> a tela do app conduz a chamada do mesmo jeito.
+## Permissions
 
-## Permissões
+See `app/src/main/AndroidManifest.xml` for the full list. The main ones are
+`RECORD_AUDIO`, `MODIFY_AUDIO_SETTINGS`, `MANAGE_OWN_CALLS`, `BLUETOOTH_CONNECT`,
+`FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_PHONE_CALL`,
+`FOREGROUND_SERVICE_SPECIAL_USE`, `POST_NOTIFICATIONS` and `INTERNET`.
 
-`RECORD_AUDIO`, `MODIFY_AUDIO_SETTINGS`, `MANAGE_OWN_CALLS`,
-`BLUETOOTH_CONNECT`, `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_PHONE_CALL`,
-`FOREGROUND_SERVICE_SPECIAL_USE`, `POST_NOTIFICATIONS`, `INTERNET`.
+The app asks for `RECORD_AUDIO` (and `BLUETOOTH_CONNECT` on Android 12+) when you
+tap **Connect**.
 
-O app pede `RECORD_AUDIO` (e `BLUETOOTH_CONNECT` no Android 12+) ao tocar
-**Conectar**.
+> `FOREGROUND_SERVICE_SPECIAL_USE` with `foregroundServiceType="specialUse"` lets
+> the service run without a restricted type on Android 14+. On older devices the
+> attribute is ignored and `FOREGROUND_SERVICE` is enough.
 
-> O `FOREGROUND_SERVICE_SPECIAL_USE` + `foregroundServiceType="specialUse"` é
-> o que permite o FGS sem "type" restrito no Android 14+. Em aparelhos
-> anteriores o atributo é ignorado e o `FOREGROUND_SERVICE` basta.
+## Configuration
 
-## Configuração
+- **Server**: text field on the home screen, saved in `SharedPreferences`.
+  Default: `http://192.168.15.100:8097`.
+- The watch must reach the engine on the same network.
 
-- **Servidor**: campo de texto na tela inicial (salvo em `SharedPreferences`).
-  Padrão: `http://192.168.15.100:8097`.
-- O relógio precisa alcançar o servidor na mesma rede.
-
-## Assinatura (release)
+## Signing (release)
 
 ```bash
 cp keystore.properties.template keystore.properties
-# ajuste storeFile / storePassword / keyAlias / keyPassword
+# set storeFile / storePassword / keyAlias / keyPassword
 ./gradlew assembleRelease
 ```
 
-Sem `keystore.properties`, o build release usa a assinatura de debug.
+Without `keystore.properties`, the release build uses the debug signature.

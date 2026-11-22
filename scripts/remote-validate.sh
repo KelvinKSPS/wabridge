@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Validação remota do wabridge no emulador (funciona no git bash do Windows).
+# Remote validation of wabridge on the emulator (works in Windows git bash).
 #   curl -sL https://raw.githubusercontent.com/KelvinKSPS/wabridge/master/scripts/remote-validate.sh -o v.sh && bash v.sh
 set -uo pipefail
 

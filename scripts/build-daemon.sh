@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Compila o daemon Go (motor do WhatsApp) para Android.
+# Builds the Go daemon (WhatsApp engine) for Android.
 #
-# O daemon usa o mattn/go-sqlite3 (CGO), então precisa do NDK: o sqlite puro
-# em Go (modernc.org/sqlite) faz syscalls que o seccomp do Android bloqueia.
+# The daemon uses mattn/go-sqlite3 (CGO), so it needs the NDK: pure-Go sqlite
+# (modernc.org/sqlite) makes syscalls that Android's seccomp blocks.
 #
-# Uso: scripts/build-daemon.sh [arm64|x86_64|tudo]
+# Usage: scripts/build-daemon.sh [arm64|x86_64|all]
 set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/../embedded-core"

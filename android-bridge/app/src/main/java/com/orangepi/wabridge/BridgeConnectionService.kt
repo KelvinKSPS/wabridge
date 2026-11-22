@@ -7,14 +7,14 @@ import android.telecom.PhoneAccountHandle
 import android.util.Log
 
 /**
- * ConnectionService autogerenciado: o Telecom cria uma [WatchCallConnection]
- * para cada áudio recebido.
+ * Self-managed ConnectionService: Telecom creates a [WatchCallConnection]
+ * for each received audio.
  */
 class BridgeConnectionService : ConnectionService() {
 
     override fun onCreate() {
         super.onCreate()
-        // Garante que a conta exista (ex.: após reinício do aparelho).
+        // Make sure the account exists (e.g. after a device restart).
         runCatching { PhoneAccountHelper.ensureRegistered(this) }
             .onFailure { Log.w(TAG, "registro da conta falhou: ${it.message}") }
     }
@@ -34,10 +34,10 @@ class BridgeConnectionService : ConnectionService() {
     }
 
     /**
-     * O Telecom pode chamar isso com a conta nula (ex.: a conta foi removida
-     * entre o addNewIncomingCall e a criação). Declarar o parâmetro como
-     * não-nulo fazia o app estourar NullPointerException e morrer — e com
-     * ele o WebSocket.
+     * Telecom may call this with a null account (e.g. the account was removed
+     * between addNewIncomingCall and creation). Declaring the parameter as
+     * non-null made the app throw NullPointerException and die, and with it
+     * the WebSocket.
      */
     override fun onCreateIncomingConnectionFailed(
         connectionManagerPhoneAccount: PhoneAccountHandle?,
