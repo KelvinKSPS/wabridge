@@ -7,8 +7,8 @@ import android.content.Intent
 import android.util.Log
 
 /**
- * Botões das notificações: "Atender", "Recusar", "Velocidade" e a resposta
- * rápida "Não posso atender".
+ * Notification buttons: "Answer", "Decline", "Speed" and the quick reply
+ * "I can't answer right now".
  */
 class CallActionReceiver : BroadcastReceiver() {
 
@@ -23,11 +23,11 @@ class CallActionReceiver : BroadcastReceiver() {
         }
     }
 
-    /** Troca a velocidade de reprodução: 1x → 1.25x → 1.5x → 2x → 1x. */
+    /** Cycles the playback speed: 1x → 1.25x → 1.5x → 2x → 1x. */
     private fun cycleSpeed(context: Context) {
         val session = VoiceSession.current ?: return
         val next = session.setSpeed(PlaybackSpeed.next(session.speed))
-        // Atualiza a notificação de serviço para mostrar a nova velocidade
+        // Refresh the service notification to show the new speed
         val svc = BridgeForegroundService.instance
         if (svc != null) {
             svc.refreshStatus()
@@ -42,8 +42,8 @@ class CallActionReceiver : BroadcastReceiver() {
     }
 
     /**
-     * Resposta rápida: manda "Não posso atender o telefone no momento" para o
-     * contato e desliga a chamada — sem precisar falar.
+     * Quick reply: sends "I can't answer the phone right now" to the
+     * contact and hangs up, without having to speak.
      */
     private fun quickReply(context: Context) {
         val payload = WatchCallConnection.current?.payload ?: CallPayload.current ?: return

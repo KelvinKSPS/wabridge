@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Ajuda com a Evolution API da ponte.
-#   bash scripts/evolution.sh status   # estado da instancia
-#   bash scripts/evolution.sh qr       # salva o QR atual em /tmp/wabridge-qr.png
-#   bash scripts/evolution.sh logs     # ultimas linhas do container
+# Helper for the bridge's Evolution API.
+#   bash scripts/evolution.sh status   # instance state
+#   bash scripts/evolution.sh qr       # saves the current QR to /tmp/wabridge-qr.png
+#   bash scripts/evolution.sh logs     # last lines of the container
 #
-# Para parear o WhatsApp: abra o QR num computador (painel :8098/manager ou
-# http://192.168.15.100:8097/qrcode) e escaneie com o celular.
+# To pair WhatsApp: open the QR on a computer (panel :8098/manager or
+# http://192.168.15.100:8097/qrcode) and scan it with the phone.
 set -euo pipefail
 
 API="${EVOLUTION_API_URL:-http://127.0.0.1:8098}"
@@ -23,7 +23,7 @@ for i in json.load(sys.stdin):
 "
     ;;
   qr)
-    # o QR da Evolution vai por webhook para a ponte
+    # the Evolution QR goes via webhook to the bridge
     curl -s -m 10 -H "apikey: $KEY" "$API/instance/connect/$INST" >/dev/null || true
     sleep 3
     if curl -sf -m 10 "$BRIDGE/qrcode.png" -o /tmp/wabridge-qr.png; then

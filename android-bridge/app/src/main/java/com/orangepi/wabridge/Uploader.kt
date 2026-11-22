@@ -11,7 +11,7 @@ import org.json.JSONObject
 import java.io.File
 import java.util.concurrent.TimeUnit
 
-/** Envia a gravação do relógio para o servidor (POST /reply/audio). */
+/** Sends the watch recording to the server (POST /reply/audio). */
 object Uploader {
     private const val TAG = "Uploader"
 
@@ -52,10 +52,10 @@ object Uploader {
     }
 
     /**
-     * Envia uma resposta rápida em texto (POST /reply/text).
+     * Sends a quick text reply (POST /reply/text).
      *
-     * É o "Não posso atender agora" do menu: um toque e o contato recebe
-     * a mensagem, sem precisar falar.
+     * It is the "Can't answer right now" option in the menu: one tap and the contact
+     * receives the message, without having to speak.
      */
     fun sendText(baseUrl: String, audioId: String, to: String, text: String): Boolean {
         return try {

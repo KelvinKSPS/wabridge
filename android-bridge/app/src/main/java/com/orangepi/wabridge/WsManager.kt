@@ -18,7 +18,7 @@ import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
 /**
- * Cliente WebSocket com reconexão automática.
+ * WebSocket client with automatic reconnection.
  */
 class WsManager(
     private val urlProvider: () -> String,
@@ -65,7 +65,7 @@ class WsManager(
         }
     }
 
-    /** Suspende até o socket fechar. Retorna true se fechou de forma limpa. */
+    /** Suspends until the socket closes. Returns true if it closed cleanly. */
     private suspend fun connectOnce(): Boolean {
         val closed = CompletableDeferred<Boolean>()
         var opened = false

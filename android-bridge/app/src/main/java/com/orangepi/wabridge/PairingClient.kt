@@ -7,15 +7,15 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /**
- * Cliente das rotas de pareamento do motor (embutido ou externo).
+ * Client for the pairing routes of the engine (embedded or external).
  *
- * Tudo síncrono e pequeno: chamadas são feitas de uma Thread própria.
+ * Everything is synchronous and small: calls are made from a dedicated Thread.
  */
 object PairingClient {
 
     data class AuthStatus(val loggedIn: Boolean, val connected: Boolean, val phone: String)
 
-    /** Gera o código de 8 dígitos. Devolve null se falhar. */
+    /** Generates the 8-digit code. Returns null on failure. */
     fun requestCode(context: Context, phone: String): String? =
         runCatching {
             val url = URL(Prefs.engineUrl(context) + "/auth/pair-code")
@@ -37,7 +37,7 @@ object PairingClient {
             null
         }
 
-    /** Obtém o status de autenticação da conta. Devolve null se falhar. */
+    /** Gets the account's authentication status. Returns null on failure. */
     fun status(context: Context): AuthStatus? =
         runCatching {
             val url = URL(Prefs.engineUrl(context) + "/auth/status")
@@ -59,8 +59,8 @@ object PairingClient {
         }
 
     /**
-     * Busca contatos e grupos da conta (lista interativa).
-     * Devolve null se falhar (ex.: modo servidor, que não tem /contacts).
+     * Fetches the account's contacts and groups (interactive list).
+     * Returns null on failure (e.g. server mode, which has no /contacts).
      */
     fun contacts(context: Context): Pair<List<ContactItem>, List<ContactItem>>? =
         runCatching {

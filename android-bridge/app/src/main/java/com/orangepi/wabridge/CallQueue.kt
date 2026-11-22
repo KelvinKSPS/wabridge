@@ -1,31 +1,31 @@
 package com.orangepi.wabridge
 
 /**
- * Fila de chamadas: uma por vez.
+ * Call queue: one call at a time.
  *
- * Sem isso, uma nota de voz que chega enquanto outra está em andamento abre
- * uma segunda chamada por cima da primeira — o usuário ouve duas coisas ao
- * mesmo tempo e a resposta sai misturada.
+ * Without this, a voice note arriving while another is playing opens a
+ * second call on top of the first: the user hears two things at once and
+ * the reply comes out mixed.
  *
- * Regra: a primeira nota toca; as siguientes ficam na fila e tocam quando a
- * chamada atual terminar.
+ * Rule: the first note rings; the following ones wait in the queue and play
+ * when the current call ends.
  *
- * Classe pura (sem Android) para poder ser testada em JVM.
+ * Pure class (no Android) so it can be tested on the JVM.
  */
 class CallQueue {
 
     private val pending = ArrayDeque<CallPayload>()
 
-    /** true enquanto há uma chamada em andamento. */
+    /** true while a call is in progress. */
     var active: Boolean = false
         private set
 
-    /** Quantas notas estão esperando na fila. */
+    /** How many notes are waiting in the queue. */
     val size: Int get() = pending.size
 
     /**
-     * Aceita uma nota de voz.
-     * @return true se a chamada toca agora; false se foi enfileirada.
+     * Accepts a voice note.
+     * @return true if the call rings now; false if it was queued.
      */
     @Synchronized
     fun offer(payload: CallPayload): Boolean {
@@ -38,8 +38,8 @@ class CallQueue {
     }
 
     /**
-     * A chamada atual terminou.
-     * @return a próxima nota da fila (para tocar agora), ou null.
+     * The current call ended.
+     * @return the next note in the queue (to play now), or null.
      */
     @Synchronized
     fun release(): CallPayload? {
@@ -51,7 +51,7 @@ class CallQueue {
         return next
     }
 
-    /** Esvazia a fila (usado quando o app para). */
+    /** Empties the queue (used when the app stops). */
     @Synchronized
     fun clear() {
         pending.clear()

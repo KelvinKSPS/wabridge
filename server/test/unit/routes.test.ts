@@ -11,7 +11,7 @@ import type { EvolutionClient } from '../../src/evolution';
 
 const SAMPLE = path.join(__dirname, '..', 'sample.ogg');
 
-/** Evolution API falsa: devolve o sample e registra o que foi enviado. */
+/** Fake Evolution API: returns the sample and records what was sent. */
 class FakeEvolution {
   sent: { number: string; ptt: unknown; bytes: number }[] = [];
   texts: { number: string; text: string }[] = [];
@@ -79,7 +79,7 @@ class WsClient {
     return new Promise((resolve) => this.ws.on('open', () => resolve()));
   }
 
-  /** Espera um evento do tipo pedido (ou rejects). */
+  /** Waits for an event of the requested type (or rejects). */
   waitFor(type: string, timeoutMs = 30000): Promise<any> {
     const found = this.events.find((e) => e.type === type);
     if (found) return Promise.resolve(found);
@@ -115,7 +115,7 @@ async function postWebhook(body: any): Promise<Response> {
   });
 }
 
-/** Espera a conversa aparecer na lista de pendências (processamento concluído). */
+/** Waits for the conversation to appear in the pending list (processing done). */
 async function waitForPending(audioId: string, timeoutMs = 30000): Promise<any> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
@@ -238,13 +238,13 @@ describe('fluxo completo do webhook', () => {
     assert.equal(push.audioId, 'MSG_TEST_1');
     assert.equal(push.audioUrl, 'http://test.local/media/MSG_TEST_1.wav');
 
-    // o wav existe no cache e é 16k mono
+    // the wav exists in the cache and is 16k mono
     const wav = fs.readFileSync(path.join(tmpDir, 'MSG_TEST_1.wav'));
     assert.equal(wav.toString('ascii', 0, 4), 'RIFF');
     assert.equal(wav.readUInt16LE(22), 1, 'mono');
     assert.equal(wav.readUInt32LE(24), 16000, '16 kHz');
 
-    // ...e a pendência fica registrada
+    // ...and the pending entry is recorded
     const pending = await waitForPending('MSG_TEST_1');
     assert.equal(pending.senderNumber, '5511999999999');
 
@@ -303,7 +303,7 @@ describe('fluxo completo do webhook', () => {
     assert.equal(fake.sent[0].number, '5511999999999');
     assert.ok(fake.sent[0].bytes > 0, 'enviou áudio');
 
-    // a pendência da conversa respondida é removida depois do envio
+    // the pending entry for the answered conversation is removed after sending
     const pending = await (await fetch(`${baseUrl}/pending`)).json();
     assert.equal(pending.find((p: any) => p.audioId === 'MSG_TEST_1'), undefined);
   });

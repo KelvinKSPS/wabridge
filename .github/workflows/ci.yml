@@ -1,8 +1,8 @@
 name: CI
 
-# Testes e build a cada push. O runner do GitHub é x86_64, então não precisa
-# do wrapper de aapt2/qemu (que só existe na Orange Pi ARM) — o build
-# do APK sai em poucos minutos em vez de ~20 min na board.
+# Tests and build on every push. The GitHub runner is x86_64, so it does not need
+# the aapt2/qemu wrapper (which only exists on the Orange Pi ARM board): the build
+# of the APK takes a few minutes instead of ~20 min on the board.
 
 on:
   push:

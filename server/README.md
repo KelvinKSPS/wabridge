@@ -1,79 +1,84 @@
-# server — ponte WhatsApp (Node.js + TypeScript)
+# server: WhatsApp bridge (Node.js + TypeScript)
 
-## Instalação
+Optional server that receives WhatsApp voice notes from Evolution API, prepares
+them for the Android app, and sends the recorded replies back as WhatsApp voice
+notes. The Android app can also use the embedded Go engine instead
+(`embedded-core/`); this server is the alternative.
+
+## Install
 
 ```bash
 npm install
-cp .env.example .env   # edite ALLOWED_NUMBERS / PUBLIC_HOST / EVOLUTION_*
+cp .env.example .env   # set ALLOWED_NUMBERS, PUBLIC_HOST and EVOLUTION_*
 npm run dev            # tsx watch
 npm run build && npm start
 ```
 
-Variáveis são lidas de `process.env` (use `node --env-file=.env dist/index.js`
-no Node 20+ ou exporte no shell).
+Variables are read from `process.env`. Use `node --env-file=.env dist/index.js`
+on Node 20+, or export them in your shell.
 
-## Requisitos
+## Requirements
 
-- `ffmpeg` com `libopus` e `pcm_s16le` (`ffmpeg -encoders | grep opus`).
-- Evolution API (v1 ou v2). Na v2 o webhook global aponta para
-  `http://<IP_DA_PONTE>:8097/webhook/whatsapp` — a Evolution acrescenta o
-  evento no final do caminho (`/webhook/whatsapp/messages-upsert`).
+- `ffmpeg` with `libopus` and `pcm_s16le` (check with `ffmpeg -encoders | grep opus`).
+- Evolution API v1 or v2. On v2, point the global webhook to
+  `http://<BRIDGE_IP>:8097/webhook/whatsapp`. Evolution appends the event name
+  to the path (`/webhook/whatsapp/messages-upsert`).
 
-## Rotas
+## Routes
 
 ### `POST /webhook/whatsapp`
 
-Aceita o payload `messages.upsert` da Evolution API. O normalizador
-(`normalize()` em `src/index.ts`) tolera as variações de formato: a mensagem
-pode estar em `data.message.audio`, `message.audio`, `audioMessage` ou
-`document` (PTT). Group (`@g.us`), mensagens de saída (`fromMe`) e remetentes
-fora da lista branca são ignorados.
+Accepts the `messages.upsert` payload from Evolution API. The normalizer
+(`normalize()` in `src/index.ts`) tolerates format variations: the message may be
+in `data.message.audio`, `message.audio`, `audioMessage`, or `document` (PTT).
+Group messages (`@g.us`), outgoing messages (`fromMe`), and senders outside the
+allowlist are ignored.
 
-Sequência do processamento:
+Processing steps:
 
-1. Baixa o áudio: na **v2** a mensagem inteira vai para
-   `POST {EVOLUTION}/chat/getBase64FromMediaMessage/{instance}` (a v2 não
-   expõe link público); a **v1** usa `chat/downloadMedia` com o link.
-2. `ffmpeg` → `wav` PCM 16kHz mono (obrigatório para o SCO do Android).
-3. Publica `NEW_VOICE_NOTE` no WebSocket.
-4. Cache expira em `MEDIA_TTL_MS`.
+1. Download the audio. On **v2** the whole message goes to
+   `POST {EVOLUTION}/chat/getBase64FromMediaMessage/{instance}` (v2 does not
+   expose a public link). On **v1**, `chat/downloadMedia` is used with the link.
+2. `ffmpeg` converts it to 16 kHz mono PCM WAV (required for Android Bluetooth SCO).
+3. Publish `NEW_VOICE_NOTE` on the WebSocket.
+4. The cache expires after `MEDIA_TTL_MS`.
 
 ### `GET /media/:audioId`
 
-Serve o wav em cache. O `audioId` é o id da mensagem sanitizado.
+Serves the cached WAV. `audioId` is the sanitized message id.
 
 ### `POST /reply/audio`
 
 `multipart/form-data`:
 
-| campo | obrigatório | descrição |
+| Field | Required | Description |
 |---|---|---|
-| `file` | sim | gravação do relógio (`.m4a`/`.wav`) |
-| `audioId` | não | id do áudio original (resolve o destinatário) |
-| `to` | não | número do destinatente, só dígitos |
+| `file` | yes | Recording from the watch (`.m4a` / `.wav`) |
+| `audioId` | no | Id of the original audio (resolves the recipient) |
+| `to` | no | Recipient number, digits only |
 
-Converte para `ogg`/Opus e envia como nota de voz (`ptt: true`): na **v2**
-vai como base64 em `POST {EVOLUTION}/message/sendWhatsAppAudio/{instance}`;
-a v1 usa `chat/sendAudio` (fallback `chat/sendMedia`).
+Converts the file to `ogg`/Opus and sends it as a voice note (`ptt: true`). On
+**v2** it is sent as base64 to `POST {EVOLUTION}/message/sendWhatsAppAudio/{instance}`.
+On v1, `chat/sendAudio` is used, with `chat/sendMedia` as fallback.
 
-### `GET /qrcode` e `GET /qrcode.png`
+### `GET /qrcode` and `GET /qrcode.png`
 
-Último QR code de pareamento enviado pela Evolution (v2). O QR expira em
-~30 s — o painel da Evolution (`/manager`) gera um novo a qualquer momento.
+The latest pairing QR code sent by Evolution (v2). The QR expires in about 30 s.
+The Evolution manager (`/manager`) generates a new one at any time.
 
-## Teste sem WhatsApp real
+## Test without a real WhatsApp account
 
-Há uma Evolution API falsa em `test/` para validar o ciclo completo
-(webhook → conversão → WebSocket → upload → nota de voz):
+`test/` contains a fake Evolution API to exercise the full cycle
+(webhook → conversion → WebSocket → upload → voice note):
 
 ```bash
 bash test/make-sample.sh
-npm run test:mock &                       # Evolution falsa em :8081
+npm run test:mock &                       # fake Evolution on :8081
 PORT=8097 EVOLUTION_API_URL=http://127.0.0.1:8081 npm start &
 npm run test:e2e
 ```
 
-Saída esperada:
+Expected output:
 
 ```
 webhook  -> 200 {"ok":true}
@@ -82,17 +87,24 @@ media    -> 200 96078 bytes
 reply    -> 200 {"ok":true,...}
 ```
 
-O áudio recebido (opus) fica em `test/sample.ogg` e o enviado pelo app em
-`test/recebido.ogg`.
+The received audio (Opus) is saved to `test/sample.ogg`, and the reply sent by the
+app to `test/recebido.ogg`.
+
+## Unit tests
+
+```bash
+npm test           # node --test over test/unit/*.test.ts
+npm run typecheck
+```
 
 ## WebSocket (`/ws`)
 
 ```json
 { "type": "NEW_VOICE_NOTE",
   "audioId": "MSG_ABC",
-  "senderName": "João",
+  "senderName": "John",
   "senderNumber": "5511999999999",
   "audioUrl": "http://192.168.0.10:8097/media/MSG_ABC.wav" }
 ```
 
-O app responde `ping` (texto puro) e recebe `pong`.
+The app replies `ping` (plain text) and receives `pong`.

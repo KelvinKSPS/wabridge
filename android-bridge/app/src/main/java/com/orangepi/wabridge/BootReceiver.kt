@@ -6,9 +6,9 @@ import android.content.Intent
 import android.util.Log
 
 /**
- * Liga o serviço (e o daemon embutido) quando o celular termina de iniciar.
+ * Starts the service (and the embedded daemon) when the phone finishes booting.
  *
- * Sem isso o app só funcionaria se a pessoa abrisse ele depois do boot.
+ * Without this, the app would only work if the user opened it after boot.
  */
 class BootReceiver : BroadcastReceiver() {
 

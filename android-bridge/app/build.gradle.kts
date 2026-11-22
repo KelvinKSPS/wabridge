@@ -5,9 +5,9 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
-// Chave de assinatura (opcional).
-// Copie keystore.properties.template -> keystore.properties e aponte para o .jks.
-// Sem esse arquivo o build usa a assinatura de debug.
+// Signing key (optional).
+// Copy keystore.properties.template -> keystore.properties and point it at the .jks.
+// Without this file the build uses the debug signing.
 val keystorePropsFile = rootProject.file("keystore.properties")
 val keystoreProps = Properties().apply {
     if (keystorePropsFile.exists()) keystorePropsFile.inputStream().use { load(it) }
@@ -28,10 +28,10 @@ android {
     }
 
     signingConfigs {
-        // Keystore fixa commitada no repositório — garante que TODOS os builds
-        // (CI, local, release sem keyserver) gerem APKs com a MESMA assinatura.
-        // Sem isso o Gradle gera um debug keystore novo a cada run do CI e o
-        // Android recusa instalar por cima ("assinatura diferente").
+        // Fixed keystore committed to the repository: ensures that ALL builds
+        // (CI, local, release without keyserver) produce APKs with the SAME signature.
+        // Without this, Gradle generates a new debug keystore on every CI run and
+        // Android refuses to install over it ("different signature").
         create("fixed") {
             storeFile = file("debug.keystore")
             storePassword = "android"
@@ -43,8 +43,8 @@ android {
     if (hasReleaseKeystore) {
         signingConfigs {
             create("release") {
-                // Caminho resolvido a partir da raiz do projeto (não do módulo
-                // app/) — assim funciona igual no CI e em qualquer máquina.
+                // Path resolved from the project root (not from the module
+                // app/), so it works the same way in CI and on any machine.
                 storeFile = rootProject.file(keystoreProps.getProperty("storeFile"))
                 storePassword = keystoreProps.getProperty("storePassword")
                 keyAlias = keystoreProps.getProperty("keyAlias")
@@ -64,9 +64,9 @@ android {
             }
         }
         debug {
-            // Mesmo esquema da release quando há keystore de produção disponível
-            // (local via keystore.properties ou CI via secrets). Assim o debug
-            // instala por cima do app de release sem erro de assinatura.
+            // Same scheme as release when a production keystore is available
+            // (locally via keystore.properties or in CI via secrets). This way the debug
+            // installs over the release app without a signature error.
             signingConfig = if (hasReleaseKeystore) {
                 signingConfigs.getByName("release")
             } else {
@@ -90,7 +90,7 @@ android {
 
     testOptions {
         unitTests {
-            // android.util.Log etc. não existem na JVM: devolve valores padrão
+            // android.util.Log etc. don't exist on the JVM: they return default values
             isReturnDefaultValues = true
         }
     }
@@ -103,6 +103,6 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
     testImplementation("junit:junit:4.13.2")
-    // org.json real nos testes unitários (o do android.jar é só stub)
+    // real org.json in unit tests (the one in android.jar is just a stub)
     testImplementation("org.json:json:20231013")
 }

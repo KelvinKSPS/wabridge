@@ -7,8 +7,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * A fila garante uma chamada por vez: nota de voz que chega durante outra
- * chamada não abre uma segunda chamada por cima.
+ * The queue guarantees one call at a time: a voice note arriving during another
+ * call does not open a second call on top of it.
  */
 class CallQueueTest {
 
@@ -56,7 +56,7 @@ class CallQueueTest {
         q.offer(nota("a"))
         assertNull(q.release())
         assertFalse(q.active)
-        // a próxima nota toca direto
+        // the next note rings right away
         assertTrue(q.offer(nota("b")))
     }
 

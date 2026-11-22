@@ -564,7 +564,7 @@ class MainActivity : Activity() {
         spinner.setOnItemClickListener { _, _, p, _ -> onPick(p) }
     }
 
-    /** Seletor do motor: embutido (daemon no APK) ou servidor externo. */
+    /** Engine selector: embedded (daemon in the APK) or external server. */
     private fun setupModeSpinner() {
         val modes = listOf(Prefs.Engine.EMBUTIDO, Prefs.Engine.EXTERNO)
         val labels = modes.map { if (it == Prefs.Engine.EMBUTIDO) getString(R.string.mode_embedded_short) else getString(R.string.mode_external) }
@@ -756,7 +756,7 @@ class MainActivity : Activity() {
         updateBtState()
     }
 
-    /** Mostra estado dos aparelhos escolhidos. */
+    /** Shows the state of the chosen devices. */
     private fun updateBtState() {
         val view = findViewById<TextView>(R.id.btState) ?: return
         val addrs = Prefs.btDevices(this)
@@ -779,7 +779,7 @@ class MainActivity : Activity() {
         view.postDelayed(btTicker, 3000)
     }
 
-    /** Atualiza o estado do bluetooth de tempos em tempos. */
+    /** Updates the Bluetooth state from time to time. */
     private val btTicker = Runnable { updateBtState() }
 
     /** Update the summary next to the "Choose" button. */
@@ -1162,7 +1162,7 @@ class MainActivity : Activity() {
     }
 }
 
-/** Idiomas suportados. */
+/** Supported languages. */
 enum class Language {
     SYSTEM,
     PORTUGUESE,

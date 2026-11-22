@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# Teste de ponta a ponta no emulador Android (via adb).
+# End-to-end test on the Android emulator (via adb).
 #
-# Faz sozinho: instala o APK, sobe o daemon, gera o código de pareamento,
-# espera o pareamento, conecta o WebSocket e confirma que a nota de voz
-# chega. O que depende de gente: digitar o código no WhatsApp e mandar a
-# nota de voz — o script avisa na hora.
+# It does it all by itself: installs the APK, starts the daemon, generates the pairing code,
+# waits for pairing, connects the WebSocket and confirms that the voice note
+# arrives. What needs a person: typing the code in WhatsApp and sending the
+# voice note; the script warns you right then.
 #
-# Uso:
-#   scripts/test-android.sh <apk> <ddd+numero>
+# Usage:
+#   scripts/test-android.sh <apk> <area code+number>
 #
-# Exemplo:
+# Example:
 #   scripts/test-android.sh app-debug.apk 19982617622
 
 set -euo pipefail

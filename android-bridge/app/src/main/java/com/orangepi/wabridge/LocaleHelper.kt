@@ -5,18 +5,18 @@ import android.content.res.Configuration
 import java.util.Locale
 
 /**
- * Aplica o idioma escolhido pelo usuário (ou o do sistema) ao Context.
+ * Applies the language chosen by the user (or the system one) to the Context.
  *
- * O idioma só muda de verdade quando o Context carrega as strings com o
- * locale certo. Por isso embrulhamos o base context da Activity: assim
- * getString() passa a devolver os textos no idioma selecionado.
+ * The language only really changes when the Context loads the strings with the
+ * right locale. That is why we wrap the Activity's base context: this way
+ * getString() starts returning texts in the selected language.
  */
 object LocaleHelper {
 
-    /** Devolve um Context com o locale do idioma salvo aplicado. */
+    /** Returns a Context with the saved language's locale applied. */
     fun wrap(context: Context): Context {
         val lang = Prefs.language(context)
-        val locale = localeFor(lang) ?: return context // SYSTEM: não força nada
+        val locale = localeFor(lang) ?: return context // SYSTEM: forces nothing
 
         // Do not call Locale.setDefault() here: it is a process-global mutation.
         // Each component (MainActivity, CallActivity, BridgeForegroundService)

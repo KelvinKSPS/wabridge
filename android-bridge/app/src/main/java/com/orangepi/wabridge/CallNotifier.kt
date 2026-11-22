@@ -12,9 +12,9 @@ import androidx.core.app.Person
 import androidx.core.app.RemoteInput
 
 /**
- * Notificações do app: a de serviço em primeiro plano e a de chamada
- * entrante (com full screen intent, que é o jeito garantido de abrir a
- * tela de chamada em relógio).
+ * App notifications: the foreground service one and the incoming call
+ * notification (with full screen intent, which is the guaranteed way to open
+ * the call screen on a watch).
  */
 object CallNotifier {
 
@@ -114,7 +114,7 @@ object CallNotifier {
             .build()
     }
 
-    /** Notificação de chamada: abre a tela do app em tela cheia. */
+    /** Call notification: opens the app screen full screen. */
     fun callNotification(context: Context, payload: CallPayload): Notification {
         val full = PendingIntent.getActivity(
             context,

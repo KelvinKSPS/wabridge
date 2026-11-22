@@ -23,7 +23,7 @@ describe('Hub de WebSocket', () => {
     await new Promise<void>((r) => server.close(() => r()));
   });
 
-  /** Abre um cliente e devolve as mensagens recebidas. */
+  /** Opens a client and returns the messages it receives. */
   async function client(): Promise<{ ws: WebSocket; messages: any[]; raw: string[] }> {
     const ws = new WebSocket(url);
     const messages: any[] = [];
@@ -34,7 +34,7 @@ describe('Hub de WebSocket', () => {
       try {
         messages.push(JSON.parse(text));
       } catch {
-        /* resposta em texto puro (pong) */
+        /* plain text reply (pong) */
       }
     });
     await new Promise<void>((r) => ws.on('open', r));

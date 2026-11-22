@@ -6,13 +6,13 @@ import android.content.Intent
 import android.util.Log
 
 /**
- * Ajusta a taxa de amostragem da gravação sem rebuildar.
+ * Adjusts the recording sample rate without rebuilding.
  *
  *   adb shell am broadcast -a com.orangepi.wabridge.SET_SAMPLE_RATE --ei sample_rate 16000
  *
- * O servidor externo re-encoda com ffmpeg a 16000 Hz; o app grava 48000 Hz.
- * O padrão continua 48000 (DEFAULT_SAMPLE_RATE) — este receiver só existe
- * para A/B testar o formato.
+ * The external server re-encodes with ffmpeg at 16000 Hz; the app records at 48000 Hz.
+ * The default stays 48000 (DEFAULT_SAMPLE_RATE); this receiver only exists
+ * to A/B test the format.
  */
 class AudioConfigReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {

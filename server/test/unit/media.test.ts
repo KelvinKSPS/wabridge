@@ -7,7 +7,7 @@ import { toWav16k, toOggOpus } from '../../src/media';
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wabridge-test-'));
 
-/** Lê o cabeçalho de um WAV canônico. */
+/** Reads the header of a canonical WAV. */
 function readWav(file: string) {
   const b = fs.readFileSync(file);
   assert.equal(b.toString('ascii', 0, 4), 'RIFF');
@@ -20,7 +20,7 @@ function readWav(file: string) {
   };
 }
 
-/** Procura o codec de um container Ogg (vorbis/opus identification header). */
+/** Finds the codec of an Ogg container (vorbis/opus identification header). */
 function readOggCodec(file: string): string {
   const b = fs.readFileSync(file);
   const head = b.toString('latin1', 0, 64);

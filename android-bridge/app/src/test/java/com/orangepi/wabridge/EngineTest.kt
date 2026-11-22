@@ -7,10 +7,10 @@ import org.junit.Test
 import java.io.File
 
 /**
- * Testes da lógica que não depende de Android.
+ * Tests for the logic that does not depend on Android.
  *
- * Prefs/DaemonManager/PairingClient mexem no contexto Android, então aqui a
- * gente testa o que é puro: parsing, limites e o ciclo de velocidade.
+ * Prefs/DaemonManager/PairingClient touch the Android context, so here we
+ * test what is pure: parsing, limits and the speed cycle.
  */
 class EngineTest {
 
@@ -21,7 +21,7 @@ class EngineTest {
 
     @Test
     fun `o modo embutido e o padrao`() {
-        // o padrão precisa ser o embutido: o app é standalone
+        // the default must be the embedded one: the app is standalone
         assertEquals("EMBUTIDO", Prefs.Engine.EMBUTIDO.name)
         assertEquals(2, Prefs.Engine.values().size)
     }
@@ -34,7 +34,7 @@ class EngineTest {
 
     @Test
     fun `o binario do daemon tem o nome certo`() {
-        // o nome importa: o app procura exatamente este arquivo
+        // the name matters: the app looks for exactly this file
         assertEquals("libwabridge_core.so", DaemonManager.binaryName())
     }
 

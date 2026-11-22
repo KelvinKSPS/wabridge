@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Sobe o servidor da ponte usando o .env.
-# (o .env tem prioridade sobre o ambiente: `set -a` exporta tudo que vier do arquivo)
+# Starts the bridge server using .env.
+# (.env takes priority over the environment: `set -a` exports everything from the file)
 set -euo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

@@ -2,16 +2,16 @@ package com.orangepi.wabridge
 
 import org.json.JSONObject
 
-/** Evento NEW_VOICE_NOTE enviado pelo servidor. */
+/** NEW_VOICE_NOTE event sent by the server. */
 data class CallPayload(
     val audioId: String,
     val senderName: String,
     val senderNumber: String,
     val audioUrl: String,
-    /** Duração da nota de voz em segundos (0 = desconhecido). */
+    /** Voice note duration in seconds (0 = unknown). */
     val durationSec: Int = 0,
 ) {
-    /** Nome exibido na tela de chamada: "Sara · 0:12". */
+    /** Name shown on the call screen: "Sara · 0:12". */
     val displayName: String
         get() = if (durationSec > 0) {
             "$senderName · ${formatDuration(durationSec)}"
@@ -29,7 +29,7 @@ data class CallPayload(
     }.toString()
 
     companion object {
-        /** Chamada em andamento (usado pelas ações da notificação). */
+        /** Call in progress (used by the notification actions). */
         @Volatile
         var current: CallPayload? = null
             private set

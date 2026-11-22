@@ -20,13 +20,13 @@ const EXT_BY_MIME: Record<string, string> = {
 };
 
 /**
- * Cliente da Evolution API. Só o que a ponte precisa: baixar a mídia
- * recebida e enviar nota de voz.
+ * Evolution API client. Only what the bridge needs: download the media
+ * received and send a voice note.
  *
- * - v2 (Evolution API 2.x): a mídia é baixada passando a mensagem
- * inteira para `getBase64FromMediaMessage`, e a nota de voz vai como base64
- * em `message/sendWhatsAppAudio`. A v1 continua suportada como reserva
- * (link público + `/chat/sendAudio`).
+ * - v2 (Evolution API 2.x): the media is downloaded by passing the whole message
+ * to `getBase64FromMediaMessage`, and the voice note goes as base64
+ * in `message/sendWhatsAppAudio`. v1 is still supported as a fallback
+ * (public link + `/chat/sendAudio`).
  */
 export class EvolutionClient {
   private readonly http: AxiosInstance;
@@ -49,7 +49,7 @@ export class EvolutionClient {
     return { 'Content-Type': 'application/json', apikey: this.apiKey };
   }
 
-  /** Extrai o base64 de qualquer formato de resposta da Evolution. */
+  /** Extracts the base64 from any response format from Evolution. */
   private static pickBase64(body: any): string | undefined {
     const candidates = [
       body?.base64,
@@ -60,7 +60,7 @@ export class EvolutionClient {
     ];
     for (const c of candidates) {
       if (typeof c === 'string' && c.length > 0) return c.includes(',') ? c.slice(c.indexOf(',') + 1) : c;
-      // Buffer serializado em JSON: { type: 'Buffer', data: [...] }
+      // Buffer serialized as JSON: { type: 'Buffer', data: [...] }
       if (c && typeof c === 'object' && Array.isArray(c.data)) {
         return Buffer.from(c.data).toString('base64');
       }
@@ -68,7 +68,7 @@ export class EvolutionClient {
     return undefined;
   }
 
-  /** Baixa a mídia (opus/ogg) do WhatsApp. */
+  /** Downloads the media (opus/ogg) from WhatsApp. */
   async downloadMedia(evt: {
     message?: any;
     audioUrl?: string;
@@ -76,7 +76,7 @@ export class EvolutionClient {
   }): Promise<DownloadedMedia> {
     const mimetype = evt.mimetype ?? 'audio/ogg';
 
-    // v2: manda a mensagem inteira e recebe base64.
+    // v2: sends the whole message and receives base64.
     if (evt.message && typeof evt.message === 'object') {
       try {
         const res = await this.http.post(
@@ -97,12 +97,12 @@ export class EvolutionClient {
         }
       } catch (err: any) {
         const status = err?.response?.status;
-        // 404/405: rota inexistente nesta versão. 400: mensagem não reconhecida.
+        // 404/405: route does not exist in this version. 400: message not recognized.
         if (status !== 404 && status !== 405 && status !== 400) throw err;
       }
     }
 
-    // v1: link público para o arquivo.
+    // v1: public link to the file.
     if (evt.audioUrl) {
       const res = await this.http.post(
         `/chat/downloadMedia/${this.instance}`,
@@ -121,7 +121,7 @@ export class EvolutionClient {
         };
       }
 
-      // Versões antigas devolvem um link temporário.
+      // Older versions return a temporary link.
       const link: string | undefined = body.link ?? body.url ?? body.mediaUrl;
       if (typeof link === 'string' && link.length > 0) {
         const bin = await this.http.get(link, { responseType: 'arraybuffer' });
@@ -132,7 +132,7 @@ export class EvolutionClient {
         };
       }
 
-      // Alguns deployments devolvem o binário direto.
+      // Some deployments return the binary directly.
       if (Buffer.isBuffer(res.data)) {
         return { data: res.data, extension: EXT_BY_MIME[mimetype] ?? 'ogg', mimetype };
       }
@@ -141,7 +141,7 @@ export class EvolutionClient {
     throw new Error('Evolution downloadMedia: resposta sem base64 nem link');
   }
 
-  /** QR de pareamento (v2). Chamar isso reinicia a conexão do socket. */
+  /** Pairing QR (v2). Calling this restarts the socket connection. */
   async getQrCode(): Promise<{ base64?: string; ref?: string; pairingCode?: string } | null> {
     try {
       const res = await this.http.get(`/instance/connect/${this.instance}`, {
@@ -161,7 +161,7 @@ export class EvolutionClient {
     }
   }
 
-  /** Envia uma mensagem de texto (resposta rápida). */
+  /** Sends a text message (quick reply). */
   async sendText(number: string, text: string): Promise<any> {
     const payload = { number, text };
     try {
@@ -178,7 +178,7 @@ export class EvolutionClient {
     }
   }
 
-  /** Envia nota de voz (PTT) para o número informado (só dígitos). */
+  /** Sends a voice note (PTT) to the given number (digits only). */
   async sendVoiceNote(number: string, ogg: Buffer, fileName = 'reply.ogg'): Promise<any> {
     const b64 = ogg.toString('base64');
     const payloadBase = {
@@ -188,7 +188,7 @@ export class EvolutionClient {
       ptt: true,
     };
 
-    // v2: base64 puro no corpo.
+    // v2: plain base64 in the body.
     try {
       return await this.http.post(
         `/message/sendWhatsAppAudio/${this.instance}`,
@@ -200,7 +200,7 @@ export class EvolutionClient {
       if (status !== 404 && status !== 405) throw err;
     }
 
-    // v1: data URI na API dedicada de áudio.
+    // v1: data URI in the dedicated audio API.
     const dataUri = `data:audio/ogg;base64,${b64}`;
     try {
       return await this.http.post(`/chat/sendAudio/${this.instance}`, {
@@ -210,7 +210,7 @@ export class EvolutionClient {
     } catch (err: any) {
       const status = err?.response?.status;
       if (status !== 404 && status !== 405) throw err;
-      // Fallback: sendMedia com mediatype=audio.
+      // Fallback: sendMedia with mediatype=audio.
       return this.http.post(`/chat/sendMedia/${this.instance}`, {
         ...payloadBase,
         mediatype: 'audio',

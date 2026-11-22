@@ -1,6 +1,6 @@
-// Evolution API falsa para testar a ponte sem WhatsApp real.
-//   node test/mock-evolution.js [porta]
-// Requer um sample.ogg em test/sample.ogg (veja test/make-sample.sh).
+// Fake Evolution API to test the bridge without real WhatsApp.
+//   node test/mock-evolution.js [port]
+// Requires a sample.ogg at test/sample.ogg (see test/make-sample.sh).
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
@@ -34,7 +34,7 @@ http
         return;
       }
 
-      // v2: a mensagem inteira vai no corpo e a API devolve base64.
+      // v2: the whole message goes in the body and the API returns base64.
       if (req.url.startsWith('/chat/getBase64FromMediaMessage')) {
         res.setHeader('Content-Type', 'application/json');
         res.end(
@@ -51,7 +51,7 @@ http
         return;
       }
 
-      // v2: nota de voz com base64 puro.
+      // v2: voice note with plain base64.
       if (req.url.startsWith('/message/sendWhatsAppAudio')) {
         const raw = json.audio || '';
         const b64 = raw.includes(',') ? raw.slice(raw.indexOf(',') + 1) : raw;

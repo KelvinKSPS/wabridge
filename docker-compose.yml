@@ -1,13 +1,13 @@
-# Evolution API — lado do WhatsApp da ponte.
+# Evolution API: the WhatsApp side of the bridge.
 #
 #   docker compose up -d
 #
-# UI de gerenciamento (QR para parear): http://192.168.15.100:8098/manager
-# Documentacao da API: http://192.168.15.100:8098/docs
+# Management UI (QR to pair): http://192.168.15.100:8098/manager
+# API docs: http://192.168.15.100:8098/docs
 #
-# O webhook global ja aponta para a ponte:
+# The global webhook already points to the bridge:
 #   http://192.168.15.100:8097/webhook/whatsapp
-# e o servidor fala com a Evolution em EVOLUTION_API_URL (server/.env).
+# and the server talks to Evolution at EVOLUTION_API_URL (server/.env).
 
 services:
   evolution:
@@ -15,7 +15,7 @@ services:
     container_name: wabridge-evolution
     restart: unless-stopped
     ports:
-      # host 8098 -> container 8080 (a 8080 do host e' do qbittorrent)
+      # host 8098 -> container 8080 (host port 8080 is used by qbittorrent)
       - "8098:8080"
     environment:
       SERVER_NAME: evolution
@@ -27,13 +27,13 @@ services:
       LANGUAGE: pt-BR
       LOG_LEVEL: ERROR,WARN,INFO
       TELEMETRY_ENABLED: "false"
-      # autenticacao
+      # authentication
       AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY:-wabridge-dev}
       AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES: "false"
-      # a Evolution conta cada QR gerado e recusa o pareamento no limite
-      # (o padrao e' 30 e o QR gira a cada ~30s = 15 minutos de janela)
+      # Evolution counts each QR generated and refuses pairing at the limit
+      # (the default is 30 and the QR rotates every ~30s = 15-minute window)
       QRCODE_LIMIT: "500"
-      # banco (obrigatorio na v2)
+      # database (required in v2)
       DATABASE_PROVIDER: postgresql
       DATABASE_CONNECTION_URI: postgresql://evolution:evolution@evolution-postgres:5432/evolution_api
       DATABASE_CONNECTION_CLIENT_NAME: evolution
@@ -45,7 +45,7 @@ services:
       CACHE_REDIS_PREFIX_KEY: evolution-cache
       CACHE_REDIS_SAVE_INSTANCES: "true"
       CACHE_LOCAL_ENABLED: "true"
-      # webhook global -> ponte
+      # global webhook -> bridge
       WEBHOOK_GLOBAL_URL: http://192.168.15.100:8097/webhook/whatsapp
       WEBHOOK_GLOBAL_ENABLED: "true"
       WEBHOOK_GLOBAL_WEBHOOK_BY_EVENTS: "true"
